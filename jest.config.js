@@ -1,0 +1,37 @@
+module.exports = {
+  preset: 'ts-jest',
+  testEnvironment: 'node',
+  roots: ['<rootDir>/src', '<rootDir>/tests'],
+  testMatch: ['**/__tests__/**/*.ts', '**/?(*.)+(spec|test).ts'],
+  transform: {
+    '^.+\\.ts$': 'ts-jest',
+  },
+  collectCoverageFrom: [
+    'src/**/*.ts',
+    '!src/**/*.d.ts',
+    '!src/**/*.test.ts',
+    '!src/**/*.spec.ts',
+    '!src/**/index.ts',
+  ],
+  coverageThreshold: {
+    global: {
+      branches: 100,
+      functions: 100,
+      lines: 100,
+      statements: 100,
+    },
+  },
+  coverageDirectory: 'coverage',
+  coverageReporters: ['text', 'lcov', 'html'],
+  moduleNameMapper: {
+    '^@/(.*)$': '<rootDir>/src/$1',
+    '^chalk$': '<rootDir>/tests/mocks/chalk.js',
+    '^ora$': '<rootDir>/tests/mocks/ora.js',
+    '^figlet$': '<rootDir>/tests/mocks/figlet.js',
+    '^boxen$': '<rootDir>/tests/mocks/boxen.js',
+    '^inquirer$': '<rootDir>/tests/mocks/inquirer.js',
+  },
+  setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
+  testPathIgnorePatterns: ['/node_modules/', '/dist/'],
+  verbose: true,
+};
