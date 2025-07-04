@@ -12,12 +12,14 @@ This document tracks all the temporary fixes and compromises made to get CI pass
   - statements: 20% → 85%
 
 ## E2E Test Compatibility
-- **Current State**: E2E tests skipped on Node 18 and Node 24
-- **Issue**: CLI spawning fails with exit code 1 on these versions
-- **TODO**: Debug and fix compatibility issues
-  - Investigate why parseAsync() doesn't work on Node 18/24
-  - Consider using a different approach for CLI testing
-  - Remove the version-based skip logic
+- **Current State**: E2E tests skipped only on Node 18
+- **Issue**: Node 18 has ESM compatibility issues with boxen dependency (ERR_REQUIRE_ESM)
+- **Note**: Node 24 works fine locally but was initially skipped due to misdiagnosis
+- **TODO**: Fix Node 18 compatibility
+  - Option 1: Use dynamic import() for boxen in banner.js
+  - Option 2: Find CommonJS alternative to boxen
+  - Option 3: Build separate ESM output for Node 18+
+  - Remove the version-based skip logic once fixed
 
 ## PR Workflow Permissions
 - **Current State**: Multiple PR checks have `continue-on-error: true`
