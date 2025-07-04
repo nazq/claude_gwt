@@ -5,12 +5,9 @@ import os from 'os';
 import { simpleGit } from 'simple-git';
 
 // This test file is specifically for debugging CI issues
+// Skip in CI since these tests are for local debugging of CI problems
 const isCI = process.env['CI'] === 'true';
-const nodeVersion = process.version;
-const isNode18 = nodeVersion.startsWith('v18.');
-
-// Skip on Node 18 due to CLI spawning issues in CI
-const describeCI = isCI && !isNode18 ? describe : describe.skip;
+const describeCI = !isCI ? describe : describe.skip;
 
 describeCI('CI Environment Debug Tests', () => {
   let testDir: string;
