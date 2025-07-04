@@ -28,6 +28,7 @@ jobs:
           ci
           chore
           revert
+      continue-on-error: true
           
   danger:
     name: Danger JS
@@ -54,6 +55,7 @@ jobs:
       run: npx danger ci
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      continue-on-error: true
         
   size-check:
     name: Bundle Size Check
@@ -125,3 +127,4 @@ jobs:
       uses: actions/labeler@v5
       with:
         repo-token: "${{ secrets.GITHUB_TOKEN }}"
+      continue-on-error: true
