@@ -9,8 +9,6 @@ import * as path from 'path';
 import { TmuxManager } from '../sessions/TmuxManager';
 import { WorktreeManager } from '../core/git/WorktreeManager';
 import { GitDetector } from '../core/git/GitDetector';
-import { TokenTracker } from '../core/TokenTracker';
-import { TokenReporter } from '../core/TokenReporter';
 import { ConfigManager } from '../core/ConfigManager';
 
 const SESSION_PREFIX = 'cgwt';
@@ -287,68 +285,6 @@ function showStatus(): void {
   }
 }
 
-function showTokenUsage(args: string[]): void {
-  const reporter = new TokenReporter();
-  const tracker = TokenTracker.getInstance();
-
-  // Parse arguments
-  const hasToday = args.includes('--today');
-  const hasWeek = args.includes('--week');
-  const hasMonth = args.includes('--month');
-  const hasByBranch = args.includes('--by-branch');
-  const hasCost = args.includes('--cost');
-  const hasExport = args.includes('--export');
-
-  // Handle export
-  if (hasExport) {
-    const exportIndex = args.indexOf('--export');
-    const format = args[exportIndex + 1];
-    const filename =
-      args[exportIndex + 2] ?? `claude-usage-${new Date().toISOString().split('T')[0]}`;
-
-    if (format === 'csv') {
-      tracker.exportToCSV(`${filename}.csv`);
-      console.log(chalk.green(`✓ Exported usage data to ${filename}.csv`));
-    } else if (format === 'json') {
-      tracker.exportToJSON(`${filename}.json`);
-      console.log(chalk.green(`✓ Exported usage data to ${filename}.json`));
-    } else {
-      console.log(chalk.red('Error: Export format must be "csv" or "json"'));
-    }
-    return;
-  }
-
-  // Show current session by default if no flags
-  if (!hasToday && !hasWeek && !hasMonth && !hasByBranch && args.length === 0) {
-    reporter.showCurrentSession();
-    return;
-  }
-
-  // Show time-based stats
-  if (hasToday) {
-    const stats = tracker.getTodayStats();
-    reporter.showStats(stats, "Today's Usage");
-  } else if (hasWeek) {
-    const stats = tracker.getWeekStats();
-    reporter.showStats(stats, "This Week's Usage");
-  } else if (hasMonth) {
-    const stats = tracker.getMonthStats();
-    reporter.showStats(stats, "This Month's Usage");
-  }
-
-  // Show branch breakdown
-  if (hasByBranch) {
-    const branchIndex = args.indexOf('--by-branch');
-    const branch = args[branchIndex + 1];
-    reporter.showBranchStats(branch);
-  }
-
-  // Show comparison view
-  if (hasCost || (!hasToday && !hasWeek && !hasMonth && !hasByBranch)) {
-    reporter.showComparison();
-  }
-}
-
 function showHelp(): void {
   console.log(chalk.bold('cgwt - Claude GWT session switcher'));
   console.log('Usage:');
@@ -361,15 +297,6 @@ function showHelp(): void {
   console.log('  cgwt sync         - Toggle synchronized panes');
   console.log('  cgwt dashboard    - Show branch dashboard');
   console.log('  cgwt layouts      - Show predefined layouts');
-  console.log('');
-  console.log(chalk.bold('Token Tracking:'));
-  console.log('  cgwt tokens                     - Show current session usage');
-  console.log("  cgwt tokens --today             - Today's usage");
-  console.log("  cgwt tokens --week              - This week's usage");
-  console.log("  cgwt tokens --month             - This month's usage");
-  console.log('  cgwt tokens --by-branch [name]  - Usage by branch');
-  console.log('  cgwt tokens --cost              - Show cost analysis');
-  console.log('  cgwt tokens --export csv|json   - Export usage data');
   console.log('');
   console.log(chalk.bold('Configuration:'));
   console.log('  cgwt config init  - Initialize config with defaults');
@@ -644,12 +571,6 @@ async function main(): Promise<void> {
       case 'layouts':
         showLayouts();
         break;
-      case 'tokens': {
-        // Get all args after 'tokens'
-        const tokenArgs = process.argv.slice(3);
-        showTokenUsage(tokenArgs);
-        break;
-      }
       default:
         showHelp();
     }

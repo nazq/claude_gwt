@@ -9,8 +9,6 @@ Welcome to the Claude GWT documentation! This directory contains detailed guides
 - [Quick Start](../README.md#-quick-start) - Get up and running quickly
 
 ### Features
-- [MCP Integration](mcp-integration.md) - Model Context Protocol server setup and usage
-- [Token Tracking](token-tracking.md) - Comprehensive token usage monitoring and cost analysis
 - [Tmux Enhancements](tmux-enhancements.md) - Advanced tmux features and layouts
 
 ### Development

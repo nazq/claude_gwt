@@ -1,50 +1,56 @@
-# Add labels to any changes within src/cli
+# Configuration for the labeler action
+# Add labels based on file paths
+
+documentation:
+  - changed-files:
+    - any-glob-to-any-file: 
+      - docs/**
+      - '*.md'
+      - LICENSE
+
+tests:
+  - changed-files:
+    - any-glob-to-any-file:
+      - tests/**
+      - '**/*.test.ts'
+      - '**/*.spec.ts'
+      - jest.config.js
+
 cli:
   - changed-files:
     - any-glob-to-any-file: src/cli/**
 
-# Add labels to any changes within src/core
 core:
   - changed-files:
     - any-glob-to-any-file: src/core/**
 
-# Add labels to any changes within src/mcp
-mcp:
+git:
   - changed-files:
-    - any-glob-to-any-file: src/mcp/**
+    - any-glob-to-any-file: src/core/git/**
 
-# Add labels to test files
-tests:
+sessions:
   - changed-files:
-    - any-glob-to-any-file: tests/**
+    - any-glob-to-any-file: src/sessions/**
 
-# Add documentation label
-documentation:
+ci:
   - changed-files:
-    - any-glob-to-any-file: 
-      - '**/*.md'
-      - docs/**
+    - any-glob-to-any-file:
+      - .github/workflows/**
+      - .github/actions/**
+      - Dangerfile.js
 
-# Add CI/CD label
-ci/cd:
-  - changed-files:
-    - any-glob-to-any-file: 
-      - .github/**
-      - Dockerfile
-      - .dockerignore
-
-# Add dependencies label
 dependencies:
   - changed-files:
     - any-glob-to-any-file:
       - package.json
       - package-lock.json
 
-# Add configuration label
-configuration:
+config:
   - changed-files:
     - any-glob-to-any-file:
       - tsconfig.json
+      - jest.config.js
       - .eslintrc.js
       - .prettierrc
-      - jest.config.js
+      - .gitignore
+      - .npmignore

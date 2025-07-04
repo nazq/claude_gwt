@@ -143,7 +143,7 @@ You are working on a specific branch. Focus on the tasks assigned to this branch
       },
       ui: {
         theme: 'default',
-        showTokenUsage: true,
+        showTokenUsage: false,
         autoLaunchSupervisor: true,
       },
       git: {
