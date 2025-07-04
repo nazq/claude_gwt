@@ -58,13 +58,17 @@ describe('CLI End-to-End Workflow', () => {
       });
 
       child.on('close', (code) => {
-        // Log output for debugging CI failures
-        if (code !== 0 && process.env['CI']) {
-          console.error('CLI failed with code:', code);
-          console.error('STDOUT:', stdout);
-          console.error('STDERR:', stderr);
+        // Always log for debugging in CI for now
+        if (code !== 0) {
+          console.error('=== CLI DEBUG INFO ===');
+          console.error('CLI failed with exit code:', code);
           console.error('Node version:', process.version);
           console.error('CLI path:', cliPath);
+          console.error('STDOUT length:', stdout.length);
+          console.error('STDERR length:', stderr.length);
+          console.error('STDOUT:', JSON.stringify(stdout));
+          console.error('STDERR:', JSON.stringify(stderr));
+          console.error('=== END DEBUG INFO ===');
         }
         resolve({ stdout, stderr, code: code || 0 });
       });
