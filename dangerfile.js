@@ -17,10 +17,13 @@ if (hasSourceChanges && !hasTests) {
 // Check for console.log statements
 const jsFiles = danger.git.modified_files.filter(path => path.endsWith('.ts') || path.endsWith('.js'));
 for (const file of jsFiles) {
-  const content = danger.github.utils.fileContents(file);
-  if (content && content.includes('console.log')) {
-    warn(`Found console.log in ${file}. Consider using the Logger utility instead.`);
-  }
+  danger.github.utils.fileContents(file).then(content => {
+    if (content && content.includes && content.includes('console.log')) {
+      warn(`Found console.log in ${file}. Consider using the Logger utility instead.`);
+    }
+  }).catch(() => {
+    // File might not be accessible, skip it
+  });
 }
 
 // Encourage documentation updates

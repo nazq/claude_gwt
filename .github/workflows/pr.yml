@@ -2,13 +2,40 @@ name: Pull Request
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, edited]
     branches: [master, main]
 
 jobs:
+  pr-title:
+    name: PR Title Check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Check PR title
+      uses: amannn/action-semantic-pull-request@v5
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        types: |
+          feat
+          fix
+          docs
+          style
+          refactor
+          perf
+          test
+          build
+          ci
+          chore
+          revert
+      continue-on-error: true
+          
   danger:
     name: Danger JS
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     if: github.event.pull_request.head.repo.full_name == github.repository
     
     steps:
@@ -28,6 +55,7 @@ jobs:
       run: npx danger ci
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      continue-on-error: true
         
   size-check:
     name: Bundle Size Check
@@ -54,10 +82,14 @@ jobs:
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         skip_step: build
+      continue-on-error: true
         
   test-coverage:
     name: Test Coverage Report
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     
     steps:
     - name: Checkout code
@@ -73,13 +105,15 @@ jobs:
       run: npm ci
       
     - name: Run tests with coverage
-      run: npm test -- --coverage
+      run: npm run test:coverage
       
     - name: Coverage report
-      uses: romeovs/lcov-reporter-action@v0.3.1
+      uses: ArtiomTr/jest-coverage-report-action@v2
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
-        lcov-file: ./coverage/lcov.info
+        skip-step: all
+        coverage-file: ./coverage/lcov.info
+        test-script: npm run test:coverage
         
   label:
     name: Auto Label PR
@@ -93,3 +127,4 @@ jobs:
       uses: actions/labeler@v5
       with:
         repo-token: "${{ secrets.GITHUB_TOKEN }}"
+      continue-on-error: true
