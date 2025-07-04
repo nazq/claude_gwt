@@ -61,7 +61,7 @@ program
   });
 
 // Main entry point
-async function main() {
+async function main(): Promise<void> {
   try {
     await program.parseAsync();
   } catch (error) {
