@@ -54,7 +54,7 @@ describe('Claude Code MCP Integration E2E', () => {
 
   it('should have proper executable permissions', async () => {
     const serverPath = path.join(__dirname, '../../dist/src/mcp/server.js');
-    
+
     try {
       const stats = await fs.stat(serverPath);
       // Check if file exists
