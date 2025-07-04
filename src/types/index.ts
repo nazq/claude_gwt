@@ -18,7 +18,7 @@ export interface ClaudeInstanceConfig {
 export interface Message {
   id: string;
   from: string;
-  to: string | 'broadcast';
+  to: string;
   type: 'command' | 'response' | 'event' | 'error';
   payload: unknown;
   timestamp: Date;
@@ -47,4 +47,7 @@ export interface CLIOptions {
   interactive?: boolean;
   quiet?: boolean;
   json?: boolean;
+  verbose?: boolean;
+  veryVerbose?: boolean;
+  debug?: boolean;
 }

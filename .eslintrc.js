@@ -30,7 +30,7 @@ module.exports = {
     '@typescript-eslint/no-unnecessary-type-assertion': 'error',
     '@typescript-eslint/prefer-nullish-coalescing': 'error',
     '@typescript-eslint/prefer-optional-chain': 'error',
-    'no-console': ['error', { allow: ['warn', 'error'] }],
+    'no-console': 'off', // CLI app needs console.log
     'prefer-const': 'error',
     'no-var': 'error',
   },

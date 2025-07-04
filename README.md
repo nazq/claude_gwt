@@ -1,85 +1,296 @@
-# Claude GWT (Git Branch Manager)
+# Claude GWT (Git Worktree Tool)
 
-A beautiful Git branch manager with integrated Claude Code orchestration. Manage multiple Git branches using worktrees and coordinate Claude AI instances across branches.
+[![CI](https://github.com/nazq/claude-gwt/actions/workflows/ci.yml/badge.svg)](https://github.com/nazq/claude-gwt/actions/workflows/ci.yml)
+[![npm version](https://badge.fury.io/js/claude-gwt.svg)](https://badge.fury.io/js/claude-gwt)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![codecov](https://codecov.io/gh/nazq/claude-gwt/branch/master/graph/badge.svg)](https://codecov.io/gh/nazq/claude-gwt)
+[![Node.js Version](https://img.shields.io/node/v/claude-gwt.svg)](https://nodejs.org)
 
-## Features
+A powerful Git worktree manager with integrated Claude AI orchestration. Manage multiple Git branches in parallel with dedicated Claude instances for each branch.
 
-- 🌳 **Git Branch Management** - Create, switch, and remove Git branches effortlessly
-- 🤖 **Claude Instance Orchestration** - Run master and child Claude instances across branches
-- 💬 **Inter-Instance Communication** - Message passing between Claude instances
+## 🚀 Features
+
+- 🌳 **Git Worktree Management** - Create, switch, and manage Git worktrees effortlessly
+- 🤖 **Claude AI Orchestration** - Run supervisor and branch-specific Claude instances via tmux
+- 🔄 **Session Management** - Quick switching between Claude sessions with `cgwt` command
+- 📊 **Token Tracking** - Monitor and analyze Claude API usage with detailed reports
 - 🎨 **Beautiful CLI** - Interactive terminal UI with colors and animations
-- 🔄 **Workflow Automation** - Streamline your multi-branch development
+- ⚙️ **Flexible Configuration** - Customize contexts for supervisor and branch workers
+- 🔌 **MCP Integration** - Model Context Protocol server for Claude Code integration
+- 🐳 **Docker Support** - Run in containers with full functionality
 
-## Installation
+## 📦 Installation
 
+### NPM (Recommended)
 ```bash
 npm install -g claude-gwt
 ```
 
-## Quick Start
+### Docker
+```bash
+docker pull nazq/claude-gwt
+docker run -it -v $(pwd):/workspace nazq/claude-gwt
+```
+
+### From Source
+```bash
+git clone https://github.com/nazq/claude-gwt.git
+cd claude-gwt
+npm install
+npm run build
+npm link
+```
+
+For detailed installation instructions, see [docs/installation.md](docs/installation.md).
+
+## 🚀 Quick Start
 
 ```bash
-# In an empty directory
+# Initialize in an empty directory
 claude-gwt
 
-# With a repository URL
+# Clone and set up a repository
 claude-gwt --repo https://github.com/user/repo.git
 
-# In an existing directory
+# Work with existing directory
 claude-gwt /path/to/project
+
+# Non-interactive mode
+claude-gwt --repo URL --quiet
 ```
 
-## Usage
+## 🎯 Core Concepts
 
-### Git Branch Operations
-
-The tool manages Git branches using a worktree pattern:
-
-1. **Initialize** - Creates a `.bare/` directory containing the repository
-2. **Branches** - Each branch gets its own working directory
-3. **Switch** - Move between branches without stashing
-
-### Claude Instance Management
-
-1. **Master Instance** - Coordinates work across all worktrees
-2. **Child Instances** - Dedicated Claude instances per worktree
-3. **Communication** - Message routing between instances
-
-### Commands
-
-When in the interactive menu:
-
-- **Create new branch** - Add a new branch with its own directory
-- **Switch branch** - Navigate to existing branches
-- **Remove branch** - Delete branches and their directories
-- **Manage Claude instances** - Start/stop Claude AI instances
-
-### Claude Instance Commands
-
-Within Claude instances, use these commands:
-
-- `@list` - List all child instances
-- `@status` - Show status of all instances
-- `@send <target> <message>` - Send message to specific instance
-- `@broadcast <message>` - Send message to all instances
-
-## Architecture
-
+### Git Worktree Structure
 ```
-Master Claude Instance (main branch)
-├── Child Instance 1 (feature-a)
-├── Child Instance 2 (feature-b)
-└── Child Instance 3 (bugfix-x)
+project/
+├── .bare/          # Bare repository (hidden)
+├── .git            # Points to .bare
+├── main/           # Main branch worktree
+├── feature-x/      # Feature branch worktree
+└── bugfix-y/       # Bugfix branch worktree
 ```
 
-## Development
+### Claude Session Architecture
+- **Supervisor Session** - Orchestrates work across all branches (index 0)
+- **Branch Sessions** - Dedicated Claude instances per branch (index 1, 2, 3...)
+- **Tmux Integration** - All sessions run in tmux for persistence
+
+## 🛠️ Usage
+
+### Main CLI (`claude-gwt`)
 
 ```bash
+# Interactive mode (default)
+claude-gwt
+
+# With options
+claude-gwt --repo <url>          # Clone repository
+claude-gwt --quiet               # Non-interactive mode
+claude-gwt --clean               # Start fresh Claude sessions
+claude-gwt --help                # Show help
+```
+
+### Session Manager (`cgwt`)
+
+```bash
+# List all sessions
+cgwt l
+
+# Switch to supervisor
+cgwt 0
+
+# Switch to branch by index
+cgwt 1
+
+# Switch to branch by name
+cgwt s feature-auth
+
+# Show status
+cgwt ?
+
+# Token tracking
+cgwt tokens              # Current session usage
+cgwt tokens --today      # Today's usage
+cgwt tokens --cost       # Cost analysis
+cgwt tokens --export csv # Export data
+
+# Advanced features
+cgwt compare             # Compare branches side-by-side
+cgwt dashboard           # Show all branches dashboard
+cgwt sync                # Synchronize input across panes
+
+# Configuration
+cgwt config init         # Initialize configuration
+cgwt config edit         # Edit configuration
+cgwt config show         # Display configuration
+```
+
+## ⚙️ Configuration
+
+Configuration files are stored in `~/.config/claude-gwt/`:
+
+```bash
+~/.config/claude-gwt/
+├── config.json                    # Main configuration
+├── contexts/
+│   ├── projects/
+│   │   ├── my-project.md         # Project-specific context
+│   │   └── my-project/
+│   │       └── feature-x.md      # Branch-specific context
+│   └── templates/
+│       └── api-development.md     # Reusable templates
+```
+
+### Example Configuration
+
+```json
+{
+  "context": {
+    "global": "Global context for all sessions...",
+    "supervisor": "Supervisor-specific context...",
+    "child": "Branch worker context..."
+  },
+  "ui": {
+    "theme": "default",
+    "showTokenUsage": true,
+    "autoLaunchSupervisor": true
+  },
+  "sessions": {
+    "alwaysContinue": true,
+    "maxParallelSessions": 10
+  }
+}
+```
+
+## 🔌 MCP Server Integration
+
+Claude GWT includes a Model Context Protocol server for Claude Code. For detailed MCP integration instructions, see [docs/mcp-integration.md](docs/mcp-integration.md).
+
+### Quick Setup
+```json
+{
+  "mcpServers": {
+    "claude-gwt": {
+      "command": "claude-gwt-mcp",
+      "args": ["/path/to/project"]
+    }
+  }
+}
+```
+
+## 📊 Token Tracking
+
+Claude GWT automatically tracks token usage across all sessions. For comprehensive token tracking documentation, see [docs/token-tracking.md](docs/token-tracking.md).
+
+### Quick Commands
+```bash
+# View current session
+cgwt tokens
+
+# Today's usage
+cgwt tokens --today
+
+# Cost analysis
+cgwt tokens --cost
+```
+
+## 🎨 Advanced Features
+
+### Working with Regular Git Repositories
+
+Claude GWT can work with regular (non-worktree) Git repositories:
+
+```bash
+# In a regular Git repo
+claude-gwt
+
+# Options:
+# 1. Convert to worktree setup (recommended)
+# 2. Use with limited functionality
+```
+
+### Tmux Layouts
+
+```bash
+# Compare branches side-by-side
+cgwt compare feature-a feature-b
+
+# Create dashboard view
+cgwt dashboard
+
+# Synchronize typing across panes
+cgwt sync
+```
+
+### Custom Contexts
+
+Create project-specific contexts:
+
+```bash
+# Initialize config
+cgwt config init
+
+# Edit configuration
+cgwt config edit
+
+# Add project context
+echo "# Project Guidelines" > ~/.config/claude-gwt/contexts/projects/my-project.md
+```
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+1. **Tmux not found**
+   ```bash
+   # Install tmux
+   sudo apt-get install tmux  # Ubuntu/Debian
+   brew install tmux          # macOS
+   ```
+
+2. **Permission denied**
+   ```bash
+   # Ensure scripts are executable
+   chmod +x ~/.npm-global/lib/node_modules/claude-gwt/dist/src/cli/*.js
+   ```
+
+3. **Claude asking for login repeatedly**
+   ```bash
+   # Set trust dialog
+   claude config set hasTrustDialogAccepted true
+   ```
+
+### Debug Mode
+
+```bash
+# Enable verbose logging
+export DEBUG=claude-gwt:*
+claude-gwt
+
+# Check logs
+tail -f .claude-gwt.log
+```
+
+## 📚 Documentation
+
+For detailed documentation, see the [docs](docs/) directory, which includes:
+- [Installation Guide](docs/installation.md)
+- [MCP Integration](docs/mcp-integration.md)
+- [Token Tracking](docs/token-tracking.md)
+- [Tmux Enhancements](docs/tmux-enhancements.md)
+
+## 🤝 Contributing
+
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+
+```bash
+# Fork and clone
+git clone https://github.com/nazq/claude-gwt.git
+cd claude-gwt
+
 # Install dependencies
 npm install
-
-# Run in development mode
-npm run dev
 
 # Run tests
 npm test
@@ -88,12 +299,22 @@ npm test
 npm run build
 ```
 
-## Requirements
+## 📝 License
 
-- Node.js >= 18.0.0
-- Git
-- Claude CLI (`claude`)
+MIT License - see [LICENSE](LICENSE) for details.
 
-## License
+## 🙏 Acknowledgments
 
-MIT
+- Built with [Model Context Protocol](https://github.com/modelcontextprotocol/typescript-sdk)
+- Powered by [Claude AI](https://claude.ai)
+- Terminal UI with [Chalk](https://github.com/chalk/chalk) and [Inquirer](https://github.com/SBoudrias/Inquirer.js)
+
+## 📞 Support
+
+- 📧 Email: support@claude-gwt.dev
+- 💬 Discord: [Join our community](https://discord.gg/claude-gwt)
+- 🐛 Issues: [GitHub Issues](https://github.com/nazq/claude-gwt/issues)
+
+---
+
+Made with ❤️ by the Claude GWT team

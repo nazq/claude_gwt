@@ -13,19 +13,19 @@ export async function promptForRepoUrl(): Promise<string> {
         if (!input) return true;
         // Support various Git URL formats
         const patterns = [
-          /^https?:\/\/.+/,                    // HTTP(S) URLs
-          /^git@.+:.+/,                        // SSH (git@host:path)
-          /^ssh:\/\/.+/,                       // SSH URLs
-          /^git:\/\/.+/,                       // Git protocol
-          /^file:\/\/.+/,                      // Local file
-          /^[a-zA-Z0-9_-]+@[a-zA-Z0-9.-]+:.+/ // Generic SSH format
+          /^https?:\/\/.+/, // HTTP(S) URLs
+          /^git@.+:.+/, // SSH (git@host:path)
+          /^ssh:\/\/.+/, // SSH URLs
+          /^git:\/\/.+/, // Git protocol
+          /^file:\/\/.+/, // Local file
+          /^[a-zA-Z0-9_-]+@[a-zA-Z0-9.-]+:.+/, // Generic SSH format
         ];
-        const isValid = patterns.some(pattern => pattern.test(input));
+        const isValid = patterns.some((pattern) => pattern.test(input));
         return isValid || 'Please enter a valid Git URL (https://, git@, ssh://, etc.)';
       },
     },
   ]);
-  
+
   return repoUrl;
 }
 
@@ -43,43 +43,37 @@ export async function promptForBranchName(defaultBranch?: string): Promise<strin
       },
     },
   ]);
-  
+
   return branchName;
 }
 
 export async function promptForWorktreeAction(
   worktrees: GitWorktreeInfo[],
-  isInWorktree = true,
-): Promise<'new' | 'list' | 'switch' | 'remove' | 'claude' | 'supervisor' | 'exit'> {
+  hasSessions: boolean = false,
+): Promise<'new' | 'list' | 'remove' | 'supervisor' | 'shutdown' | 'exit'> {
   const choices = [];
-  
-  // Add supervisor mode if we're in parent directory
-  if (!isInWorktree) {
-    choices.push({ name: `${theme.claude('👨‍💼')} Enter supervisor mode`, value: 'supervisor' });
-  }
-  
+
+  // Add supervisor mode option
+  choices.push({ name: `${theme.claude('👨‍💼')} Enter supervisor mode`, value: 'supervisor' });
+
   choices.push(
     { name: `${theme.success('➕')} Create new branch`, value: 'new' },
     { name: `${theme.info('📋')} List all branches`, value: 'list' },
-    { name: `${theme.info('🚀')} Work in branch`, value: 'switch' }
   );
-  
+
   if (worktrees.length > 1) {
     choices.push({ name: `${theme.error('🗑️')} Remove branch`, value: 'remove' });
   }
-  
-  if (isInWorktree) {
-    choices.push({ name: `${theme.claude('🤖')} View Claude instances`, value: 'claude' });
-  } else {
-    choices.push({ 
-      name: `${theme.muted('🤖')} View Claude instances ${theme.dim('(enter a branch first)')}`, 
-      value: 'claude' 
-    });
+
+  if (hasSessions) {
+    choices.push({ name: `${theme.error('🛑')} Shutdown all sessions`, value: 'shutdown' });
   }
-  
+
   choices.push({ name: `${theme.muted('🚪')} Exit`, value: 'exit' });
-  
-  const { action } = await inquirer.prompt<{ action: 'new' | 'list' | 'switch' | 'remove' | 'claude' | 'supervisor' | 'exit' }>([
+
+  const { action } = await inquirer.prompt<{
+    action: 'new' | 'list' | 'remove' | 'supervisor' | 'shutdown' | 'exit';
+  }>([
     {
       type: 'list',
       name: 'action',
@@ -87,27 +81,7 @@ export async function promptForWorktreeAction(
       choices,
     },
   ]);
-  
-  return action;
-}
 
-export async function promptForClaudeAction(): Promise<'stop-child' | 'list' | 'restart-master' | 'back'> {
-  const choices = [
-    { name: `${theme.info('📋')} Show all Claude instances`, value: 'list' },
-    { name: `${theme.warning('⏹️')} Stop child Claude instance`, value: 'stop-child' },
-    { name: `${theme.claude('🔄')} Restart master instance`, value: 'restart-master' },
-    { name: `${theme.muted('⬅️')} Back to main menu`, value: 'back' },
-  ];
-  
-  const { action } = await inquirer.prompt<{ action: 'stop-child' | 'list' | 'restart-master' | 'back' }>([
-    {
-      type: 'list',
-      name: 'action',
-      message: 'Claude instance management:',
-      choices,
-    },
-  ]);
-  
   return action;
 }
 
@@ -119,7 +93,7 @@ export async function selectWorktree(
     name: `${theme.branch(wt.branch || 'detached')} ${theme.dim(`(${path.basename(wt.path)})`)}`,
     value: wt.branch || wt.path,
   }));
-  
+
   const { selection } = await inquirer.prompt<{ selection: string }>([
     {
       type: 'list',
@@ -128,7 +102,7 @@ export async function selectWorktree(
       choices,
     },
   ]);
-  
+
   return selection;
 }
 
@@ -141,7 +115,7 @@ export async function confirmAction(message: string): Promise<boolean> {
       default: false,
     },
   ]);
-  
+
   return confirmed;
 }
 
@@ -165,6 +139,40 @@ export async function promptForSubdirectoryName(defaultName = 'my-project'): Pro
       },
     },
   ]);
-  
+
   return subdirName;
+}
+
+export async function selectAction(
+  message: string,
+  choices: Array<{ title: string; value: string }>,
+): Promise<string> {
+  const { action } = await inquirer.prompt<{ action: string }>([
+    {
+      type: 'list',
+      name: 'action',
+      message,
+      choices: choices.map((c) => ({ name: c.title, value: c.value })),
+    },
+  ]);
+
+  return action;
+}
+
+export async function selectBranch(message: string, branches: string[]): Promise<string> {
+  const choices = [
+    ...branches.map((b) => ({ name: b, value: b })),
+    { name: theme.muted('Cancel'), value: 'cancel' },
+  ];
+
+  const { branch } = await inquirer.prompt<{ branch: string }>([
+    {
+      type: 'list',
+      name: 'branch',
+      message,
+      choices,
+    },
+  ]);
+
+  return branch;
 }

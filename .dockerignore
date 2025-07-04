@@ -1,0 +1,63 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Node
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Testing
+coverage
+.nyc_output
+tests
+
+# Development
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Build artifacts
+dist
+*.tgz
+
+# Documentation
+docs
+*.md
+!README.md
+
+# CI/CD
+.github
+.gitlab-ci.yml
+.travis.yml
+
+# Mac
+.DS_Store
+
+# Logs
+logs
+*.log
+
+# Temporary files
+tmp
+temp
+.tmp
+
+# Environment variables
+.env
+.env.*
+
+# Test directories
+test-gwt
+test-mcp
+test-real-world
+test-run
+test-token-tracking.sh
+test-*.sh
+
+# Development scripts
+run-*.sh

@@ -14,7 +14,7 @@ export class WorktreeManager {
     const gitPath = this.isBareSetup() ? this.bareGitPath : basePath;
     this.git = simpleGit(gitPath);
   }
-  
+
   private isBareSetup(): boolean {
     return existsSync(this.bareGitPath);
   }
@@ -23,13 +23,13 @@ export class WorktreeManager {
     try {
       const result = await this.git.raw(['worktree', 'list', '--porcelain']);
       const worktrees = this.parseWorktreeList(result);
-      
+
       // Filter out the .bare directory - it's an implementation detail
-      return worktrees.filter(wt => !wt.path.endsWith('/.bare'));
+      return worktrees.filter((wt) => !wt.path.endsWith('/.bare'));
     } catch (error) {
       throw new GitOperationError(
         `Failed to list worktrees: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        'listWorktrees'
+        'listWorktrees',
       );
     }
   }
@@ -47,7 +47,7 @@ export class WorktreeManager {
         const branches = await this.git.branch(['-a']);
         const localBranchExists = branches.all.includes(branch);
         const remoteBranchExists = branches.all.includes(`remotes/origin/${branch}`);
-        
+
         if (localBranchExists) {
           // Branch exists locally, just create worktree
           args.push(worktreePath, branch);
@@ -65,7 +65,7 @@ export class WorktreeManager {
     } catch (error) {
       throw new GitOperationError(
         `Failed to add worktree: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        'addWorktree'
+        'addWorktree',
       );
     }
   }
@@ -74,15 +74,15 @@ export class WorktreeManager {
     try {
       // If branch is just a name, convert to full path
       const worktreePath = branch.startsWith('/') ? branch : path.join(this.basePath, branch);
-      
+
       const args = ['worktree', 'remove', worktreePath];
       if (force) args.push('--force');
-      
+
       await this.git.raw(args);
     } catch (error) {
       throw new GitOperationError(
         `Failed to remove worktree: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        'removeWorktree'
+        'removeWorktree',
       );
     }
   }
@@ -93,7 +93,7 @@ export class WorktreeManager {
     } catch (error) {
       throw new GitOperationError(
         `Failed to prune worktrees: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        'pruneWorktrees'
+        'pruneWorktrees',
       );
     }
   }
@@ -101,7 +101,7 @@ export class WorktreeManager {
   private parseWorktreeList(output: string): GitWorktreeInfo[] {
     const worktrees: GitWorktreeInfo[] = [];
     const lines = output.split('\n').filter(Boolean);
-    
+
     let currentWorktree: Partial<GitWorktreeInfo> = {};
 
     for (const line of lines) {

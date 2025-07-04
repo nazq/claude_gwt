@@ -8,12 +8,12 @@ export function showBanner(): void {
     horizontalLayout: 'default',
     verticalLayout: 'default',
   });
-  
+
   const subtitle = 'Git Branch Manager with Claude Code Orchestration';
   const version = 'v1.0.0';
-  
+
   const content = `${theme.primary(banner)}\n\n${theme.muted(subtitle)}\n${theme.dim(version)}`;
-  
+
   const boxedBanner = boxen(content, {
     padding: 1,
     margin: 1,
@@ -21,6 +21,6 @@ export function showBanner(): void {
     borderColor: 'cyan',
     align: 'center',
   });
-  
+
   console.log(boxedBanner);
 }
