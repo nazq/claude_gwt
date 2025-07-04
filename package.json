@@ -24,6 +24,7 @@
     "lint:fix": "eslint src/**/*.ts --fix",
     "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\" \"tests/**/*.ts\"",
+    "fmt": "npm run format",
     "typecheck": "tsc --noEmit",
     "prepare": "husky install",
     "postbuild": "chmod +x dist/src/cli/index.js && chmod +x dist/src/mcp/server.js && chmod +x dist/src/cli/cgwt.js && chmod +x dist/src/cli/token-report.js",
@@ -107,5 +108,11 @@
       "path": "dist/src/mcp/server.js",
       "limit": "200 KB"
     }
-  ]
+  ],
+  "lint-staged": {
+    "*.ts": [
+      "prettier --write",
+      "eslint --fix"
+    ]
+  }
 }
