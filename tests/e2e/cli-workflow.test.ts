@@ -16,7 +16,7 @@ describe('CLI End-to-End Workflow', () => {
       if (process.platform !== 'win32' && !(stats.mode & 0o111)) {
         console.warn(`Warning: CLI file is not executable: ${cliPath}`);
       }
-      
+
       // Test basic Node require to check for syntax issues
       try {
         require(cliPath);
