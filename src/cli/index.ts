@@ -60,4 +60,18 @@ program
     console.log(theme.muted('.claude-gwt.log'));
   });
 
-program.parse();
+// Main entry point
+async function main() {
+  try {
+    await program.parseAsync();
+  } catch (error) {
+    console.error('Unexpected error:', error);
+    process.exit(1);
+  }
+}
+
+// Run the CLI
+main().catch((error) => {
+  console.error('Fatal error:', error);
+  process.exit(1);
+});

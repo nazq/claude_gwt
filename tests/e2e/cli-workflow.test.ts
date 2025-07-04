@@ -11,6 +11,11 @@ describe('CLI End-to-End Workflow', () => {
     // Verify CLI exists
     try {
       await fs.access(cliPath);
+      // Try to check if the file is executable
+      const stats = await fs.stat(cliPath);
+      if (process.platform !== 'win32' && !(stats.mode & 0o111)) {
+        console.warn(`Warning: CLI file is not executable: ${cliPath}`);
+      }
     } catch (error) {
       throw new Error(`CLI not found at ${cliPath}. Run 'npm run build' first.`);
     }
@@ -29,9 +34,11 @@ describe('CLI End-to-End Workflow', () => {
     cwd: string = testDir,
   ): Promise<{ stdout: string; stderr: string; code: number }> {
     return new Promise((resolve, reject) => {
-      const child = spawn('node', [cliPath, ...args], {
+      // Use explicit node path for consistency
+      const nodePath = process.execPath;
+      const child = spawn(nodePath, [cliPath, ...args], {
         cwd,
-        env: { ...process.env, NO_COLOR: '1' },
+        env: { ...process.env, NO_COLOR: '1', NODE_ENV: 'test' },
       });
 
       let stdout = '';
@@ -46,6 +53,7 @@ describe('CLI End-to-End Workflow', () => {
       });
 
       child.on('error', (error) => {
+        console.error('Failed to spawn CLI process:', error);
         reject(error);
       });
 
@@ -55,6 +63,8 @@ describe('CLI End-to-End Workflow', () => {
           console.error('CLI failed with code:', code);
           console.error('STDOUT:', stdout);
           console.error('STDERR:', stderr);
+          console.error('Node version:', process.version);
+          console.error('CLI path:', cliPath);
         }
         resolve({ stdout, stderr, code: code || 0 });
       });
