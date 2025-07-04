@@ -30,6 +30,8 @@ describe('GitRepository', () => {
       addRemote: jest.fn().mockResolvedValue(undefined),
       subModule: jest.fn().mockRejectedValue(new Error('No submodules')),
       getRemotes: jest.fn().mockResolvedValue([]),
+      add: jest.fn().mockResolvedValue(undefined),
+      commit: jest.fn().mockResolvedValue(undefined),
     };
 
     (simpleGit as jest.Mock).mockReturnValue(mockGit);
@@ -201,6 +203,117 @@ describe('GitRepository', () => {
 
       const branch = await repo.getCurrentBranch();
       expect(branch).toBe('main');
+    });
+  });
+
+  describe('initializeBareRepository', () => {
+    it('should clone from URL and detect default branch', async () => {
+      mockGit.clone.mockResolvedValue(undefined);
+      mockGit.raw.mockResolvedValue('refs/heads/develop\n');
+
+      const result = await repo.initializeBareRepository('https://github.com/test/repo.git');
+
+      expect(result.defaultBranch).toBe('develop');
+      expect(mockGit.clone).toHaveBeenCalledWith('https://github.com/test/repo.git', '.', [
+        '--bare',
+      ]);
+    });
+
+    it('should fallback to master branch if symbolic-ref fails', async () => {
+      mockGit.clone.mockResolvedValue(undefined);
+      mockGit.raw.mockRejectedValue(new Error('No symbolic ref'));
+      mockGit.branch.mockResolvedValue({ all: ['master', 'develop'] });
+
+      const result = await repo.initializeBareRepository('https://github.com/test/repo.git');
+
+      expect(result.defaultBranch).toBe('master');
+    });
+
+    it('should use main as default if no master branch exists', async () => {
+      mockGit.clone.mockResolvedValue(undefined);
+      mockGit.raw.mockRejectedValue(new Error('No symbolic ref'));
+      mockGit.branch.mockResolvedValue({ all: ['develop', 'feature'] });
+
+      const result = await repo.initializeBareRepository('https://github.com/test/repo.git');
+
+      expect(result.defaultBranch).toBe('main');
+    });
+
+    it('should initialize empty repository when no URL provided', async () => {
+      const mockBareGit = {
+        init: jest.fn().mockResolvedValue(undefined),
+      };
+
+      (simpleGit as jest.Mock).mockImplementation((path) => {
+        if (path.includes('.bare')) {
+          return mockBareGit;
+        }
+        return mockGit;
+      });
+
+      mockGit.init.mockResolvedValue(undefined);
+      mockGit.add.mockResolvedValue(undefined);
+      mockGit.commit.mockResolvedValue(undefined);
+
+      const result = await repo.initializeBareRepository();
+
+      expect(result.defaultBranch).toBe('main');
+      expect(mockBareGit.init).toHaveBeenCalledWith(['--bare']);
+
+      // Check that README was created
+      const readmePath = path.join(testDir, 'README.md');
+      expect(await fs.readFile(readmePath, 'utf-8')).toBe('# Git Worktree Project\n');
+    });
+
+    it('should handle non-Error failures', async () => {
+      mockGit.clone.mockRejectedValue('String error');
+
+      await expect(
+        repo.initializeBareRepository('https://github.com/test/repo.git'),
+      ).rejects.toThrow('Failed to initialize bare repository: Unknown error');
+    });
+  });
+
+  describe('getDefaultBranch', () => {
+    it('should get default branch from remote HEAD', async () => {
+      mockGit.getRemotes.mockResolvedValue([{ name: 'origin', refs: {} }]);
+      mockGit.raw.mockResolvedValue('refs/remotes/origin/develop\n');
+
+      const branch = await repo.getDefaultBranch();
+
+      expect(branch).toBe('develop');
+      expect(mockGit.raw).toHaveBeenCalledWith(['symbolic-ref', 'refs/remotes/origin/HEAD']);
+    });
+
+    it('should return empty string for current if status has no current branch', async () => {
+      mockGit.getRemotes.mockResolvedValue([]);
+      mockGit.status.mockResolvedValue({ current: null, isClean: () => true });
+
+      const branch = await repo.getDefaultBranch();
+
+      expect(branch).toBe('main');
+    });
+  });
+
+  describe('fetch', () => {
+    it('should fetch all remotes', async () => {
+      mockGit.fetch.mockResolvedValue(undefined);
+
+      await repo.fetch();
+
+      expect(mockGit.fetch).toHaveBeenCalledWith(['--all']);
+    });
+
+    it('should handle fetch errors', async () => {
+      mockGit.fetch.mockRejectedValue(new Error('Network error'));
+
+      await expect(repo.fetch()).rejects.toThrow('Failed to fetch: Network error');
+    });
+
+    it('should handle non-Error failures', async () => {
+      mockGit.fetch.mockRejectedValue('String error');
+
+      await expect(repo.fetch()).rejects.toThrow('Failed to fetch: Unknown error');
     });
   });
 });

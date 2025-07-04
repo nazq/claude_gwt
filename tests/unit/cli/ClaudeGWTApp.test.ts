@@ -11,7 +11,9 @@ import type { DirectoryState } from '../../../src/types';
 jest.mock('../../../src/core/git/GitDetector');
 jest.mock('../../../src/core/git/GitRepository');
 jest.mock('../../../src/core/git/WorktreeManager');
-jest.mock('../../../src/cli/ui/banner');
+jest.mock('../../../src/cli/ui/banner', () => ({
+  showBanner: jest.fn().mockResolvedValue(undefined),
+}));
 jest.mock('../../../src/cli/ui/prompts');
 jest.mock('simple-git', () => ({
   simpleGit: jest.fn(() => ({

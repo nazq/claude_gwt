@@ -4,7 +4,6 @@ import * as path from 'path';
 import { Logger } from '../core/utils/logger';
 import { TmuxEnhancer } from './TmuxEnhancer';
 import type { GitRepository } from '../core/git/GitRepository';
-import { TokenTracker } from '../core/TokenTracker';
 import { ConfigManager } from '../core/ConfigManager';
 
 export interface SessionConfig {
@@ -222,11 +221,6 @@ ${customContext}`
     // Create context file
     this.createContextFile(config);
 
-    // Start token tracking for this session
-    const projectName = sessionName.split('-')[1] ?? 'unknown';
-    const tracker = TokenTracker.getInstance();
-    tracker.startSession(projectName, branchName);
-
     // Get session info
     const sessionInfo = this.getSessionInfo(sessionName);
 
@@ -248,9 +242,6 @@ ${customContext}`
           role: config.role,
           gitRepo: config.gitRepo,
         });
-
-        // Ensure token tracking is active
-        tracker.startSession(projectName, config.branchName);
 
         if (this.isInsideTmux()) {
           execSync(

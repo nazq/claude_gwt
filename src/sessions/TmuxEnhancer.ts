@@ -2,7 +2,6 @@ import { execSync } from 'child_process';
 import * as path from 'path';
 import { Logger } from '../core/utils/logger';
 import type { GitRepository } from '../core/git/GitRepository';
-// import { TokenStatusBar } from '../core/TokenStatusBar';
 
 export interface StatusBarConfig {
   sessionName: string;

@@ -7,7 +7,7 @@ export const isCI = process.env['CI'] === 'true' || process.env['GITHUB_ACTIONS'
 /**
  * Skip test in CI environment
  */
-export function skipInCI(reason = 'Skipping in CI environment') {
+export function skipInCI(reason = 'Skipping in CI environment'): boolean {
   if (isCI) {
     console.log(reason);
     return true;

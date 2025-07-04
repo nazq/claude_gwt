@@ -5,9 +5,7 @@
   "main": "dist/index.js",
   "bin": {
     "claude-gwt": "./dist/src/cli/index.js",
-    "claude-gwt-mcp": "./dist/src/mcp/server.js",
-    "cgwt": "./dist/src/cli/cgwt.js",
-    "cgwt-tokens": "./dist/src/cli/token-report.js"
+    "cgwt": "./dist/src/cli/cgwt.js"
   },
   "scripts": {
     "build": "tsc",
@@ -27,7 +25,7 @@
     "fmt": "npm run format",
     "typecheck": "tsc --noEmit",
     "prepare": "husky install",
-    "postbuild": "chmod +x dist/src/cli/index.js && chmod +x dist/src/mcp/server.js && chmod +x dist/src/cli/cgwt.js && chmod +x dist/src/cli/token-report.js",
+    "postbuild": "chmod +x dist/src/cli/index.js && chmod +x dist/src/cli/cgwt.js",
     "prepublishOnly": "npm run build:clean && npm test",
     "version": "npm run format && git add -A src",
     "postversion": "git push && git push --tags"
@@ -63,7 +61,6 @@
     "LICENSE"
   ],
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.15.0",
     "boxen": "^7.1.1",
     "chalk": "^5.3.0",
     "commander": "^11.1.0",
