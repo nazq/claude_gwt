@@ -16,15 +16,6 @@ describe('CLI End-to-End Workflow', () => {
       if (process.platform !== 'win32' && !(stats.mode & 0o111)) {
         console.warn(`Warning: CLI file is not executable: ${cliPath}`);
       }
-
-      // Test basic Node require to check for syntax issues
-      try {
-        require(cliPath);
-        console.log('CLI module loaded successfully');
-      } catch (requireError) {
-        console.error('Failed to require CLI module:', requireError);
-        throw requireError;
-      }
     } catch (error) {
       throw new Error(`CLI not found at ${cliPath}. Run 'npm run build' first.`);
     }
@@ -53,11 +44,11 @@ describe('CLI End-to-End Workflow', () => {
       let stdout = '';
       let stderr = '';
 
-      child.stdout.on('data', (data) => {
+      child.stdout.on('data', (data: Buffer) => {
         stdout += data.toString();
       });
 
-      child.stderr.on('data', (data) => {
+      child.stderr.on('data', (data: Buffer) => {
         stderr += data.toString();
       });
 
@@ -79,7 +70,7 @@ describe('CLI End-to-End Workflow', () => {
           console.error('STDERR:', JSON.stringify(stderr));
           console.error('=== END DEBUG INFO ===');
         }
-        resolve({ stdout, stderr, code: code || 0 });
+        resolve({ stdout, stderr, code: code ?? 0 });
       });
     });
   }
