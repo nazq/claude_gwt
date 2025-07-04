@@ -51,7 +51,7 @@ describe('CLI End-to-End Workflow', () => {
 
       child.on('close', (code) => {
         // Log output for debugging CI failures
-        if (code !== 0 && process.env.CI) {
+        if (code !== 0 && process.env['CI']) {
           console.error('CLI failed with code:', code);
           console.error('STDOUT:', stdout);
           console.error('STDERR:', stderr);
