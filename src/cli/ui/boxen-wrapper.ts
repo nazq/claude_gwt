@@ -3,10 +3,11 @@
  * This allows us to support both Node 18 (which has ESM issues) and newer versions
  */
 
+// Use a subset of boxen options that we actually use
 export interface BoxenOptions {
-  padding?: number | { top?: number; right?: number; bottom?: number; left?: number };
-  margin?: number | { top?: number; right?: number; bottom?: number; left?: number };
-  borderStyle?: string;
+  padding?: number;
+  margin?: number;
+  borderStyle?: 'round' | 'single' | 'double' | 'bold';
   borderColor?: string;
   align?: 'left' | 'center' | 'right';
 }
@@ -19,7 +20,7 @@ export async function createBox(text: string, options?: BoxenOptions): Promise<s
     // Try to dynamically import boxen (ESM module)
     const boxenModule = await import('boxen');
     const boxen = boxenModule.default;
-    return boxen(text, options as any);
+    return boxen(text, options);
   } catch (error) {
     // Fallback for environments where boxen doesn't work (e.g., Node 18 with CommonJS)
     return createSimpleBox(text, options);

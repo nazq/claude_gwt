@@ -20,7 +20,7 @@ export class GitRepository {
       let defaultBranch = 'main';
 
       if (repoUrl) {
-        const cloneOperation = async () => {
+        const cloneOperation = async (): Promise<void> => {
           // Clone the bare repository
           await bareGit.clone(repoUrl, '.', ['--bare']);
 
@@ -92,7 +92,7 @@ export class GitRepository {
 
       // Fallback to current branch
       const status = await this.git.status();
-      return status.current || 'main';
+      return status.current ?? 'main';
     } catch {
       return 'main';
     }
@@ -100,7 +100,7 @@ export class GitRepository {
 
   async fetch(): Promise<void> {
     try {
-      const operation = async () => {
+      const operation = async (): Promise<void> => {
         await this.git.fetch(['--all']);
       };
 
@@ -145,7 +145,7 @@ export class GitRepository {
         );
       }
 
-      const currentBranch = status.current || 'main';
+      const currentBranch = status.current ?? 'main';
 
       // Get list of all branches (not used but good to verify they exist)
       await this.git.branch();
@@ -164,7 +164,7 @@ export class GitRepository {
       // Add the original repo as a remote to the bare repo
       await bareGit.addRemote('origin', this.basePath);
 
-      const fetchOperation = async () => {
+      const fetchOperation = async (): Promise<void> => {
         await bareGit.fetch('origin', ['+refs/heads/*:refs/heads/*', '+refs/tags/*:refs/tags/*']);
       };
 
@@ -203,7 +203,7 @@ export class GitRepository {
       // Add the original directory as a worktree
       const worktreeGit = simpleGit(bareDir);
 
-      const worktreeAddOperation = async () => {
+      const worktreeAddOperation = async (): Promise<void> => {
         await worktreeGit.raw(['worktree', 'add', this.basePath, currentBranch]);
       };
 

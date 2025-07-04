@@ -149,7 +149,7 @@ describeSkipIncompatible('CLI End-to-End Workflow', () => {
 
       // Empty repo URL means local init
       expect(code).toBe(0);
-      expect(stdout).toContain('Git branch environment ready');  // Should see success message
+      expect(stdout).toContain('Git branch environment ready'); // Should see success message
 
       // Verify bare repo structure
       const files = await fs.readdir(testDir);

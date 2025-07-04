@@ -22,7 +22,7 @@ export class WorktreeManager {
 
   async listWorktrees(): Promise<GitWorktreeInfo[]> {
     try {
-      const operation = async () => {
+      const operation = async (): Promise<GitWorktreeInfo[]> => {
         const result = await this.git.raw(['worktree', 'list', '--porcelain']);
         const worktrees = this.parseWorktreeList(result);
         // Filter out the .bare directory - it's an implementation detail
@@ -50,7 +50,7 @@ export class WorktreeManager {
 
   async addWorktree(branch: string, baseBranch?: string): Promise<string> {
     try {
-      const operation = async () => {
+      const operation = async (): Promise<string> => {
         // Create worktrees inside the project directory
         const worktreePath = path.join(this.basePath, branch);
         const args = ['worktree', 'add'];
@@ -100,7 +100,7 @@ export class WorktreeManager {
 
   async removeWorktree(branch: string, force = false): Promise<void> {
     try {
-      const operation = async () => {
+      const operation = async (): Promise<void> => {
         // If branch is just a name, convert to full path
         const worktreePath = branch.startsWith('/') ? branch : path.join(this.basePath, branch);
 
