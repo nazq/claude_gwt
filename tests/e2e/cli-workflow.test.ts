@@ -6,7 +6,7 @@ import os from 'os';
 // Skip e2e tests on Node 18 (ESM compatibility) and Node 24 (CI environment issues)
 // Also skip on CI for Node 20/22 due to intermittent git operation failures
 const nodeVersion = process.version;
-const isCI = process.env.CI === 'true';
+const isCI = process.env['CI'] === 'true';
 const shouldSkip =
   nodeVersion.startsWith('v18.') ||
   nodeVersion.startsWith('v24.') ||
