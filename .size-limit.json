@@ -8,10 +8,5 @@
     "name": "MCP Server",
     "path": "dist/src/mcp/server.js", 
     "limit": "150 KB"
-  },
-  {
-    "name": "cgwt CLI",
-    "path": "dist/src/cli/cgwt.js",
-    "limit": "100 KB"
   }
 ]
