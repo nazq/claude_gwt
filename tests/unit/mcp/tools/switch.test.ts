@@ -22,7 +22,9 @@ describe('MCP Tool: switch_branch', () => {
 
   it('should have correct tool definition', () => {
     expect(switchBranchTool.definition.name).toBe('switch_branch');
-    expect(switchBranchTool.definition.description).toContain('Switch to a different Git worktree branch');
+    expect(switchBranchTool.definition.description).toContain(
+      'Switch to a different Git worktree branch',
+    );
     expect(switchBranchTool.definition.inputSchema.required).toContain('branch');
   });
 
@@ -47,15 +49,14 @@ describe('MCP Tool: switch_branch', () => {
     mockWorktreeManager.prototype.listWorktrees = jest.fn().mockResolvedValue(mockWorktrees);
 
     const result = await switchBranchTool.handler({ branch: 'feature-auth' });
-    
-    expect(mockFs.mkdir).toHaveBeenCalledWith(
-      expect.stringContaining('.claude-gwt/context'),
-      { recursive: true }
-    );
-    
+
+    expect(mockFs.mkdir).toHaveBeenCalledWith(expect.stringContaining('.claude-gwt/context'), {
+      recursive: true,
+    });
+
     expect(mockFs.writeFile).toHaveBeenCalledWith(
       expect.stringContaining('main.json'),
-      expect.stringContaining('"branch": "main"')
+      expect.stringContaining('"branch": "main"'),
     );
 
     expect(result.content).toBeDefined();
@@ -79,19 +80,19 @@ describe('MCP Tool: switch_branch', () => {
     mockWorktreeManager.prototype.listWorktrees = jest.fn().mockResolvedValue(mockWorktrees);
 
     const result = await switchBranchTool.handler({ branch: 'non-existent' });
-    
+
     expect(result.content).toBeDefined();
     expect((result.content[0] as any).text).toContain("Branch 'non-existent' not found");
     expect((result.content[0] as any).text).toContain('Available branches: main');
   });
 
   it('should handle errors gracefully', async () => {
-    mockWorktreeManager.prototype.listWorktrees = jest.fn().mockRejectedValue(
-      new Error('Failed to list worktrees')
-    );
+    mockWorktreeManager.prototype.listWorktrees = jest
+      .fn()
+      .mockRejectedValue(new Error('Failed to list worktrees'));
 
     const result = await switchBranchTool.handler({ branch: 'any' });
-    
+
     expect(result.content).toBeDefined();
     expect((result.content[0] as any).text).toContain('Error switching branches');
     expect((result.content[0] as any).text).toContain('Failed to list worktrees');
@@ -118,10 +119,10 @@ describe('MCP Tool: switch_branch', () => {
     mockWorktreeManager.prototype.listWorktrees = jest.fn().mockResolvedValue(mockWorktrees);
 
     await switchBranchTool.handler({ branch: 'feature-api' });
-    
+
     expect(mockFs.writeFile).toHaveBeenCalledWith(
       expect.stringContaining('main.json'),
-      expect.stringContaining('"lastCommand": "switch_branch"')
+      expect.stringContaining('"lastCommand": "switch_branch"'),
     );
   });
 });

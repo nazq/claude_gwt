@@ -31,14 +31,17 @@ describe('MCP Tool: create_branch', () => {
       path: '/test/project',
     });
 
-    mockWorktreeManager.prototype.addWorktree = jest.fn().mockResolvedValue(
-      '/test/project/feature-new'
-    );
+    mockWorktreeManager.prototype.addWorktree = jest
+      .fn()
+      .mockResolvedValue('/test/project/feature-new');
 
     const result = await createBranchTool.handler({ branch: 'feature-new' });
-    
-    expect(mockWorktreeManager.prototype.addWorktree).toHaveBeenCalledWith('feature-new', undefined);
-    
+
+    expect(mockWorktreeManager.prototype.addWorktree).toHaveBeenCalledWith(
+      'feature-new',
+      undefined,
+    );
+
     expect(result.content).toBeDefined();
     const text = (result.content[0] as any).text;
     expect(text).toContain('Created branch: feature-new');
@@ -52,16 +55,19 @@ describe('MCP Tool: create_branch', () => {
       path: '/test/project',
     });
 
-    mockWorktreeManager.prototype.addWorktree = jest.fn().mockResolvedValue(
-      '/test/project/feature-new'
-    );
+    mockWorktreeManager.prototype.addWorktree = jest
+      .fn()
+      .mockResolvedValue('/test/project/feature-new');
 
-    await createBranchTool.handler({ 
+    await createBranchTool.handler({
       branch: 'feature-new',
-      baseBranch: 'develop'
+      baseBranch: 'develop',
     });
-    
-    expect(mockWorktreeManager.prototype.addWorktree).toHaveBeenCalledWith('feature-new', 'develop');
+
+    expect(mockWorktreeManager.prototype.addWorktree).toHaveBeenCalledWith(
+      'feature-new',
+      'develop',
+    );
   });
 
   it('should initialize worktree setup if not present', async () => {
@@ -71,14 +77,14 @@ describe('MCP Tool: create_branch', () => {
     });
 
     mockGitRepository.prototype.initializeBareRepository = jest.fn().mockResolvedValue({
-      defaultBranch: 'main'
+      defaultBranch: 'main',
     });
 
-    const result = await createBranchTool.handler({ 
+    const result = await createBranchTool.handler({
       branch: 'feature-new',
-      setupWorktree: true
+      setupWorktree: true,
     });
-    
+
     expect(mockGitRepository.prototype.initializeBareRepository).toHaveBeenCalled();
     expect(result.content).toBeDefined();
     expect((result.content[0] as any).text).toContain('Initialized Git worktree setup');
@@ -91,11 +97,11 @@ describe('MCP Tool: create_branch', () => {
       path: '/test/project',
     });
 
-    const result = await createBranchTool.handler({ 
+    const result = await createBranchTool.handler({
       branch: 'feature-new',
-      setupWorktree: false
+      setupWorktree: false,
     });
-    
+
     expect(result.content).toBeDefined();
     expect((result.content[0] as any).text).toContain('Not a Git worktree project');
     expect((result.content[0] as any).text).toContain('setupWorktree: true');
@@ -107,12 +113,12 @@ describe('MCP Tool: create_branch', () => {
       path: '/test/project',
     });
 
-    mockWorktreeManager.prototype.addWorktree = jest.fn().mockRejectedValue(
-      new Error('Branch already exists')
-    );
+    mockWorktreeManager.prototype.addWorktree = jest
+      .fn()
+      .mockRejectedValue(new Error('Branch already exists'));
 
     const result = await createBranchTool.handler({ branch: 'existing-branch' });
-    
+
     expect(result.content).toBeDefined();
     expect((result.content[0] as any).text).toContain('Error creating branch');
     expect((result.content[0] as any).text).toContain('Branch already exists');

@@ -23,9 +23,9 @@ describe('GitRepository', () => {
       raw: jest.fn().mockResolvedValue('refs/heads/main'),
       branch: jest.fn().mockResolvedValue({ all: ['main', 'master'] }),
       fetch: jest.fn().mockResolvedValue(undefined),
-      status: jest.fn().mockResolvedValue({ 
+      status: jest.fn().mockResolvedValue({
         current: 'main',
-        isClean: () => true 
+        isClean: () => true,
       }),
       addRemote: jest.fn().mockResolvedValue(undefined),
       subModule: jest.fn().mockRejectedValue(new Error('No submodules')),
@@ -49,14 +49,14 @@ describe('GitRepository', () => {
       await fs.mkdir(gitDir);
 
       const result = await repo.canConvertToWorktree();
-      
+
       expect(result.canConvert).toBe(true);
       expect(result.reason).toBeUndefined();
     });
 
     it('should return false if no .git directory exists', async () => {
       const result = await repo.canConvertToWorktree();
-      
+
       expect(result.canConvert).toBe(false);
       expect(result.reason).toBe('No .git directory found');
     });
@@ -67,7 +67,7 @@ describe('GitRepository', () => {
       await fs.writeFile(gitFile, 'gitdir: ./.bare\n');
 
       const result = await repo.canConvertToWorktree();
-      
+
       expect(result.canConvert).toBe(false);
       expect(result.reason).toBe('Already a worktree repository');
     });
@@ -78,13 +78,13 @@ describe('GitRepository', () => {
       await fs.mkdir(gitDir);
 
       // Mock dirty status
-      mockGit.status.mockResolvedValue({ 
+      mockGit.status.mockResolvedValue({
         current: 'main',
-        isClean: () => false 
+        isClean: () => false,
       });
 
       const result = await repo.canConvertToWorktree();
-      
+
       expect(result.canConvert).toBe(false);
       expect(result.reason).toBe('Repository has uncommitted changes');
     });
@@ -98,7 +98,7 @@ describe('GitRepository', () => {
       mockGit.subModule.mockResolvedValue('submodule info');
 
       const result = await repo.canConvertToWorktree();
-      
+
       expect(result.canConvert).toBe(false);
       expect(result.reason).toBe('Repository contains submodules');
     });
@@ -107,13 +107,13 @@ describe('GitRepository', () => {
   describe('convertToWorktreeSetup', () => {
     it('should throw error if repository has uncommitted changes', async () => {
       // Mock dirty status
-      mockGit.status.mockResolvedValue({ 
+      mockGit.status.mockResolvedValue({
         current: 'main',
-        isClean: () => false 
+        isClean: () => false,
       });
 
       await expect(repo.convertToWorktreeSetup()).rejects.toThrow(
-        /Cannot convert: repository has uncommitted changes/
+        /Cannot convert: repository has uncommitted changes/,
       );
     });
 
@@ -123,7 +123,7 @@ describe('GitRepository', () => {
       await fs.writeFile(gitFile, 'gitdir: ./.bare\n');
 
       await expect(repo.convertToWorktreeSetup()).rejects.toThrow(
-        /This appears to already be a worktree repository/
+        /This appears to already be a worktree repository/,
       );
     });
 
@@ -183,7 +183,7 @@ describe('GitRepository', () => {
       });
 
       await expect(repo.convertToWorktreeSetup()).rejects.toThrow(
-        /Failed to convert repository:.*Network error/
+        /Failed to convert repository:.*Network error/,
       );
     });
   });
@@ -198,7 +198,7 @@ describe('GitRepository', () => {
 
     it('should return "main" if status fails', async () => {
       mockGit.status.mockRejectedValue(new Error('Git error'));
-      
+
       const branch = await repo.getCurrentBranch();
       expect(branch).toBe('main');
     });
