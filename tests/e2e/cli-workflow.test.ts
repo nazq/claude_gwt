@@ -7,6 +7,15 @@ describe('CLI End-to-End Workflow', () => {
   let testDir: string;
   const cliPath = path.join(__dirname, '../../dist/src/cli/index.js');
 
+  beforeAll(async () => {
+    // Verify CLI exists
+    try {
+      await fs.access(cliPath);
+    } catch (error) {
+      throw new Error(`CLI not found at ${cliPath}. Run 'npm run build' first.`);
+    }
+  });
+
   beforeEach(async () => {
     testDir = await fs.mkdtemp(path.join(os.tmpdir(), 'claude-gwt-e2e-'));
   });
@@ -19,7 +28,7 @@ describe('CLI End-to-End Workflow', () => {
     args: string[],
     cwd: string = testDir,
   ): Promise<{ stdout: string; stderr: string; code: number }> {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       const child = spawn('node', [cliPath, ...args], {
         cwd,
         env: { ...process.env, NO_COLOR: '1' },
@@ -36,7 +45,17 @@ describe('CLI End-to-End Workflow', () => {
         stderr += data.toString();
       });
 
+      child.on('error', (error) => {
+        reject(error);
+      });
+
       child.on('close', (code) => {
+        // Log output for debugging CI failures
+        if (code !== 0 && process.env.CI) {
+          console.error('CLI failed with code:', code);
+          console.error('STDOUT:', stdout);
+          console.error('STDERR:', stderr);
+        }
         resolve({ stdout, stderr, code: code || 0 });
       });
     });
@@ -44,11 +63,22 @@ describe('CLI End-to-End Workflow', () => {
 
   describe('CLI basic operations', () => {
     it('should show help', async () => {
-      const { stdout, code } = await runCLI(['--help']);
-      expect(code).toBe(0);
-      expect(stdout).toContain('Git Worktree Manager with Claude Code Orchestration');
-      expect(stdout).toContain('--repo');
-      expect(stdout).toContain('--branch');
+      try {
+        const { stdout, stderr, code } = await runCLI(['--help']);
+        if (code !== 0) {
+          console.error('Help command failed');
+          console.error('Exit code:', code);
+          console.error('STDOUT:', stdout);
+          console.error('STDERR:', stderr);
+        }
+        expect(code).toBe(0);
+        expect(stdout).toContain('Git Worktree Manager with Claude Code Orchestration');
+        expect(stdout).toContain('--repo');
+        expect(stdout).toContain('--branch');
+      } catch (error) {
+        console.error('Test failed with error:', error);
+        throw error;
+      }
     });
 
     it('should show version', async () => {
