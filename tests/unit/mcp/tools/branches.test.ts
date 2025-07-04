@@ -47,7 +47,7 @@ describe('MCP Tool: list_branches', () => {
     mockWorktreeManager.prototype.listWorktrees = jest.fn().mockResolvedValue(mockWorktrees);
 
     const result = await listBranchesTool.handler({});
-    
+
     expect(result).toHaveProperty('content');
     expect(result.content).toHaveLength(1);
     expect(result.content[0]).toHaveProperty('type', 'text');
@@ -79,7 +79,7 @@ describe('MCP Tool: list_branches', () => {
     const result = await listBranchesTool.handler({ showDetails: true });
     expect(result.content).toBeDefined();
     const text = (result.content[0] as any).text;
-    
+
     expect(text).toContain('Path: /test/project/main');
     expect(text).toContain('HEAD: abc123de');
   });
@@ -91,7 +91,7 @@ describe('MCP Tool: list_branches', () => {
     });
 
     const result = await listBranchesTool.handler({});
-    
+
     expect(result.content).toBeDefined();
     expect((result.content[0] as any).text).toContain('Not a Git worktree project');
     expect((result.content[0] as any).text).toContain('create_branch');
@@ -106,18 +106,18 @@ describe('MCP Tool: list_branches', () => {
     mockWorktreeManager.prototype.listWorktrees = jest.fn().mockResolvedValue([]);
 
     const result = await listBranchesTool.handler({});
-    
+
     expect(result.content).toBeDefined();
     expect((result.content[0] as any).text).toContain('No worktree branches found');
   });
 
   it('should handle errors gracefully', async () => {
-    mockGitDetector.prototype.detectState = jest.fn().mockRejectedValue(
-      new Error('Detection failed')
-    );
+    mockGitDetector.prototype.detectState = jest
+      .fn()
+      .mockRejectedValue(new Error('Detection failed'));
 
     const result = await listBranchesTool.handler({});
-    
+
     expect(result.content).toBeDefined();
     expect((result.content[0] as any).text).toContain('Error listing branches');
     expect((result.content[0] as any).text).toContain('Detection failed');

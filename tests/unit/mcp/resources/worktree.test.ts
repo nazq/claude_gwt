@@ -50,7 +50,7 @@ describe('MCP Resource: WorktreeResourceProvider', () => {
       });
 
       const resources = await provider.listResources();
-      
+
       expect(resources).toHaveLength(3);
       expect(resources[0]).toEqual({
         uri: 'worktree://current',
@@ -69,17 +69,17 @@ describe('MCP Resource: WorktreeResourceProvider', () => {
       });
 
       const resources = await provider.listResources();
-      
+
       expect(resources).toEqual([]);
     });
 
     it('should handle errors gracefully', async () => {
-      mockGitDetector.prototype.detectState = jest.fn().mockRejectedValue(
-        new Error('Detection failed')
-      );
+      mockGitDetector.prototype.detectState = jest
+        .fn()
+        .mockRejectedValue(new Error('Detection failed'));
 
       const resources = await provider.listResources();
-      
+
       expect(resources).toEqual([]);
     });
   });
@@ -93,7 +93,7 @@ describe('MCP Resource: WorktreeResourceProvider', () => {
       mockFs.readFile.mockResolvedValue('# Task: Implement Authentication\n\nImplement OAuth2');
 
       const result = await provider.readResource('worktree://current');
-      
+
       expect(result.contents).toHaveLength(1);
       const content = result.contents[0];
       expect(content?.uri).toBe('worktree://current');
@@ -108,13 +108,13 @@ describe('MCP Resource: WorktreeResourceProvider', () => {
       jest.spyOn(process, 'cwd').mockReturnValue('/unknown/path');
 
       const result = await provider.readResource('worktree://current');
-      
+
       expect(result.contents[0]?.text).toContain('Not in a Git worktree branch');
     });
 
     it('should read branches resource', async () => {
       const result = await provider.readResource('worktree://branches');
-      
+
       const content = result.contents[0];
       expect(content?.uri).toBe('worktree://branches');
       expect(content?.text).toContain('Git Worktree Branches');
@@ -131,7 +131,7 @@ describe('MCP Resource: WorktreeResourceProvider', () => {
         .mockRejectedValueOnce(new Error('No task file'));
 
       const result = await provider.readResource('worktree://tasks');
-      
+
       const content = result.contents[0];
       expect(content?.uri).toBe('worktree://tasks');
       expect(content?.text).toContain('Branch Tasks');
@@ -145,13 +145,13 @@ describe('MCP Resource: WorktreeResourceProvider', () => {
       mockFs.readFile.mockRejectedValue(new Error('ENOENT'));
 
       const result = await provider.readResource('worktree://current');
-      
+
       expect(result.contents[0]?.text).toContain('No task assigned');
     });
 
     it('should throw error for unknown resource', async () => {
       await expect(provider.readResource('worktree://unknown')).rejects.toThrow(
-        'Unknown resource: worktree://unknown'
+        'Unknown resource: worktree://unknown',
       );
     });
   });

@@ -30,10 +30,10 @@ describe('GitDetector', () => {
   describe('detectState', () => {
     it('should detect empty directory', async () => {
       mockFs.readdir.mockResolvedValue([] as any);
-      
+
       const detector = new GitDetector('/test/path');
       const result = await detector.detectState();
-      
+
       expect(result).toEqual<DirectoryState>({
         type: 'empty',
         path: '/test/path',
@@ -45,10 +45,10 @@ describe('GitDetector', () => {
       error.code = 'ENOENT';
       mockFs.readdir.mockRejectedValue(error);
       mockFs.mkdir.mockResolvedValue(undefined);
-      
+
       const detector = new GitDetector('/test/path');
       const result = await detector.detectState();
-      
+
       expect(mockFs.mkdir).toHaveBeenCalledWith('/test/path', { recursive: true });
       expect(result.type).toBe('empty');
     });
@@ -56,10 +56,10 @@ describe('GitDetector', () => {
     it('should detect non-git directory', async () => {
       mockFs.readdir.mockResolvedValue(['file1.txt', 'file2.txt'] as any);
       mockGit.status.mockRejectedValue(new Error('Not a git repository'));
-      
+
       const detector = new GitDetector('/test/path');
       const result = await detector.detectState();
-      
+
       expect(result).toEqual<DirectoryState>({
         type: 'non-git',
         path: '/test/path',
@@ -78,10 +78,10 @@ describe('GitDetector', () => {
       mockGit.getRemotes.mockResolvedValue([
         { name: 'origin', refs: { fetch: 'https://github.com/user/repo.git' } },
       ]);
-      
+
       const detector = new GitDetector('/test/path');
       const result = await detector.detectState();
-      
+
       expect(result).toEqual<DirectoryState>({
         type: 'git-worktree',
         path: '/test/path',
@@ -105,10 +105,10 @@ describe('GitDetector', () => {
       mockGit.getRemotes.mockResolvedValue([
         { name: 'origin', refs: { fetch: 'https://github.com/user/repo.git' } },
       ]);
-      
+
       const detector = new GitDetector('/test/path');
       const result = await detector.detectState();
-      
+
       expect(result).toEqual<DirectoryState>({
         type: 'git-repo',
         path: '/test/path',
@@ -123,25 +123,25 @@ describe('GitDetector', () => {
 
     it('should detect claude-gwt-parent setup', async () => {
       mockFs.readdir.mockResolvedValue(['.git', '.bare', 'file1.txt'] as any);
-      
+
       // Mock checks for claude-gwt-parent
       mockFs.stat
         .mockResolvedValueOnce({ isDirectory: () => true } as any) // .bare exists
         .mockResolvedValueOnce({ isDirectory: () => false } as any); // .git is file
       mockFs.readFile.mockResolvedValue('gitdir: ./.bare');
       mockFs.access.mockResolvedValue(undefined); // HEAD exists in .bare
-      
+
       const detector = new GitDetector('/test/path');
       const result = await detector.detectState();
-      
+
       expect(result.type).toBe('claude-gwt-parent');
     });
 
     it('should handle errors gracefully', async () => {
       mockFs.readdir.mockRejectedValue(new Error('Permission denied'));
-      
+
       const detector = new GitDetector('/test/path');
-      
+
       await expect(detector.detectState()).rejects.toThrow('Failed to detect directory state');
     });
   });

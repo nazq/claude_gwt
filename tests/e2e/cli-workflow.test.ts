@@ -15,11 +15,14 @@ describe('CLI End-to-End Workflow', () => {
     await fs.rm(testDir, { recursive: true, force: true });
   });
 
-  function runCLI(args: string[], cwd: string = testDir): Promise<{ stdout: string; stderr: string; code: number }> {
+  function runCLI(
+    args: string[],
+    cwd: string = testDir,
+  ): Promise<{ stdout: string; stderr: string; code: number }> {
     return new Promise((resolve) => {
       const child = spawn('node', [cliPath, ...args], {
         cwd,
-        env: { ...process.env, NO_COLOR: '1' }
+        env: { ...process.env, NO_COLOR: '1' },
       });
 
       let stdout = '';
@@ -58,30 +61,35 @@ describe('CLI End-to-End Workflow', () => {
   describe('Empty directory workflow', () => {
     it('should initialize empty directory in non-interactive mode', async () => {
       const { code } = await runCLI(['.', '--no-interactive', '--quiet']);
-      
+
       // Should complete successfully
       expect(code).toBe(0);
-      
+
       // Verify structure was created
       const gitFile = path.join(testDir, '.git');
       const bareDir = path.join(testDir, '.bare');
-      
-      expect(await fs.access(gitFile).then(() => true).catch(() => false)).toBe(true);
-      expect(await fs.access(bareDir).then(() => true).catch(() => false)).toBe(true);
+
+      expect(
+        await fs
+          .access(gitFile)
+          .then(() => true)
+          .catch(() => false),
+      ).toBe(true);
+      expect(
+        await fs
+          .access(bareDir)
+          .then(() => true)
+          .catch(() => false),
+      ).toBe(true);
     });
   });
 
   describe('Repository initialization with URL', () => {
     it('should handle local repository initialization', async () => {
-      const { code } = await runCLI([
-        '.',
-        '--repo', '',
-        '--no-interactive',
-        '--quiet'
-      ]);
-      
+      const { code } = await runCLI(['.', '--repo', '', '--no-interactive', '--quiet']);
+
       expect(code).toBe(0);
-      
+
       // Verify bare repo structure
       const files = await fs.readdir(testDir);
       expect(files).toContain('.git');
@@ -94,9 +102,9 @@ describe('CLI End-to-End Workflow', () => {
     it('should detect non-git directory with files', async () => {
       // Create a file in the directory
       await fs.writeFile(path.join(testDir, 'existing.txt'), 'content');
-      
+
       const { stdout, code } = await runCLI(['.', '--no-interactive']);
-      
+
       // Should exit with error
       expect(code).toBe(1);
       expect(stdout).toContain('not empty and not a Git repository');
@@ -108,14 +116,17 @@ describe('CLI End-to-End Workflow', () => {
       // Step 1: Initialize
       let result = await runCLI(['.', '--repo', '', '--no-interactive', '--quiet']);
       expect(result.code).toBe(0);
-      
+
       // Step 2: Verify we can run again and it detects the worktree
       result = await runCLI(['.', '--no-interactive']);
       expect(result.stdout).toContain('Git branch environment ready');
-      
+
       // Step 3: Check that main branch was created
       const mainPath = path.join(testDir, 'main');
-      const mainExists = await fs.access(mainPath).then(() => true).catch(() => false);
+      const mainExists = await fs
+        .access(mainPath)
+        .then(() => true)
+        .catch(() => false);
       // Note: In non-interactive mode, main branch might not be auto-created
       // This is expected behavior
       expect(typeof mainExists).toBe('boolean');

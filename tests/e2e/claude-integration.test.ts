@@ -24,15 +24,15 @@ describe('Claude Code MCP Integration E2E', () => {
   });
 
   // Skip these tests in CI or if Claude CLI is not installed
-  const conditionalTest = (hasClaudeCLI && !isCiEnvironment) ? it : it.skip;
+  const conditionalTest = hasClaudeCLI && !isCiEnvironment ? it : it.skip;
 
   conditionalTest('should be installable as MCP server', async () => {
     // This test would actually install the MCP server in Claude Code
     // For safety, we'll just verify the command structure
-    
+
     const mcpConfigPath = path.join(__dirname, '../../mcp.json');
     const mcpConfig = JSON.parse(await fs.readFile(mcpConfigPath, 'utf-8'));
-    
+
     expect(mcpConfig.mcpServers).toHaveProperty('git-worktree');
     expect(mcpConfig.mcpServers['git-worktree'].command).toBe('node');
     expect(mcpConfig.mcpServers['git-worktree'].args).toContain('./dist/src/mcp/server.js');
@@ -55,10 +55,10 @@ describe('Claude Code MCP Integration E2E', () => {
   it('should have proper executable permissions', async () => {
     const serverPath = path.join(__dirname, '../../dist/src/mcp/server.js');
     const stats = await fs.stat(serverPath);
-    
+
     // Check if file exists
     expect(stats.isFile()).toBe(true);
-    
+
     // On Unix systems, check execute permission
     if (process.platform !== 'win32') {
       const hasExecutePermission = (stats.mode & 0o100) !== 0;
@@ -70,21 +70,21 @@ describe('Claude Code MCP Integration E2E', () => {
     // Simulate what Claude would see
     const expectedTools = [
       'list_branches',
-      'switch_branch', 
-      'create_branch'
+      'switch_branch',
+      'create_branch',
       // 'supervisor_mode' - disabled until core functionality is working
     ];
 
     const serverPath = path.join(__dirname, '../../dist/src/mcp/server.js');
-    
+
     const listToolsRequest = {
       jsonrpc: '2.0',
       id: 1,
-      method: 'tools/list'
+      method: 'tools/list',
     };
 
     const proc = spawn('node', [serverPath], {
-      stdio: ['pipe', 'pipe', 'pipe']
+      stdio: ['pipe', 'pipe', 'pipe'],
     });
 
     let response = '';
@@ -94,7 +94,7 @@ describe('Claude Code MCP Integration E2E', () => {
 
     proc.stdin.write(JSON.stringify(listToolsRequest) + '\n');
 
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise((resolve) => setTimeout(resolve, 1000));
     proc.kill();
 
     const parsedResponse = JSON.parse(response);
@@ -102,8 +102,8 @@ describe('Claude Code MCP Integration E2E', () => {
       throw new Error('Invalid response structure');
     }
     const toolNames = parsedResponse.result.tools.map((t: any) => t.name);
-    
-    expectedTools.forEach(tool => {
+
+    expectedTools.forEach((tool) => {
       expect(toolNames).toContain(tool);
     });
   });
@@ -111,12 +111,12 @@ describe('Claude Code MCP Integration E2E', () => {
   conditionalTest('should work with Claude Code slash commands', async () => {
     // This would test actual Claude integration
     // Requires Claude CLI to be installed and configured
-    
+
     // Example of what the test would do:
     // 1. Add MCP server to Claude
     // 2. Run Claude with a test command
     // 3. Verify the response
-    
+
     expect(true).toBe(true); // Placeholder
   });
 });

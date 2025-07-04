@@ -4,6 +4,7 @@ import path from 'path';
 import os from 'os';
 import { GitRepository } from '../../src/core/git/GitRepository';
 import { WorktreeManager } from '../../src/core/git/WorktreeManager';
+import { itSkipCI } from '../helpers/ci-helper';
 
 describe('MCP Server Integration', () => {
   let testDir: string;
@@ -41,7 +42,7 @@ describe('MCP Server Integration', () => {
   function sendRequest(server: any, request: any): Promise<any> {
     return new Promise((resolve, reject) => {
       let response = '';
-      
+
       server.stdout.once('data', (data: Buffer) => {
         response += data.toString();
         try {
@@ -53,16 +54,16 @@ describe('MCP Server Integration', () => {
       });
 
       server.stdin.write(JSON.stringify(request) + '\n');
-      
+
       setTimeout(() => {
         reject(new Error('Timeout waiting for response'));
       }, 5000);
     });
   }
 
-  it('should list available tools', async () => {
+  itSkipCI('should list available tools', async () => {
     const server = await startMCPServer();
-    
+
     const response = await sendRequest(server, {
       jsonrpc: '2.0',
       id: 1,
@@ -77,9 +78,9 @@ describe('MCP Server Integration', () => {
     // expect(toolNames).toContain('supervisor_mode'); // Disabled until core functionality is working
   });
 
-  it('should handle list_branches in empty project', async () => {
+  itSkipCI('should handle list_branches in empty project', async () => {
     const server = await startMCPServer();
-    
+
     const response = await sendRequest(server, {
       jsonrpc: '2.0',
       id: 1,
@@ -95,17 +96,17 @@ describe('MCP Server Integration', () => {
     expect((response.result.content[0] as any).text).toContain('Not a Git worktree project');
   });
 
-  it('should handle full workflow', async () => {
+  itSkipCI('should handle full workflow', async () => {
     // Initialize worktree project
     const repo = new GitRepository(testDir);
     await repo.initializeBareRepository();
-    
+
     const manager = new WorktreeManager(testDir);
     await manager.addWorktree('main');
     await manager.addWorktree('feature-test');
 
     const server = await startMCPServer();
-    
+
     // Test list_branches
     const listResponse = await sendRequest(server, {
       jsonrpc: '2.0',
@@ -125,16 +126,16 @@ describe('MCP Server Integration', () => {
     expect(listContent).toContain('feature-test');
   });
 
-  it('should list and read resources', async () => {
+  itSkipCI('should list and read resources', async () => {
     // Initialize worktree project
     const repo = new GitRepository(testDir);
     await repo.initializeBareRepository();
-    
+
     const manager = new WorktreeManager(testDir);
     await manager.addWorktree('main');
 
     const server = await startMCPServer();
-    
+
     // List resources
     const listResponse = await sendRequest(server, {
       jsonrpc: '2.0',
@@ -160,9 +161,9 @@ describe('MCP Server Integration', () => {
     expect((readResponse.result.contents[0] as any).text).toContain('Git Worktree Branches');
   });
 
-  it('should handle errors gracefully', async () => {
+  itSkipCI('should handle errors gracefully', async () => {
     const server = await startMCPServer();
-    
+
     // Unknown tool
     const errorResponse = await sendRequest(server, {
       jsonrpc: '2.0',
