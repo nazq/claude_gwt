@@ -1,44 +1,49 @@
 import path from 'path';
 import { promises as fs } from 'fs';
+import { simpleGit } from 'simple-git';
 import { GitDetector } from '../core/git/GitDetector';
 import { GitRepository } from '../core/git/GitRepository';
 import { WorktreeManager } from '../core/git/WorktreeManager';
-import { ClaudeOrchestrator } from '../core/ClaudeOrchestrator';
-import { SessionManager } from '../core/claude/SessionManager';
+import { TmuxManager } from '../sessions/TmuxManager';
+import { Logger } from '../core/utils/logger';
 import { showBanner } from './ui/banner';
 import { theme } from './ui/theme';
 import { Spinner } from './ui/spinner';
 import * as prompts from './ui/prompts';
-import type { CLIOptions, DirectoryState } from '../types';
+import type { CLIOptions, DirectoryState, GitWorktreeInfo } from '../types';
 
 export class ClaudeGWTApp {
   private basePath: string;
   private options: CLIOptions;
-  private orchestrator: ClaudeOrchestrator | null = null;
-  private sessionManager: SessionManager;
-  
+
   constructor(basePath: string, options: CLIOptions) {
     this.basePath = path.resolve(basePath);
     this.options = options;
-    this.sessionManager = new SessionManager();
   }
-  
+
   async run(): Promise<void> {
+    Logger.info('Starting ClaudeGWTApp', { basePath: this.basePath, options: this.options });
+
     try {
       if (!this.options.quiet) {
         showBanner();
       }
-      
+
       const detector = new GitDetector(this.basePath);
       const state = await detector.detectState();
-      
+
       await this.handleDirectoryState(state);
     } catch (error) {
-      console.error(theme.error('\n✖ Error:'), error instanceof Error ? error.message : 'Unknown error');
+      Logger.error('Fatal error in ClaudeGWTApp', error);
+      console.error(
+        theme.error('\n✖ Error:'),
+        error instanceof Error ? error.message : 'Unknown error',
+      );
+      console.error(theme.muted(`\nCheck logs at: .claude-gwt.log`));
       process.exit(1);
     }
   }
-  
+
   private async handleDirectoryState(state: DirectoryState): Promise<void> {
     switch (state.type) {
       case 'empty':
@@ -54,54 +59,54 @@ export class ClaudeGWTApp {
         await this.handleGitRepository();
         break;
       case 'non-git':
-        this.handleNonGitDirectory();
+        await this.handleNonGitDirectory();
         break;
     }
   }
-  
+
   private async handleEmptyDirectory(): Promise<void> {
     console.log(theme.info('\n📂 Empty directory detected'));
     console.log(theme.muted(`Path: ${this.basePath}`));
-    
+
     let repoUrl = this.options.repo;
     if (!repoUrl && this.options.interactive !== false) {
-      console.log(theme.primary('\n🚀 Let\'s set up your Git branch environment!'));
+      console.log(theme.primary("\n🚀 Let's set up your Git branch environment!"));
       repoUrl = await prompts.promptForRepoUrl();
     }
-    
+
     if (!repoUrl && this.options.interactive !== false) {
       // User pressed enter without URL - create local repo
       console.log(theme.info('\nCreating new local repository...'));
     }
-    
+
     const spinner = new Spinner('Initializing Git repository...');
     spinner.start();
-    
+
     try {
       const repo = new GitRepository(this.basePath);
-      
+
       if (repoUrl) {
         spinner.setText('Cloning repository...');
       }
-      
+
       const { defaultBranch } = await repo.initializeBareRepository(repoUrl);
-      
+
       if (repoUrl) {
         spinner.setText('Fetching repository...');
         await repo.fetch();
         spinner.succeed('Repository cloned successfully!');
-        
+
         // Automatically create the main branch
         console.log(theme.info(`\nCreating default branch: ${theme.branch(defaultBranch)}`));
-        
+
         const worktreeManager = new WorktreeManager(this.basePath);
         const worktreeSpinner = new Spinner(`Creating ${defaultBranch} branch...`);
         worktreeSpinner.start();
-        
+
         try {
           const worktreePath = await worktreeManager.addWorktree(defaultBranch);
           worktreeSpinner.succeed(`Branch created at ${theme.info(worktreePath)}`);
-          
+
           console.log(theme.success('\n🎉 Repository ready!'));
           console.log(theme.primary(`\n${theme.branch(defaultBranch)} branch created.`));
           console.log(theme.info(`\nYou can now:`));
@@ -114,7 +119,7 @@ export class ClaudeGWTApp {
       } else {
         spinner.succeed('Local repository initialized!');
       }
-      
+
       // Now handle as a git worktree
       await this.handleGitWorktree();
     } catch (error) {
@@ -122,31 +127,35 @@ export class ClaudeGWTApp {
       throw error;
     }
   }
-  
+
   private async handleGitWorktree(): Promise<void> {
     console.log(theme.success('\n✨ Git branch environment ready'));
-    
+
     const worktreeManager = new WorktreeManager(this.basePath);
     let worktrees = await worktreeManager.listWorktrees();
-    
+
     // If no worktrees exist (just initialized), create the first one
-    if (worktrees.length === 0) {
-      console.log(theme.warning('\nNo branches found. Let\'s create your first branch.'));
-      
+    if (worktrees.length === 0 && this.options.interactive !== false) {
+      console.log(theme.warning("\nNo branches found. Let's create your first branch."));
+
       const repo = new GitRepository(this.basePath);
       const defaultBranch = await repo.getDefaultBranch();
-      
+
       const branchName = await prompts.promptForBranchName(defaultBranch);
       const spinner = new Spinner(`Creating branch ${theme.branch(branchName)}...`);
       spinner.start();
-      
+
       try {
         const worktreePath = await worktreeManager.addWorktree(branchName, defaultBranch);
         spinner.succeed(`Branch created at ${theme.info(worktreePath)}`);
-        
+
         console.log(theme.success('\n🎉 Your first branch is ready!'));
-        console.log(theme.info(`\nCreate more branches or switch to ${theme.branch(branchName)} to start working.`));
-        
+        console.log(
+          theme.info(
+            `\nCreate more branches or switch to ${theme.branch(branchName)} to start working.`,
+          ),
+        );
+
         // Refresh worktrees list
         worktrees = await worktreeManager.listWorktrees();
       } catch (error) {
@@ -154,107 +163,122 @@ export class ClaudeGWTApp {
         throw error;
       }
     }
-    
+
     // Find current worktree
-    const currentWorktree = worktrees.find(wt => wt.path === this.basePath);
-    const isInWorktree = currentWorktree !== undefined;
-    
+    const currentWorktree = worktrees.find((wt) => wt.path === this.basePath);
+
     if (currentWorktree) {
-      console.log(theme.primary(`\n📍 Current branch: ${theme.branch(currentWorktree.branch || 'detached')}`));
+      console.log(
+        theme.primary(`\n📍 Current branch: ${theme.branch(currentWorktree.branch || 'detached')}`),
+      );
     } else {
       console.log(theme.warning(`\n⚠️  You are in the parent directory.`));
       console.log(theme.info(`To work with Claude, either:`));
       console.log(theme.muted(`  • Create a new branch using the menu`));
       console.log(theme.muted(`  • Use "Switch to branch" to get the cd command`));
     }
-    
+
     if (worktrees.length > 0) {
       console.log(theme.info(`\n${theme.icons.branch} Active branches (${worktrees.length}):`));
-      
+
       for (const wt of worktrees) {
         const isCurrent = wt.path === this.basePath;
         const status = isCurrent ? theme.statusActive : theme.statusIdle;
         const marker = isCurrent ? ' ← current' : '';
-        console.log(`  ${status} ${theme.branch(wt.branch || 'detached')} ${theme.dim(wt.path)}${theme.success(marker)}`);
+        console.log(
+          `  ${status} ${theme.branch(wt.branch || 'detached')} ${theme.dim(wt.path)}${theme.success(marker)}`,
+        );
       }
     }
-    
-    // Auto-start master Claude instance if we're in a worktree
-    if (isInWorktree && !this.orchestrator) {
-      console.log(theme.claude('\n🤖 Starting master Claude instance...'));
-      const spinner = new Spinner('Initializing Claude orchestrator...');
-      spinner.start();
-      
-      try {
-        this.orchestrator = new ClaudeOrchestrator(this.basePath);
-        await this.orchestrator.initialize();
-        spinner.succeed('Master Claude instance ready!');
-        
-        // List current instances
-        const { master, children } = await this.orchestrator.listInstances();
-        if (master) {
-          console.log(theme.claude(`\n🎯 Master: ${theme.branch(master.branch)}`));
-        }
-        if (children.length > 0) {
-          console.log(theme.secondary('\n👶 Child instances:'));
-          for (const child of children) {
-            console.log(`  ${child.status === 'active' ? theme.statusActive : theme.statusIdle} ${theme.branch(child.branch)}`);
-          }
-        }
-      } catch (error) {
-        spinner.fail('Failed to start master Claude instance');
-        console.error(theme.error('Error:'), error instanceof Error ? error.message : 'Unknown error');
-        // Continue without orchestrator
-      }
-    }
-    
+
     if (this.options.interactive !== false && worktrees.length > 0) {
-      await this.interactiveWorktreeMenu(worktreeManager, worktrees, isInWorktree);
+      await this.interactiveWorktreeMenu(worktreeManager, worktrees);
     }
   }
-  
+
   private async handleGitRepository(): Promise<void> {
     console.log(theme.warning('\n⚠️  Regular Git repository detected'));
-    console.log(theme.muted('This tool is designed for Git branch workflows.'));
-    
-    const convert = await prompts.confirmAction('Would you like to convert this to a branch-based repository?');
-    
+    console.log(
+      theme.muted('Claude GWT works best with Git worktree setups for branch isolation.'),
+    );
+
+    const repo = new GitRepository(this.basePath);
+
+    // Check if we can convert
+    const { canConvert, reason } = await repo.canConvertToWorktree();
+
+    if (!canConvert) {
+      console.log(theme.error(`\n❌ Cannot convert to worktree setup: ${reason}`));
+      console.log(theme.info('\nYou can still use claude-gwt with limitations:'));
+      console.log(theme.muted('  • Branch switching will use regular git checkout'));
+      console.log(theme.muted('  • No parallel branch sessions'));
+      console.log(theme.muted('  • Context switching may be slower'));
+
+      if (this.options.interactive !== false) {
+        const proceed = await prompts.confirmAction(
+          'Would you like to proceed with limited functionality?',
+        );
+
+        if (proceed) {
+          await this.handleRegularGitMode();
+        }
+      }
+      return;
+    }
+
+    const convert = await prompts.confirmAction(
+      'Would you like to convert this to a worktree-based setup for better claude-gwt support?',
+    );
+
     if (convert) {
-      const spinner = new Spinner('Converting to branch setup...');
+      const spinner = new Spinner('Converting to worktree setup...');
       spinner.start();
-      
+
       try {
-        // Implementation for conversion would go here
-        spinner.warn('Conversion not yet implemented');
+        const { defaultBranch } = await repo.convertToWorktreeSetup();
+        spinner.succeed('Successfully converted to worktree setup!');
+
+        console.log(theme.success('\n✨ Repository converted successfully!'));
+        console.log(theme.info(`Current branch: ${theme.branch(defaultBranch)}\n`));
+
+        // Now handle as a worktree
+        await this.handleGitWorktree();
       } catch (error) {
         spinner.fail('Failed to convert repository');
-        throw error;
+        console.log(theme.error('\n' + (error instanceof Error ? error.message : 'Unknown error')));
+        console.log(theme.info('\nYour repository is unchanged. You can:'));
+        console.log(theme.muted('  • Fix the issue and try again'));
+        console.log(theme.muted('  • Use claude-gwt with limited functionality'));
+        console.log(theme.muted('  • Manually set up worktrees'));
       }
+    } else {
+      console.log(theme.info('\nProceeding with limited functionality...'));
+      await this.handleRegularGitMode();
     }
   }
-  
+
   private async handleNonGitDirectory(): Promise<void> {
     console.log(theme.error('\n❌ Directory is not empty and not a Git repository'));
-    
+
     if (this.options.interactive !== false) {
       const createSubdir = await prompts.confirmAction(
-        'Would you like to clone a Git repository into a subdirectory?'
+        'Would you like to clone a Git repository into a subdirectory?',
       );
-      
+
       if (createSubdir) {
         // Ask for repo URL first
         const repoUrl = await prompts.promptForRepoUrl();
-        
+
         if (!repoUrl) {
           console.log(theme.warning('\nNo repository URL provided.'));
           process.exit(1);
         }
-        
+
         // Extract repo name from URL to suggest as folder name
         const defaultDirName = this.extractRepoNameFromUrl(repoUrl);
         const subdirName = await prompts.promptForSubdirectoryName(defaultDirName);
         const subdirPath = path.join(this.basePath, subdirName);
-        
+
         // Check if subdirectory already exists
         try {
           await fs.access(subdirPath);
@@ -263,60 +287,76 @@ export class ClaudeGWTApp {
         } catch {
           // Directory doesn't exist, we can create it
         }
-        
+
         // Create subdirectory and run the app there with the repo URL
         await fs.mkdir(subdirPath, { recursive: true });
         console.log(theme.info(`\nCreated subdirectory: ${subdirPath}`));
-        
+
         // Create new app instance for subdirectory with repo option
         const subApp = new ClaudeGWTApp(subdirPath, { ...this.options, repo: repoUrl });
         await subApp.run();
         return;
       }
     }
-    
+
     console.log(theme.warning('\nTo use claude-gwt, you can:'));
     console.log(theme.info('  1. Run in an empty directory to create a new repository'));
     console.log(theme.info('  2. Run in an existing Git repository or branch'));
-    console.log(theme.info('  3. Create a subdirectory: mkdir my-project && claude-gwt my-project'));
+    console.log(
+      theme.info('  3. Create a subdirectory: mkdir my-project && claude-gwt my-project'),
+    );
     console.log(theme.muted('\nExample: claude-gwt --repo https://github.com/user/repo.git'));
     process.exit(1);
   }
-  
+
   private extractRepoNameFromUrl(url: string): string {
     // Handle various Git URL formats
     // https://github.com/user/repo.git -> repo
     // git@github.com:user/repo.git -> repo
     // https://gitlab.com/group/subgroup/repo -> repo
-    
+
+    if (!url || url.trim() === '') {
+      return 'my-project';
+    }
+
     // Remove trailing .git
-    let cleanUrl = url.replace(/\.git$/, '');
-    
+    const cleanUrl = url.replace(/\.git$/, '');
+
     // Extract the last path segment
     const parts = cleanUrl.split(/[/:]/);
-    const repoName = parts[parts.length - 1] || 'my-project';
-    
+    const repoName = parts[parts.length - 1] ?? 'my-project';
+
     // Clean up any special characters
-    return repoName.replace(/[^a-zA-Z0-9._-]/g, '-');
+    return repoName.replace(/[^a-zA-Z0-9._-]/g, '-') || 'my-project';
   }
-  
+
+  private getRepoNameFromPath(dirPath: string): string {
+    // Extract repository name from directory path
+    // /home/user/dev/my-repo -> my-repo
+    const basename = path.basename(dirPath);
+
+    // Clean up any special characters
+    return basename.replace(/[^a-zA-Z0-9._-]/g, '-') || 'project';
+  }
+
   private async interactiveWorktreeMenu(
     worktreeManager: WorktreeManager,
-    worktrees: any[],
-    isInWorktree: boolean
+    worktrees: GitWorktreeInfo[],
   ): Promise<void> {
-    while (true) {
-      const action = await prompts.promptForWorktreeAction(worktrees, isInWorktree);
-      
+    let shouldContinue = true;
+    while (shouldContinue) {
+      // Check if there are any active sessions
+      const sessions = TmuxManager.listSessions();
+      const hasSessions = sessions.length > 0;
+
+      const action = await prompts.promptForWorktreeAction(worktrees, hasSessions);
+
       switch (action) {
         case 'new':
           await this.createNewWorktree(worktreeManager);
           break;
         case 'list':
-          await this.listBranches(worktrees);
-          break;
-        case 'switch':
-          await this.switchWorktree(worktrees);
+          this.listBranches(worktrees);
           break;
         case 'remove':
           await this.removeWorktree(worktreeManager, worktrees);
@@ -324,126 +364,81 @@ export class ClaudeGWTApp {
         case 'supervisor':
           await this.enterSupervisorMode();
           break;
-        case 'claude':
-          if (isInWorktree) {
-            await this.claudeInstanceMenu();
-          } else {
-            console.log(theme.error('\n❌ You must be in a branch to manage Claude instances.'));
-            console.log(theme.info('Please cd into one of the branches listed above.'));
-          }
+        case 'shutdown':
+          this.shutdownAllSessions();
           break;
         case 'exit':
           console.log(theme.muted('\nGoodbye! 👋'));
-          if (this.orchestrator) {
-            await this.orchestrator.shutdown();
-          }
-          return;
+          shouldContinue = false;
+          break;
       }
-      
+
       // Refresh worktrees
       worktrees = await worktreeManager.listWorktrees();
     }
   }
-  
-  private async listBranches(worktrees: any[]): Promise<void> {
+
+  private listBranches(worktrees: GitWorktreeInfo[]): void {
     console.log(theme.primary('\n📋 All branches:'));
-    
+
     if (worktrees.length === 0) {
       console.log(theme.muted('  No branches found'));
       return;
     }
-    
+
     const currentPath = this.basePath;
-    
+
     for (const wt of worktrees) {
       const isCurrent = wt.path === currentPath;
       const status = isCurrent ? theme.statusActive : theme.statusIdle;
       const marker = isCurrent ? ' ← you are here' : '';
-      const branchName = wt.branch || 'detached';
-      
-      console.log(`  ${status} ${theme.branch(branchName)} ${theme.dim(`(${path.basename(wt.path)})`)}${theme.success(marker)}`);
+      const branchName = wt.branch;
+
+      console.log(
+        `  ${status} ${theme.branch(branchName)} ${theme.dim(`(${path.basename(wt.path)})`)}${theme.success(marker)}`,
+      );
     }
-    
+
     console.log(theme.muted(`\nTo switch: cd <branch-name>`));
   }
-  
+
   private async createNewWorktree(worktreeManager: WorktreeManager): Promise<void> {
     const branchName = await prompts.promptForBranchName();
-    
+
     const spinner = new Spinner(`Creating branch ${theme.branch(branchName)}...`);
     spinner.start();
-    
+
     try {
       const worktreePath = await worktreeManager.addWorktree(branchName);
       spinner.succeed(`Branch created at ${theme.info(worktreePath)}`);
-      
-      // Auto-create Claude session for the new branch
-      const claudeSpinner = new Spinner(`Starting Claude session for ${theme.branch(branchName)}...`);
-      claudeSpinner.start();
-      
-      try {
-        await this.sessionManager.createSession(branchName, worktreePath);
-        claudeSpinner.succeed(`Claude session ready for ${theme.branch(branchName)}`);
-        console.log(theme.claude('\n🤖 Claude is ready in the new branch!'));
-      } catch (error) {
-        claudeSpinner.fail('Failed to start Claude session');
-        console.error(theme.error('Error:'), error instanceof Error ? error.message : 'Unknown error');
-        // Continue without session
-      }
-      
+
       console.log(theme.success(`\n🎉 Branch ${theme.branch(branchName)} created!`));
-      console.log(theme.info(`\nYou can create more branches or switch to this one to start working.`));
+      console.log(
+        theme.info(`\nYou can create more branches or switch to this one to start working.`),
+      );
     } catch (error) {
       spinner.fail('Failed to create branch');
       throw error;
     }
   }
-  
-  private async switchWorktree(worktrees: any[]): Promise<void> {
-    const selection = await prompts.selectWorktree(worktrees, 'Select branch to work in:');
-    const selected = worktrees.find(wt => wt.branch === selection || wt.path === selection);
-    
-    if (selected) {
-      console.log(theme.success(`\n${theme.icons.check} Switching to ${theme.branch(selected.branch || 'branch')}...`));
-      
-      // Launch our Claude wrapper in the selected branch directory
-      await this.launchClaudeWrapper(selected.path, selected.branch || 'branch');
-    }
-  }
-  
-  private async removeWorktree(worktreeManager: WorktreeManager, worktrees: any[]): Promise<void> {
+
+  private async removeWorktree(
+    worktreeManager: WorktreeManager,
+    worktrees: GitWorktreeInfo[],
+  ): Promise<void> {
     const selection = await prompts.selectWorktree(
-      worktrees.filter(wt => wt.path !== this.basePath),
-      'Select branch to remove:'
+      worktrees.filter((wt) => wt.path !== this.basePath),
+      'Select branch to remove:',
     );
-    
+
     const confirmed = await prompts.confirmAction(
-      `Are you sure you want to remove branch '${theme.branch(selection)}'?`
+      `Are you sure you want to remove branch '${theme.branch(selection)}'?`,
     );
-    
+
     if (confirmed) {
-      // Check if there's a Claude instance for this branch
-      if (this.orchestrator) {
-        const { children } = await this.orchestrator.listInstances();
-        const hasClaudeInstance = children.some(child => child.branch === selection);
-        
-        if (hasClaudeInstance) {
-          const claudeSpinner = new Spinner(`Stopping Claude instance for ${theme.branch(selection)}...`);
-          claudeSpinner.start();
-          
-          try {
-            await this.orchestrator.removeChildForWorktree(selection, false);
-            claudeSpinner.succeed('Claude instance stopped');
-          } catch (error) {
-            claudeSpinner.fail('Failed to stop Claude instance');
-            // Continue with branch removal anyway
-          }
-        }
-      }
-      
       const spinner = new Spinner(`Removing branch ${theme.branch(selection)}...`);
       spinner.start();
-      
+
       try {
         await worktreeManager.removeWorktree(selection);
         spinner.succeed('Branch removed successfully');
@@ -453,223 +448,348 @@ export class ClaudeGWTApp {
       }
     }
   }
-  
-  private async claudeInstanceMenu(): Promise<void> {
-    while (true) {
-      const action = await prompts.promptForClaudeAction();
-      
-      switch (action) {
-        case 'list':
-          await this.listClaudeInstances();
-          break;
-        case 'stop-child':
-          await this.stopChildInstance();
-          break;
-        case 'restart-master':
-          await this.restartMasterInstance();
-          break;
-        case 'back':
-          return;
-      }
-    }
-  }
-  
-  private async stopChildInstance(): Promise<void> {
-    if (!this.orchestrator) {
-      console.log(theme.error('No orchestrator running'));
-      return;
-    }
-    
-    const { children } = await this.orchestrator.listInstances();
-    
-    if (children.length === 0) {
-      console.log(theme.warning('No child instances running'));
-      return;
-    }
-    
-    const childBranches = children.map(child => ({
-      path: child.worktreePath,
-      branch: child.branch,
-      isLocked: false,
-      prunable: false,
-      HEAD: '',
-    }));
-    
-    const branch = await prompts.selectWorktree(
-      childBranches,
-      'Select child instance to stop:'
-    );
-    
-    const removeBranch = await prompts.confirmAction(
-      'Also remove the branch?'
-    );
-    
-    const spinner = new Spinner(`Stopping child instance for ${theme.branch(branch)}...`);
-    spinner.start();
-    
-    try {
-      await this.orchestrator.removeChildForWorktree(branch, removeBranch);
-      spinner.succeed('Child instance stopped');
-    } catch (error) {
-      spinner.fail('Failed to stop child instance');
-      console.error(error);
-    }
-  }
-  
-  private async listClaudeInstances(): Promise<void> {
-    if (!this.orchestrator) {
-      console.log(theme.warning('No orchestrator running'));
-      return;
-    }
-    
-    const { master, children } = await this.orchestrator.listInstances();
-    
-    console.log(theme.primary('\n=== Claude Instances ==='));
-    
-    if (master) {
-      console.log(theme.bold('\nMaster:'));
-      console.log(`  ${master.status === 'active' ? theme.statusActive : theme.statusIdle} ${theme.branch(master.branch)} ${theme.dim(`(${master.id})`)}`);
-    }
-    
-    if (children.length > 0) {
-      console.log(theme.bold('\nChildren:'));
-      for (const child of children) {
-        console.log(`  ${child.status === 'active' ? theme.statusActive : theme.statusIdle} ${theme.branch(child.branch)} ${theme.dim(`(${child.id})`)}`);
-      }
-    } else {
-      console.log(theme.muted('\nNo child instances'));
-    }
-  }
-  
-  private async restartMasterInstance(): Promise<void> {
-    if (!this.orchestrator) {
-      console.log(theme.warning('No master instance is running'));
-      return;
-    }
-    
-    console.log(theme.warning('\nRestarting master Claude instance...'));
-    
-    // First shutdown the orchestrator
-    const shutdownSpinner = new Spinner('Shutting down current instance...');
-    shutdownSpinner.start();
-    
-    try {
-      await this.orchestrator.shutdown();
-      shutdownSpinner.succeed('Instance shut down');
-    } catch (error) {
-      shutdownSpinner.fail('Failed to shutdown instance');
-    }
-    
-    // Then start a new one
-    const startSpinner = new Spinner('Starting new master instance...');
-    startSpinner.start();
-    
-    try {
-      this.orchestrator = new ClaudeOrchestrator(this.basePath);
-      await this.orchestrator.initialize();
-      startSpinner.succeed('Master Claude instance restarted successfully');
-    } catch (error) {
-      startSpinner.fail('Failed to restart master instance');
-      console.error(error);
-      this.orchestrator = null;
-    }
-  }
-  
+
   private async enterSupervisorMode(): Promise<void> {
+    Logger.info('Entering supervisor mode', { basePath: this.basePath });
     console.clear();
-    await this.launchClaudeWrapper(this.basePath, 'supervisor');
-  }
-  
-  private async launchClaudeWrapper(worktreePath: string, branchName: string): Promise<void> {
-    // Create or get session through manager
-    const wrapper = await this.sessionManager.createSession(branchName, worktreePath);
-    
-    // Set up event handlers
-    wrapper.on('exit', () => {
-      console.log(theme.info('\nReturning to branch manager...'));
-    });
-    
-    wrapper.on('request-exit', async () => {
-      await this.sessionManager.closeSession(branchName);
-    });
-    
-    wrapper.on('list-sessions', async () => {
-      console.log(theme.primary('\n=== Claude Sessions ==='));
-      
-      // Get active sessions from manager
-      const sessions = this.sessionManager.listSessions();
-      
-      // Always show supervisor first
-      const isSupervisor = branchName === 'supervisor';
-      const supervisorMarker = isSupervisor ? ' ← current' : '';
-      const supervisorSession = sessions.find(s => s.branch === 'supervisor');
-      const supervisorStatus = supervisorSession?.isActive ? '●' : '○';
-      console.log(`  [0] ${supervisorStatus} ${theme.claude('supervisor')}${theme.success(supervisorMarker)}`);
-      
-      // Show other sessions
-      const childSessions = sessions.filter(s => s.branch !== 'supervisor');
-      childSessions.forEach((session, index) => {
-        const isCurrent = session.branch === branchName && !isSupervisor;
-        const marker = isCurrent ? ' ← current' : '';
-        const status = session.isActive ? '●' : '○';
-        console.log(`  [${index + 1}] ${status} ${theme.branch(session.branch)}${theme.success(marker)}`);
+
+    // Find the parent directory if we're in a worktree
+    let supervisorPath = this.basePath;
+
+    try {
+      // Check if we're in a worktree
+      const detector = new GitDetector(this.basePath);
+      const state = await detector.detectState();
+
+      if (state.type === 'git-worktree') {
+        // We're in a worktree, find the parent directory
+        // The parent should be one level up from the worktree
+        const parentPath = path.dirname(this.basePath);
+
+        // Verify the parent is a claude-gwt parent directory
+        const parentDetector = new GitDetector(parentPath);
+        const parentState = await parentDetector.detectState();
+
+        if (parentState.type === 'claude-gwt-parent') {
+          supervisorPath = parentPath;
+        }
+      }
+    } catch (error) {
+      // If detection fails, continue with current path
+      console.error(theme.warning('Warning: Could not detect parent directory'));
+    }
+
+    Logger.info('Launching supervisor session', { supervisorPath });
+
+    // Check if we're already in tmux (entered supervisor from a Claude session)
+    const isInTmux = TmuxManager.isInsideTmux();
+
+    if (!isInTmux) {
+      // Not in tmux, create all sessions then attach
+      Logger.info('Creating supervisor and all branch sessions');
+
+      // Create GitRepository for supervisor
+      const gitRepo = new GitRepository(supervisorPath);
+
+      // First create supervisor session in detached mode
+      const repoName = this.getRepoNameFromPath(supervisorPath);
+      const supervisorSessionName = TmuxManager.getSessionName(repoName, 'supervisor');
+      TmuxManager.createDetachedSession({
+        sessionName: supervisorSessionName,
+        workingDirectory: supervisorPath,
+        branchName: 'supervisor',
+        role: 'supervisor',
+        gitRepo,
       });
-      
-      console.log('');
-    });
-    
-    wrapper.on('select-session', async (selection: string) => {
-      if (selection === 'supervisor' || selection === '0') {
-        if (branchName === 'supervisor') {
-          console.log(theme.info('Already in supervisor mode'));
-          return;
-        }
-        console.log(theme.info('\nSwitching to supervisor mode...'));
-        await wrapper.shutdown();
-        await this.enterSupervisorMode();
-        return;
-      }
-      
-      // Try to parse as number first
-      const sessionIndex = parseInt(selection, 10);
-      let targetBranch: string | undefined;
-      
-      if (!isNaN(sessionIndex) && this.orchestrator) {
-        const { children } = await this.orchestrator.listInstances();
-        const child = children[sessionIndex - 1];
-        if (child) {
-          targetBranch = child.branch;
-        }
-      } else {
-        // Treat as branch name
-        targetBranch = selection;
-      }
-      
-      if (targetBranch) {
-        console.log(theme.info(`\nSwitching to ${theme.branch(targetBranch)}...`));
-        await wrapper.shutdown();
-        
-        // Find the worktree path
-        const worktreeManager = new WorktreeManager(this.basePath);
-        const worktrees = await worktreeManager.listWorktrees();
-        const target = worktrees.find(wt => wt.branch === targetBranch);
-        
-        if (target) {
-          await this.launchClaudeWrapper(target.path, targetBranch);
+
+      // Then launch all branch sessions
+      await this.launchAllBranchSessions(supervisorPath);
+
+      // Finally attach to supervisor
+      TmuxManager.attachToSession(supervisorSessionName);
+    } else {
+      // We're already in tmux, just switch to supervisor
+      Logger.info('Switching to supervisor session from within tmux');
+      this.launchTmuxSession(supervisorPath, 'supervisor', true);
+    }
+  }
+
+  private async launchAllBranchSessions(parentPath: string): Promise<void> {
+    Logger.info('Launching Claude sessions for all branches');
+    Logger.debug('launchAllBranchSessions called', { parentPath });
+
+    try {
+      // Get all worktrees
+      Logger.debug('Creating WorktreeManager', { parentPath });
+      const worktreeManager = new WorktreeManager(parentPath);
+
+      Logger.debug('Calling listWorktrees');
+      const worktrees = await worktreeManager.listWorktrees();
+
+      Logger.info('All worktrees found', {
+        count: worktrees.length,
+        worktrees: worktrees.map((wt) => ({ path: wt.path, branch: wt.branch })),
+      });
+
+      // Sort worktrees by branch name for consistent ordering
+      // In a proper worktree setup, the parent directory is never a worktree itself,
+      // so we don't need to filter it out. All worktrees are subdirectories.
+      Logger.debug('Sorting worktrees');
+      const sortedWorktrees = worktrees.sort((a, b) =>
+        (a.branch || '').localeCompare(b.branch || ''),
+      );
+
+      Logger.info('Sorted worktrees for session creation', {
+        count: sortedWorktrees.length,
+        worktrees: sortedWorktrees.map((wt) => ({ path: wt.path, branch: wt.branch })),
+      });
+
+      // Get repository name from parent path
+      const repoName = this.getRepoNameFromPath(parentPath);
+      Logger.debug('Repository name determined', { repoName, parentPath });
+
+      // Launch Claude in each worktree
+      Logger.debug('Starting loop through worktrees', { worktreeCount: sortedWorktrees.length });
+      for (let i = 0; i < sortedWorktrees.length; i++) {
+        const worktree = sortedWorktrees[i];
+        if (!worktree) continue; // Skip if undefined
+
+        Logger.debug(`Processing worktree ${i + 1}/${sortedWorktrees.length}`, {
+          branch: worktree.branch,
+          path: worktree.path,
+          index: i,
+        });
+
+        const sessionName = TmuxManager.getSessionName(repoName, worktree.branch || 'detached');
+        Logger.debug('Generated session name', { sessionName, branch: worktree.branch });
+
+        const sessionInfo = TmuxManager.getSessionInfo(sessionName);
+        Logger.debug('Session info retrieved', { sessionInfo, sessionName });
+
+        if (!sessionInfo || !sessionInfo.hasClaudeRunning) {
+          // Session doesn't exist or Claude isn't running
+          Logger.info('Creating/restarting session for branch', {
+            branch: worktree.branch,
+            exists: !!sessionInfo,
+            sessionName,
+            hasClaudeRunning: sessionInfo?.hasClaudeRunning,
+          });
+
+          Logger.debug('Calling createDetachedSession', {
+            sessionName,
+            workingDirectory: worktree.path,
+            branchName: worktree.branch,
+          });
+
+          // Create GitRepository for each worktree
+          const worktreeGitRepo = new GitRepository(worktree.path);
+
+          TmuxManager.createDetachedSession({
+            sessionName,
+            workingDirectory: worktree.path,
+            branchName: worktree.branch || 'detached',
+            role: 'child',
+            gitRepo: worktreeGitRepo,
+          });
+
+          Logger.debug('createDetachedSession returned', { sessionName });
         } else {
-          console.log(theme.error(`Session/branch '${targetBranch}' not found`));
+          Logger.info('Session already exists and has Claude running', {
+            branch: worktree.branch,
+            sessionName,
+          });
         }
-      } else {
-        console.log(theme.error(`Invalid selection: ${selection}`));
       }
+
+      Logger.info('Completed launching all branch sessions');
+    } catch (error) {
+      Logger.error('Failed to launch branch sessions', error);
+      console.error(theme.warning('\nWarning: Could not launch all branch sessions'));
+    }
+  }
+
+  private shutdownAllSessions(): void {
+    const spinner = new Spinner('Shutting down all sessions...');
+    spinner.start();
+
+    try {
+      TmuxManager.shutdownAll();
+      spinner.succeed('All sessions shut down successfully');
+    } catch (error) {
+      spinner.fail('Failed to shutdown some sessions');
+      Logger.error('Error during shutdown', error);
+    }
+  }
+
+  private launchTmuxSession(
+    worktreePath: string,
+    branchName: string,
+    isSupervisor: boolean = false,
+  ): void {
+    Logger.info('launchTmuxSession called', { worktreePath, branchName, isSupervisor });
+    // Check if tmux is available
+    if (!TmuxManager.isTmuxAvailable()) {
+      Logger.error('tmux not available');
+      console.log(theme.error('\n❌ tmux is not installed'));
+      console.log(theme.info('Claude GWT requires tmux. Please install it:'));
+      console.log(theme.muted('  • macOS: brew install tmux'));
+      console.log(theme.muted('  • Ubuntu/Debian: sudo apt-get install tmux'));
+      console.log(theme.muted('  • Fedora/RHEL: sudo dnf install tmux'));
+      return;
+    }
+
+    const repoName = this.getRepoNameFromPath(worktreePath);
+    const sessionName = TmuxManager.getSessionName(repoName, branchName);
+    Logger.info('Session name generated', { sessionName, repoName });
+
+    try {
+      // Create GitRepository for the session
+      const gitRepo = new GitRepository(worktreePath);
+
+      // Launch the tmux session with real Claude Code
+      TmuxManager.launchSession({
+        sessionName,
+        workingDirectory: worktreePath,
+        branchName,
+        role: isSupervisor ? 'supervisor' : 'child',
+        gitRepo,
+      });
+      Logger.info('Tmux session launched successfully');
+    } catch (error) {
+      Logger.error('Failed to launch tmux session', error);
+      console.error(theme.error('\n❌ Failed to launch session'));
+      console.error(theme.muted(`Check logs at: ${Logger.getLogPath()}`));
+      throw error;
+    }
+  }
+
+  /**
+   * Handle regular git repositories without worktree conversion
+   */
+  private async handleRegularGitMode(): Promise<void> {
+    const repo = new GitRepository(this.basePath);
+    const currentBranch = await repo.getCurrentBranch();
+
+    console.log(theme.primary(`\n📍 Current branch: ${theme.branch(currentBranch)}`));
+    console.log(theme.warning('\n⚠️  Running in limited mode (regular Git repository)'));
+
+    // Get all branches
+    const git = simpleGit(this.basePath);
+    const branchInfo = await git.branch();
+    const branches = branchInfo.all.filter((b) => !b.startsWith('remotes/'));
+
+    console.log(theme.info(`\n${theme.icons.branch} Available branches (${branches.length}):`));
+    branches.forEach((branch) => {
+      const isCurrent = branch === currentBranch;
+      const marker = isCurrent ? ' ← current' : '';
+      const status = isCurrent ? theme.statusActive : theme.statusIdle;
+      console.log(`  ${status} ${theme.branch(branch)}${theme.success(marker)}`);
     });
-    
-    wrapper.on('broadcast-message', async (message: string) => {
-      console.log(theme.info(`\n📢 Broadcasting: ${message}`));
-      await this.sessionManager.broadcastMessage(message, branchName);
-      console.log(theme.success('Message broadcast to all sessions'));
-    });
-    
-    await wrapper.start();
+
+    if (this.options.interactive !== false) {
+      const choices = [
+        { title: 'Switch branch', value: 'switch' },
+        { title: 'Create new branch', value: 'create' },
+        { title: 'Enter supervisor mode', value: 'supervisor' },
+        { title: 'Convert to worktree setup', value: 'convert' },
+        { title: 'Exit', value: 'exit' },
+      ];
+
+      const action = await prompts.selectAction('What would you like to do?', choices);
+
+      switch (action) {
+        case 'switch':
+          await this.switchBranchRegularMode(branches);
+          break;
+        case 'create':
+          await this.createBranchRegularMode();
+          break;
+        case 'supervisor':
+          this.launchRegularGitSupervisor(currentBranch);
+          break;
+        case 'convert':
+          // Re-run conversion
+          await this.handleGitRepository();
+          break;
+        case 'exit':
+          console.log(theme.muted('\nGoodbye!'));
+          break;
+      }
+    }
+  }
+
+  private async switchBranchRegularMode(branches: string[]): Promise<void> {
+    const targetBranch = await prompts.selectBranch('Select branch to switch to:', branches);
+
+    if (!targetBranch || targetBranch === 'cancel') {
+      return;
+    }
+
+    const spinner = new Spinner(`Switching to branch ${targetBranch}...`);
+    spinner.start();
+
+    try {
+      const git = simpleGit(this.basePath);
+      await git.checkout(targetBranch);
+      spinner.succeed(`Switched to branch ${theme.branch(targetBranch)}`);
+
+      // Launch supervisor if requested
+      if (this.options.interactive !== false) {
+        const launch = await prompts.confirmAction('Launch Claude in supervisor mode?');
+        if (launch) {
+          this.launchRegularGitSupervisor(targetBranch);
+        }
+      }
+    } catch (error) {
+      spinner.fail('Failed to switch branch');
+      console.error(theme.error(error instanceof Error ? error.message : 'Unknown error'));
+    }
+  }
+
+  private async createBranchRegularMode(): Promise<void> {
+    const branchName = await prompts.promptForBranchName();
+
+    if (!branchName) {
+      return;
+    }
+
+    const spinner = new Spinner(`Creating branch ${branchName}...`);
+    spinner.start();
+
+    try {
+      const git = simpleGit(this.basePath);
+      await git.checkoutLocalBranch(branchName);
+      spinner.succeed(`Created and switched to branch ${theme.branch(branchName)}`);
+
+      // Launch supervisor if requested
+      if (this.options.interactive !== false) {
+        const launch = await prompts.confirmAction('Launch Claude in supervisor mode?');
+        if (launch) {
+          this.launchRegularGitSupervisor(branchName);
+        }
+      }
+    } catch (error) {
+      spinner.fail('Failed to create branch');
+      console.error(theme.error(error instanceof Error ? error.message : 'Unknown error'));
+    }
+  }
+
+  private launchRegularGitSupervisor(branch: string): void {
+    const repoName = path.basename(this.basePath);
+
+    console.log(theme.info('\n🚀 Launching Claude in supervisor mode...'));
+    console.log(theme.warning('Note: Limited functionality in regular Git mode'));
+    console.log(theme.muted('  • No parallel branch sessions'));
+    console.log(theme.muted('  • Use git commands to switch branches'));
+
+    // Create a simplified session for regular git repos
+    const sessionConfig = {
+      sessionName: TmuxManager.getSessionName(repoName, branch),
+      workingDirectory: this.basePath,
+      branchName: branch,
+      role: 'supervisor' as const,
+    };
+
+    TmuxManager.launchSession(sessionConfig);
   }
 }

@@ -1,0 +1,50 @@
+# Add labels to any changes within src/cli
+cli:
+  - changed-files:
+    - any-glob-to-any-file: src/cli/**
+
+# Add labels to any changes within src/core
+core:
+  - changed-files:
+    - any-glob-to-any-file: src/core/**
+
+# Add labels to any changes within src/mcp
+mcp:
+  - changed-files:
+    - any-glob-to-any-file: src/mcp/**
+
+# Add labels to test files
+tests:
+  - changed-files:
+    - any-glob-to-any-file: tests/**
+
+# Add documentation label
+documentation:
+  - changed-files:
+    - any-glob-to-any-file: 
+      - '**/*.md'
+      - docs/**
+
+# Add CI/CD label
+ci/cd:
+  - changed-files:
+    - any-glob-to-any-file: 
+      - .github/**
+      - Dockerfile
+      - .dockerignore
+
+# Add dependencies label
+dependencies:
+  - changed-files:
+    - any-glob-to-any-file:
+      - package.json
+      - package-lock.json
+
+# Add configuration label
+configuration:
+  - changed-files:
+    - any-glob-to-any-file:
+      - tsconfig.json
+      - .eslintrc.js
+      - .prettierrc
+      - jest.config.js

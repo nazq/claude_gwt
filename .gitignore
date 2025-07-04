@@ -48,4 +48,7 @@ test-repo/
 test-dir/
 
 # Package files
-*.tgz
+*.tgztest-gwt/
+
+# Claude GWT log file
+.claude-gwt.log

@@ -95,8 +95,8 @@ describe('Git Operations Integration', () => {
       const manager = new WorktreeManager(testDir);
       const worktrees = await manager.listWorktrees();
       
-      expect(worktrees).toHaveLength(1);
-      expect(worktrees[0]?.path).toBe(testDir);
+      // After bare repo init, no worktrees exist yet
+      expect(worktrees).toHaveLength(0);
     });
     
     it('should add new worktree', async () => {
@@ -108,7 +108,7 @@ describe('Git Operations Integration', () => {
       expect(worktreePath).toContain(branchName);
       
       const worktrees = await manager.listWorktrees();
-      expect(worktrees).toHaveLength(2);
+      expect(worktrees).toHaveLength(1);
       
       const newWorktree = worktrees.find(wt => wt.branch === branchName);
       expect(newWorktree).toBeDefined();
@@ -124,14 +124,14 @@ describe('Git Operations Integration', () => {
       
       // Verify it exists
       let worktrees = await manager.listWorktrees();
-      expect(worktrees).toHaveLength(2);
+      expect(worktrees).toHaveLength(1);
       
       // Remove it
       await manager.removeWorktree(branchName);
       
       // Verify it's gone
       worktrees = await manager.listWorktrees();
-      expect(worktrees).toHaveLength(1);
+      expect(worktrees).toHaveLength(0);
       expect(worktrees.find(wt => wt.branch === branchName)).toBeUndefined();
     });
   });
@@ -147,10 +147,9 @@ describe('Git Operations Integration', () => {
       const repo = new GitRepository(testDir);
       await repo.initializeBareRepository();
       
-      // 3. Detect again - should be git-worktree
+      // 3. Detect again - should be claude-gwt-parent
       state = await detector.detectState();
-      expect(state.type).toBe('git-worktree');
-      expect(state.gitInfo?.isBareRepo).toBe(true);
+      expect(state.type).toBe('claude-gwt-parent');
       
       // 4. Create worktrees
       const manager = new WorktreeManager(testDir);
@@ -159,7 +158,7 @@ describe('Git Operations Integration', () => {
       
       // 5. List all worktrees
       const worktrees = await manager.listWorktrees();
-      expect(worktrees).toHaveLength(3); // main + 2 features
+      expect(worktrees).toHaveLength(2); // 2 features
       
       const branches = worktrees.map(wt => wt.branch).sort();
       expect(branches).toContain('feature-a');

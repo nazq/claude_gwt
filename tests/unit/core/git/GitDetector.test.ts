@@ -121,21 +121,20 @@ describe('GitDetector', () => {
       });
     });
 
-    it('should detect bare repository setup', async () => {
+    it('should detect claude-gwt-parent setup', async () => {
       mockFs.readdir.mockResolvedValue(['.git', '.bare', 'file1.txt'] as any);
-      mockGit.status.mockResolvedValue({
-        current: 'main',
-        tracking: null,
-      });
-      mockFs.stat.mockResolvedValue({ isDirectory: () => false } as any);
+      
+      // Mock checks for claude-gwt-parent
+      mockFs.stat
+        .mockResolvedValueOnce({ isDirectory: () => true } as any) // .bare exists
+        .mockResolvedValueOnce({ isDirectory: () => false } as any); // .git is file
       mockFs.readFile.mockResolvedValue('gitdir: ./.bare');
-      mockFs.access.mockResolvedValue(undefined); // .bare exists
-      mockGit.getRemotes.mockResolvedValue([]);
+      mockFs.access.mockResolvedValue(undefined); // HEAD exists in .bare
       
       const detector = new GitDetector('/test/path');
       const result = await detector.detectState();
       
-      expect(result.gitInfo?.isBareRepo).toBe(true);
+      expect(result.type).toBe('claude-gwt-parent');
     });
 
     it('should handle errors gracefully', async () => {
