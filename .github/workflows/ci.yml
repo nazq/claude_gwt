@@ -35,6 +35,9 @@ jobs:
     - name: TypeScript type checking
       run: npm run typecheck
       
+    - name: Build project
+      run: npm run build
+      
     - name: Run tests
       run: npm test -- --ci --coverage --maxWorkers=2
       
@@ -44,9 +47,6 @@ jobs:
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         fail_ci_if_error: false
-        
-    - name: Build project
-      run: npm run build
       
     - name: Check build output
       run: |
