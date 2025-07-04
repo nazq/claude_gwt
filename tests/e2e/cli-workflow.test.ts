@@ -16,6 +16,15 @@ describe('CLI End-to-End Workflow', () => {
       if (process.platform !== 'win32' && !(stats.mode & 0o111)) {
         console.warn(`Warning: CLI file is not executable: ${cliPath}`);
       }
+      
+      // Test basic Node require to check for syntax issues
+      try {
+        require(cliPath);
+        console.log('CLI module loaded successfully');
+      } catch (requireError) {
+        console.error('Failed to require CLI module:', requireError);
+        throw requireError;
+      }
     } catch (error) {
       throw new Error(`CLI not found at ${cliPath}. Run 'npm run build' first.`);
     }
