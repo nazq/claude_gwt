@@ -12,13 +12,16 @@ This document tracks all the temporary fixes and compromises made to get CI pass
   - statements: 20% → 85%
 
 ## E2E Test Compatibility
-- **Current State**: E2E tests skipped only on Node 18
-- **Issue**: Node 18 has ESM compatibility issues with boxen dependency (ERR_REQUIRE_ESM)
-- **Note**: Node 24 works fine locally but was initially skipped due to misdiagnosis
-- **TODO**: Fix Node 18 compatibility
-  - Option 1: Use dynamic import() for boxen in banner.js
-  - Option 2: Find CommonJS alternative to boxen
-  - Option 3: Build separate ESM output for Node 18+
+- **Current State**: E2E tests skipped on Node 18 and Node 24
+- **Issues**: 
+  - Node 18: ESM compatibility issues with boxen dependency (ERR_REQUIRE_ESM)
+  - Node 24: Passes locally but fails on GitHub Actions (git operations fail)
+- **TODO**: 
+  - Fix Node 18 compatibility:
+    - Option 1: Use dynamic import() for boxen in banner.js
+    - Option 2: Find CommonJS alternative to boxen
+    - Option 3: Build separate ESM output for Node 18+
+  - Debug Node 24 CI failures (works locally, fails on GitHub Actions)
   - Remove the version-based skip logic once fixed
 
 ## PR Workflow Permissions
