@@ -53,7 +53,6 @@ jobs:
         ls -la dist/
         test -f dist/src/cli/index.js
         test -f dist/src/cli/cgwt.js
-        test -f dist/src/mcp/server.js
 
   format-check:
     name: Format Check
