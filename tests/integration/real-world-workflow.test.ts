@@ -149,8 +149,8 @@ In Progress
       }
     });
 
-    it('should detect tmux availability', () => {
-      const isAvailable = TmuxManager.isTmuxAvailable();
+    it('should detect tmux availability', async () => {
+      const isAvailable = await TmuxManager.isTmuxAvailable();
       expect(typeof isAvailable).toBe('boolean');
     });
 

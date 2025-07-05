@@ -35,10 +35,8 @@ describe('ClaudeGWTApp - Regular Git Mode', () => {
     mockConsoleError.mockImplementation();
 
     // Mock TmuxManager static methods
-    (TmuxManager.launchSession as jest.Mock) = jest.fn().mockImplementation(() => {
-      throw new Error('process.exit called');
-    });
-    (TmuxManager.getSessionName as jest.Mock) = jest.fn().mockReturnValue('cgwt-test-main');
+    jest.spyOn(TmuxManager, 'launchSession').mockResolvedValue(undefined);
+    jest.spyOn(TmuxManager, 'getSessionName').mockReturnValue('cgwt-test-main');
   });
 
   describe('handleRegularGitMode', () => {
@@ -186,6 +184,11 @@ describe('ClaudeGWTApp - Regular Git Mode', () => {
 
       // Mock supervisor action
       jest.spyOn(prompts, 'selectAction').mockResolvedValue('supervisor');
+
+      // Override the default mock to simulate real behavior - tmux launches and exits
+      jest.spyOn(TmuxManager, 'launchSession').mockImplementation(async () => {
+        process.exit(0);
+      });
 
       const app = new ClaudeGWTApp('/test/repo', { interactive: true });
 
@@ -508,10 +511,10 @@ describe('ClaudeGWTApp - Regular Git Mode', () => {
       // Mock supervisor action
       jest.spyOn(prompts, 'selectAction').mockResolvedValue('supervisor');
 
-      // Override the default mock to throw a different error
-      (TmuxManager.launchSession as jest.Mock).mockImplementation(() => {
-        throw new Error('Failed to launch tmux session');
-      });
+      // Override the default mock to reject with an error
+      jest
+        .spyOn(TmuxManager, 'launchSession')
+        .mockImplementation(() => Promise.reject(new Error('Failed to launch tmux session')));
 
       const app = new ClaudeGWTApp('/test/repo', { interactive: true });
 

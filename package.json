@@ -17,6 +17,11 @@
     "test:integration": "jest tests/integration",
     "test:e2e": "jest tests/e2e",
     "test:unit": "jest tests/unit",
+    "test:ci": "jest --ci --coverage --maxWorkers=50%",
+    "test:ci:unit": "jest tests/unit --ci --maxWorkers=50%",
+    "test:ci:integration": "jest tests/integration --ci --maxWorkers=50%",
+    "test:ci:e2e": "jest tests/e2e --ci --maxWorkers=50%",
+    "test:all": "npm run test:unit && npm run test:integration && npm run test:e2e",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
     "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
@@ -95,9 +100,12 @@
     "typescript": "^5.3.3"
   },
   "lint-staged": {
-    "*.ts": [
+    "src/**/*.ts": [
       "prettier --write",
       "eslint --fix"
+    ],
+    "tests/**/*.ts": [
+      "prettier --write"
     ]
   },
   "size-limit": [

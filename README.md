@@ -1,9 +1,9 @@
 # Claude GWT (Git Worktree Tool)
 
-[![CI](https://github.com/nazq/claude-gwt/actions/workflows/ci.yml/badge.svg)](https://github.com/nazq/claude-gwt/actions/workflows/ci.yml)
+[![CI](https://github.com/nazq/claude_gwt/actions/workflows/ci.yml/badge.svg)](https://github.com/nazq/claude_gwt/actions/workflows/ci.yml)
 [![npm version](https://badge.fury.io/js/claude-gwt.svg)](https://badge.fury.io/js/claude-gwt)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![codecov](https://codecov.io/gh/nazq/claude-gwt/branch/master/graph/badge.svg)](https://codecov.io/gh/nazq/claude-gwt)
+[![codecov](https://codecov.io/gh/nazq/claude_gwt/branch/master/graph/badge.svg)](https://codecov.io/gh/nazq/claude_gwt)
 [![Node.js Version](https://img.shields.io/node/v/claude-gwt.svg)](https://nodejs.org)
 
 A powerful Git worktree manager with integrated Claude AI orchestration. Manage multiple Git branches in parallel with dedicated Claude instances for each branch.
@@ -34,8 +34,8 @@ docker run -it -v $(pwd):/workspace nazq/claude-gwt
 
 ### From Source
 ```bash
-git clone https://github.com/nazq/claude-gwt.git
-cd claude-gwt
+git clone https://github.com/nazq/claude_gwt.git
+cd claude_gwt
 npm install
 npm run build
 npm link
@@ -286,8 +286,8 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 
 ```bash
 # Fork and clone
-git clone https://github.com/nazq/claude-gwt.git
-cd claude-gwt
+git clone https://github.com/nazq/claude_gwt.git
+cd claude_gwt
 
 # Install dependencies
 npm install
@@ -313,7 +313,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 - 📧 Email: support@claude-gwt.dev
 - 💬 Discord: [Join our community](https://discord.gg/claude-gwt)
-- 🐛 Issues: [GitHub Issues](https://github.com/nazq/claude-gwt/issues)
+- 🐛 Issues: [GitHub Issues](https://github.com/nazq/claude_gwt/issues)
 
 ---
 
