@@ -245,6 +245,12 @@ ${customContext}`
    */
   static async createDetachedSession(config: SessionConfig): Promise<void> {
     const { sessionName, workingDirectory, branchName } = config;
+
+    // Validate session name
+    if (!sessionName?.trim()) {
+      throw new Error('Session name cannot be empty');
+    }
+
     Logger.info('Creating detached session', {
       sessionName,
       workingDirectory,
