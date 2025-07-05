@@ -1,0 +1,12 @@
+[
+  {
+    "name": "CLI Bundle",
+    "path": "dist/src/cli/index.js",
+    "limit": "200 KB"
+  },
+  {
+    "name": "MCP Server",
+    "path": "dist/src/mcp/server.js", 
+    "limit": "150 KB"
+  }
+]
