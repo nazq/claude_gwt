@@ -1,7 +1,7 @@
 {
   "name": "claude-gwt",
-  "version": "1.0.0",
-  "description": "A beautiful Git Worktree manager with integrated Claude Code orchestration",
+  "version": "0.1.0-beta.1",
+  "description": "[BETA] A beautiful Git Worktree manager with integrated Claude Code orchestration - Experimental software under active development",
   "main": "dist/index.js",
   "bin": {
     "claude-gwt": "./dist/src/cli/index.js"
@@ -30,9 +30,14 @@
     "typecheck": "tsc --noEmit",
     "prepare": "husky install",
     "postbuild": "chmod +x dist/src/cli/index.js",
+    "prepare:publish": "node scripts/prepare-publish.js",
     "prepublishOnly": "npm run build:clean && npm test",
     "version": "npm run format && git add -A src",
-    "postversion": "git push && git push --tags"
+    "postversion": "git push && git push --tags",
+    "release": "npm run prepare:publish && npm publish",
+    "release:dry": "npm run prepare:publish && npm publish --dry-run",
+    "release:beta": "npm run prepare:publish && npm publish --tag beta",
+    "release:beta:dry": "npm run prepare:publish && npm publish --dry-run --tag beta"
   },
   "keywords": [
     "git",
@@ -44,26 +49,33 @@
     "mcp",
     "model-context-protocol",
     "developer-tools",
-    "cli"
+    "cli",
+    "beta",
+    "experimental"
   ],
   "author": "Claude GWT Contributors",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/yourusername/claude-gwt.git"
+    "url": "git+https://github.com/nazq/claude_gwt.git"
   },
   "bugs": {
-    "url": "https://github.com/yourusername/claude-gwt/issues"
+    "url": "https://github.com/nazq/claude_gwt/issues"
   },
-  "homepage": "https://github.com/yourusername/claude-gwt#readme",
+  "homepage": "https://github.com/nazq/claude_gwt#readme",
   "engines": {
     "node": ">=18.0.0"
   },
   "files": [
-    "dist",
+    "dist/**/*",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "CLAUDE.md"
   ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.15.0",
     "boxen": "^7.1.1",
