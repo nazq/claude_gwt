@@ -346,7 +346,7 @@ export class ClaudeGWTApp {
     let shouldContinue = true;
     while (shouldContinue) {
       // Check if there are any active sessions
-      const sessions = TmuxManager.listSessions();
+      const sessions = await TmuxManager.listSessions();
       const hasSessions = sessions.length > 0;
 
       const action = await prompts.promptForWorktreeAction(worktrees, hasSessions);
@@ -494,7 +494,7 @@ export class ClaudeGWTApp {
       // First create supervisor session in detached mode
       const repoName = this.getRepoNameFromPath(supervisorPath);
       const supervisorSessionName = TmuxManager.getSessionName(repoName, 'supervisor');
-      TmuxManager.createDetachedSession({
+      await TmuxManager.createDetachedSession({
         sessionName: supervisorSessionName,
         workingDirectory: supervisorPath,
         branchName: 'supervisor',
@@ -506,11 +506,11 @@ export class ClaudeGWTApp {
       await this.launchAllBranchSessions(supervisorPath);
 
       // Finally attach to supervisor
-      TmuxManager.attachToSession(supervisorSessionName);
+      void TmuxManager.attachToSession(supervisorSessionName);
     } else {
       // We're already in tmux, just switch to supervisor
       Logger.info('Switching to supervisor session from within tmux');
-      this.launchTmuxSession(supervisorPath, 'supervisor', true);
+      await this.launchTmuxSession(supervisorPath, 'supervisor', true);
     }
   }
 
@@ -548,58 +548,66 @@ export class ClaudeGWTApp {
       const repoName = this.getRepoNameFromPath(parentPath);
       Logger.debug('Repository name determined', { repoName, parentPath });
 
-      // Launch Claude in each worktree
-      Logger.debug('Starting loop through worktrees', { worktreeCount: sortedWorktrees.length });
-      for (let i = 0; i < sortedWorktrees.length; i++) {
-        const worktree = sortedWorktrees[i];
-        if (!worktree) continue; // Skip if undefined
+      // Launch Claude in each worktree in parallel
+      Logger.debug('Starting parallel session creation', { worktreeCount: sortedWorktrees.length });
 
-        Logger.debug(`Processing worktree ${i + 1}/${sortedWorktrees.length}`, {
+      const sessionCreationPromises = sortedWorktrees.map(async (worktree, index) => {
+        if (!worktree) return; // Skip if undefined
+
+        Logger.debug(`Processing worktree ${index + 1}/${sortedWorktrees.length}`, {
           branch: worktree.branch,
           path: worktree.path,
-          index: i,
+          index,
         });
 
         const sessionName = TmuxManager.getSessionName(repoName, worktree.branch || 'detached');
         Logger.debug('Generated session name', { sessionName, branch: worktree.branch });
 
-        const sessionInfo = TmuxManager.getSessionInfo(sessionName);
-        Logger.debug('Session info retrieved', { sessionInfo, sessionName });
+        try {
+          const sessionInfo = await TmuxManager.getSessionInfo(sessionName);
+          Logger.debug('Session info retrieved', { sessionInfo, sessionName });
 
-        if (!sessionInfo || !sessionInfo.hasClaudeRunning) {
-          // Session doesn't exist or Claude isn't running
-          Logger.info('Creating/restarting session for branch', {
-            branch: worktree.branch,
-            exists: !!sessionInfo,
-            sessionName,
-            hasClaudeRunning: sessionInfo?.hasClaudeRunning,
-          });
+          if (!sessionInfo || !sessionInfo.hasClaudeRunning) {
+            // Session doesn't exist or Claude isn't running
+            Logger.info('Creating/restarting session for branch', {
+              branch: worktree.branch,
+              exists: !!sessionInfo,
+              sessionName,
+              hasClaudeRunning: sessionInfo?.hasClaudeRunning,
+            });
 
-          Logger.debug('Calling createDetachedSession', {
-            sessionName,
-            workingDirectory: worktree.path,
-            branchName: worktree.branch,
-          });
+            Logger.debug('Calling createDetachedSession', {
+              sessionName,
+              workingDirectory: worktree.path,
+              branchName: worktree.branch,
+            });
 
-          // Create GitRepository for each worktree
-          const worktreeGitRepo = new GitRepository(worktree.path);
+            // Create GitRepository for each worktree
+            const worktreeGitRepo = new GitRepository(worktree.path);
 
-          TmuxManager.createDetachedSession({
-            sessionName,
-            workingDirectory: worktree.path,
-            branchName: worktree.branch || 'detached',
-            role: 'child',
-            gitRepo: worktreeGitRepo,
-          });
+            await TmuxManager.createDetachedSession({
+              sessionName,
+              workingDirectory: worktree.path,
+              branchName: worktree.branch || 'detached',
+              role: 'child',
+              gitRepo: worktreeGitRepo,
+            });
 
-          Logger.debug('createDetachedSession returned', { sessionName });
-        } else {
-          Logger.info('Session already exists and has Claude running', {
-            branch: worktree.branch,
-            sessionName,
-          });
+            Logger.debug('createDetachedSession returned', { sessionName });
+          } else {
+            Logger.info('Session already exists and has Claude running', {
+              branch: worktree.branch,
+              sessionName,
+            });
+          }
+        } catch (error) {
+          Logger.error(`Failed to create session for branch ${worktree.branch}`, error);
+          // Continue with other sessions even if one fails
         }
-      }
+      });
+
+      // Wait for all sessions to be created
+      await Promise.allSettled(sessionCreationPromises);
 
       Logger.info('Completed launching all branch sessions');
     } catch (error) {
@@ -613,7 +621,7 @@ export class ClaudeGWTApp {
     spinner.start();
 
     try {
-      TmuxManager.shutdownAll();
+      void TmuxManager.shutdownAll();
       spinner.succeed('All sessions shut down successfully');
     } catch (error) {
       spinner.fail('Failed to shutdown some sessions');
@@ -621,14 +629,14 @@ export class ClaudeGWTApp {
     }
   }
 
-  private launchTmuxSession(
+  private async launchTmuxSession(
     worktreePath: string,
     branchName: string,
     isSupervisor: boolean = false,
-  ): void {
+  ): Promise<void> {
     Logger.info('launchTmuxSession called', { worktreePath, branchName, isSupervisor });
     // Check if tmux is available
-    if (!TmuxManager.isTmuxAvailable()) {
+    if (!(await TmuxManager.isTmuxAvailable())) {
       Logger.error('tmux not available');
       console.log(theme.error('\n❌ tmux is not installed'));
       console.log(theme.info('Claude GWT requires tmux. Please install it:'));
@@ -647,7 +655,7 @@ export class ClaudeGWTApp {
       const gitRepo = new GitRepository(worktreePath);
 
       // Launch the tmux session with real Claude Code
-      TmuxManager.launchSession({
+      await TmuxManager.launchSession({
         sessionName,
         workingDirectory: worktreePath,
         branchName,
@@ -705,7 +713,7 @@ export class ClaudeGWTApp {
           await this.createBranchRegularMode();
           break;
         case 'supervisor':
-          this.launchRegularGitSupervisor(currentBranch);
+          await this.launchRegularGitSupervisor(currentBranch);
           break;
         case 'convert':
           // Re-run conversion
@@ -737,7 +745,7 @@ export class ClaudeGWTApp {
       if (this.options.interactive !== false) {
         const launch = await prompts.confirmAction('Launch Claude in supervisor mode?');
         if (launch) {
-          this.launchRegularGitSupervisor(targetBranch);
+          void this.launchRegularGitSupervisor(targetBranch);
         }
       }
     } catch (error) {
@@ -765,7 +773,7 @@ export class ClaudeGWTApp {
       if (this.options.interactive !== false) {
         const launch = await prompts.confirmAction('Launch Claude in supervisor mode?');
         if (launch) {
-          this.launchRegularGitSupervisor(branchName);
+          void this.launchRegularGitSupervisor(branchName);
         }
       }
     } catch (error) {
@@ -774,7 +782,7 @@ export class ClaudeGWTApp {
     }
   }
 
-  private launchRegularGitSupervisor(branch: string): void {
+  private async launchRegularGitSupervisor(branch: string): Promise<void> {
     const repoName = path.basename(this.basePath);
 
     console.log(theme.info('\n🚀 Launching Claude in supervisor mode...'));
@@ -790,6 +798,6 @@ export class ClaudeGWTApp {
       role: 'supervisor' as const,
     };
 
-    TmuxManager.launchSession(sessionConfig);
+    await TmuxManager.launchSession(sessionConfig);
   }
 }

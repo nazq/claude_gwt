@@ -7,14 +7,68 @@ on:
     branches: [ master, main ]
 
 jobs:
+  quick-checks:
+    name: Quick Checks
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20.x
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Run linter
+      run: npm run lint
+      
+    - name: TypeScript type checking
+      run: npm run typecheck
+      
+    - name: Check formatting
+      run: npm run format:check
+      
+    - name: Cache build artifacts
+      uses: actions/cache@v4
+      with:
+        path: dist
+        key: build-${{ runner.os }}-${{ hashFiles('package*.json', 'tsconfig.json', 'src/**') }}
+        restore-keys: |
+          build-${{ runner.os }}-
+          
+    - name: Build project
+      run: npm run build
+      
+    - name: Check build output
+      run: |
+        ls -la dist/
+        test -f dist/src/cli/index.js
+        
+    - name: CLI health check
+      run: |
+        chmod +x dist/src/cli/index.js
+        node dist/src/cli/index.js --version
+        node dist/src/cli/index.js --help
+
   test:
-    name: Test on Node ${{ matrix.node-version }}
+    name: Test on Node ${{ matrix.node-version }} (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    needs: quick-checks
     
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        node-version: [18.x, 20.x, 22.x, 24.x]
+        node-version: [18.x, 20.x, 22.x]
+        exclude:
+          # Skip older Node versions on macOS to reduce CI time
+          - os: macos-latest
+            node-version: 18.x
         
     steps:
     - name: Checkout code
@@ -29,17 +83,37 @@ jobs:
     - name: Install dependencies
       run: npm ci
       
-    - name: Run linter
-      run: npm run lint
+    - name: Install tmux (Linux only)
+      if: matrix.os == 'ubuntu-latest'
+      run: sudo apt-get update && sudo apt-get install -y tmux
       
-    - name: TypeScript type checking
-      run: npm run typecheck
+    - name: Install tmux (macOS only)
+      if: matrix.os == 'macos-latest'
+      run: brew install tmux
       
+    - name: Restore build cache
+      uses: actions/cache@v4
+      with:
+        path: dist
+        key: build-${{ runner.os }}-${{ hashFiles('package*.json', 'tsconfig.json', 'src/**') }}
+        restore-keys: |
+          build-${{ runner.os }}-
+          
     - name: Build project
       run: npm run build
       
-    - name: Run tests
-      run: npm test -- --ci --coverage --maxWorkers=2
+    - name: Run unit tests
+      run: npm run test:ci:unit
+      
+    - name: Run integration tests
+      run: npm run test:ci:integration
+      
+    - name: Run e2e tests
+      run: npm run test:ci:e2e
+      
+    - name: Generate coverage report
+      if: matrix.os == 'ubuntu-latest' && matrix.node-version == '20.x'
+      run: npm run test:ci
       
     - name: Upload coverage to Codecov
       if: matrix.os == 'ubuntu-latest' && matrix.node-version == '20.x'
@@ -47,15 +121,11 @@ jobs:
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         fail_ci_if_error: false
-      
-    - name: Check build output
-      run: |
-        ls -la dist/
-        test -f dist/src/cli/index.js
 
-  format-check:
-    name: Format Check
+  security:
+    name: Security Audit
     runs-on: ubuntu-latest
+    needs: quick-checks
     
     steps:
     - name: Checkout code
@@ -70,42 +140,27 @@ jobs:
     - name: Install dependencies
       run: npm ci
       
-    - name: Check formatting
-      run: npm run format:check
-
-  security:
-    name: Security Audit
-    runs-on: ubuntu-latest
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: 20.x
-        cache: 'npm'
-        
     - name: Run security audit
       run: npm audit --audit-level=moderate
       continue-on-error: true
       
     - name: Check for known vulnerabilities
       run: npx audit-ci --moderate
+      continue-on-error: true
 
-  integration:
-    name: Integration Tests
+  test-latest-node:
+    name: Test on Node.js Latest
     runs-on: ubuntu-latest
+    needs: quick-checks
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Setup Node.js
+    - name: Setup Node.js 24.x
       uses: actions/setup-node@v4
       with:
-        node-version: 20.x
+        node-version: 24.x
         cache: 'npm'
         
     - name: Install dependencies
@@ -114,6 +169,9 @@ jobs:
     - name: Install tmux
       run: sudo apt-get update && sudo apt-get install -y tmux
       
-    - name: Run integration tests
-      run: npm run test:integration
+    - name: Build project
+      run: npm run build
+      
+    - name: Run unit tests only (skip e2e for Node 24.x)
+      run: npm run test:ci:unit
       

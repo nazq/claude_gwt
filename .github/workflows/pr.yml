@@ -74,6 +74,9 @@ jobs:
     - name: Install dependencies
       run: npm ci
       
+    - name: Install tmux
+      run: sudo apt-get update && sudo apt-get install -y tmux
+      
     - name: Build project
       run: npm run build
       
@@ -103,6 +106,9 @@ jobs:
         
     - name: Install dependencies
       run: npm ci
+      
+    - name: Install tmux
+      run: sudo apt-get update && sudo apt-get install -y tmux
       
     - name: Run tests with coverage
       run: npm run test:coverage

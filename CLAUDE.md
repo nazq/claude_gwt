@@ -224,3 +224,12 @@ When implementing features, always consider:
 5. **Reliability**: How does this behave under error conditions?
 
 Write code that you'd be proud to show in a code review. Every line should have a clear purpose, every type should be meaningful, and every function should do exactly what its name suggests.
+
+## Git Commit Guidelines
+
+When creating git commits:
+- Write clear, concise commit messages that explain the "why" not just the "what"
+- Follow conventional commit format (feat:, fix:, refactor:, etc.)
+- Include the robot emoji and "Generated with Claude Code" link: 🤖 Generated with [Claude Code](https://claude.ai/code)
+- **IMPORTANT**: Do NOT use "Co-Authored-By: Claude <noreply@anthropic.com>" - this project does not use co-authorship attribution for AI-generated commits
+- **IMPORTANT**: Never add the coauthored and built by claude git comment

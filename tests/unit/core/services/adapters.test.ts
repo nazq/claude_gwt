@@ -1,0 +1,455 @@
+/* eslint-disable @typescript-eslint/unbound-method */
+import {
+  GitServiceAdapter,
+  TmuxServiceAdapter,
+  CachingAdapter,
+  RetryAdapter,
+} from '../../../../src/core/services/adapters';
+import type {
+  IGitRepository,
+  IWorktreeManager,
+  ITmuxManager,
+  ILogger,
+  IErrorBoundary,
+} from '../../../../src/core/services/interfaces';
+import type { SessionConfig, SessionInfo } from '../../../../src/sessions/TmuxManager';
+import type { GitWorktreeInfo } from '../../../../src/types';
+
+describe('Service Adapters', () => {
+  describe('GitServiceAdapter', () => {
+    let mockGitRepo: jest.Mocked<IGitRepository>;
+    let mockWorktreeManager: jest.Mocked<IWorktreeManager>;
+    let mockErrorBoundary: jest.Mocked<IErrorBoundary>;
+    let mockLogger: jest.Mocked<ILogger>;
+    let adapter: GitServiceAdapter;
+
+    beforeEach(() => {
+      mockGitRepo = {
+        getCurrentBranch: jest.fn(),
+        getDefaultBranch: jest.fn(),
+        initializeBareRepository: jest.fn(),
+        convertToWorktreeSetup: jest.fn(),
+        canConvertToWorktree: jest.fn(),
+        fetch: jest.fn(),
+      };
+
+      mockWorktreeManager = {
+        listWorktrees: jest.fn(),
+        addWorktree: jest.fn(),
+        removeWorktree: jest.fn(),
+      };
+
+      mockErrorBoundary = {
+        handle: jest.fn(),
+        handleSync: jest.fn(),
+      };
+
+      mockLogger = {
+        info: jest.fn(),
+        error: jest.fn(),
+        warn: jest.fn(),
+        debug: jest.fn(),
+        verbose: jest.fn(),
+      };
+
+      adapter = new GitServiceAdapter(
+        mockGitRepo,
+        mockWorktreeManager,
+        mockErrorBoundary,
+        mockLogger,
+      );
+    });
+
+    describe('GitRepository methods', () => {
+      it('should delegate getCurrentBranch with error boundary', async () => {
+        const expectedBranch = 'main';
+        mockErrorBoundary.handle.mockImplementation(async (fn) => fn());
+        mockGitRepo.getCurrentBranch.mockResolvedValue(expectedBranch);
+
+        const result = await adapter.getCurrentBranch();
+
+        expect(result).toBe(expectedBranch);
+        expect(mockErrorBoundary.handle).toHaveBeenCalledWith(
+          expect.any(Function) as () => Promise<string>,
+          'GitService.getCurrentBranch',
+        );
+      });
+
+      it('should delegate initializeBareRepository with logging', async () => {
+        const expected = { defaultBranch: 'main' };
+        mockErrorBoundary.handle.mockImplementation(async (fn) => fn());
+        mockGitRepo.initializeBareRepository.mockResolvedValue(expected);
+
+        const result = await adapter.initializeBareRepository('https://github.com/test/repo.git');
+
+        expect(result).toEqual(expected);
+        expect(mockLogger.info).toHaveBeenCalledWith('Initializing bare repository', {
+          repoUrl: 'https://github.com/test/repo.git',
+        });
+      });
+
+      it('should delegate fetch with logging', async () => {
+        mockErrorBoundary.handle.mockImplementation(async (fn) => fn());
+        mockGitRepo.fetch.mockResolvedValue();
+
+        await adapter.fetch();
+
+        expect(mockLogger.info).toHaveBeenCalledWith('Fetching repository updates');
+        expect(mockErrorBoundary.handle).toHaveBeenCalledWith(
+          expect.any(Function) as () => Promise<void>,
+          'GitService.fetch',
+        );
+      });
+    });
+
+    describe('WorktreeManager methods', () => {
+      it('should delegate listWorktrees with error boundary', async () => {
+        const expectedWorktrees: GitWorktreeInfo[] = [
+          { path: '/test/main', branch: 'main', isLocked: false, prunable: false, HEAD: 'abc123' },
+        ];
+        mockErrorBoundary.handle.mockImplementation(async (fn) => fn());
+        mockWorktreeManager.listWorktrees.mockResolvedValue(expectedWorktrees);
+
+        const result = await adapter.listWorktrees();
+
+        expect(result).toEqual(expectedWorktrees);
+        expect(mockErrorBoundary.handle).toHaveBeenCalledWith(
+          expect.any(Function) as () => Promise<GitWorktreeInfo[]>,
+          'GitService.listWorktrees',
+        );
+      });
+
+      it('should delegate addWorktree with logging', async () => {
+        const expectedPath = '/test/feature';
+        mockErrorBoundary.handle.mockImplementation(async (fn) => fn());
+        mockWorktreeManager.addWorktree.mockResolvedValue(expectedPath);
+
+        const result = await adapter.addWorktree('feature', 'main');
+
+        expect(result).toBe(expectedPath);
+        expect(mockLogger.info).toHaveBeenCalledWith('Adding worktree', {
+          branchName: 'feature',
+          baseBranch: 'main',
+        });
+      });
+
+      it('should delegate removeWorktree with logging', async () => {
+        mockErrorBoundary.handle.mockImplementation(async (fn) => fn());
+        mockWorktreeManager.removeWorktree.mockResolvedValue();
+
+        await adapter.removeWorktree('feature');
+
+        expect(mockLogger.info).toHaveBeenCalledWith('Removing worktree', {
+          branchName: 'feature',
+        });
+      });
+    });
+  });
+
+  describe('TmuxServiceAdapter', () => {
+    let mockTmuxManager: jest.Mocked<ITmuxManager>;
+    let mockErrorBoundary: jest.Mocked<IErrorBoundary>;
+    let mockLogger: jest.Mocked<ILogger>;
+    let adapter: TmuxServiceAdapter;
+
+    beforeEach(() => {
+      mockTmuxManager = {
+        isTmuxAvailable: jest.fn(),
+        isInsideTmux: jest.fn(),
+        getSessionInfo: jest.fn(),
+        listSessions: jest.fn(),
+        launchSession: jest.fn(),
+        createDetachedSession: jest.fn(),
+        attachToSession: jest.fn(),
+        killSession: jest.fn(),
+        shutdownAll: jest.fn(),
+      };
+
+      mockErrorBoundary = {
+        handle: jest.fn(),
+        handleSync: jest.fn(),
+      };
+
+      mockLogger = {
+        info: jest.fn(),
+        error: jest.fn(),
+        warn: jest.fn(),
+        debug: jest.fn(),
+        verbose: jest.fn(),
+      };
+
+      adapter = new TmuxServiceAdapter(mockTmuxManager, mockErrorBoundary, mockLogger);
+    });
+
+    it('should delegate isTmuxAvailable with error boundary', async () => {
+      mockErrorBoundary.handle.mockImplementation(async (fn) => fn());
+      mockTmuxManager.isTmuxAvailable.mockResolvedValue(true);
+
+      const result = await adapter.isTmuxAvailable();
+
+      expect(result).toBe(true);
+      expect(mockErrorBoundary.handle).toHaveBeenCalledWith(
+        expect.any(Function) as () => Promise<boolean>,
+        'TmuxService.isTmuxAvailable',
+      );
+    });
+
+    it('should delegate isInsideTmux with sync error boundary', () => {
+      mockErrorBoundary.handleSync.mockImplementation((fn) => fn());
+      mockTmuxManager.isInsideTmux.mockReturnValue(false);
+
+      const result = adapter.isInsideTmux();
+
+      expect(result).toBe(false);
+      expect(mockErrorBoundary.handleSync).toHaveBeenCalledWith(
+        expect.any(Function) as () => boolean,
+        'TmuxService.isInsideTmux',
+      );
+    });
+
+    it('should delegate launchSession with logging and error boundary', async () => {
+      const config: SessionConfig = {
+        sessionName: 'test-session',
+        workingDirectory: '/test',
+        branchName: 'main',
+        role: 'supervisor',
+      };
+
+      mockErrorBoundary.handle.mockImplementation(async (fn) => fn());
+      mockTmuxManager.launchSession.mockResolvedValue();
+
+      await adapter.launchSession(config);
+
+      expect(mockLogger.info).toHaveBeenCalledWith('Launching tmux session', {
+        sessionName: 'test-session',
+        role: 'supervisor',
+        branchName: 'main',
+      });
+      expect(mockErrorBoundary.handle).toHaveBeenCalledWith(
+        expect.any(Function) as () => Promise<void>,
+        'TmuxService.launchSession',
+      );
+    });
+
+    it('should delegate listSessions', async () => {
+      const expectedSessions: SessionInfo[] = [
+        {
+          name: 'test-session',
+          windows: 1,
+          created: '123456789',
+          attached: true,
+          hasClaudeRunning: true,
+        },
+      ];
+
+      mockErrorBoundary.handle.mockImplementation(async (fn) => fn());
+      mockTmuxManager.listSessions.mockResolvedValue(expectedSessions);
+
+      const result = await adapter.listSessions();
+
+      expect(result).toEqual(expectedSessions);
+    });
+  });
+
+  describe('CachingAdapter', () => {
+    let mockService: { getData: jest.Mock; getDataWithArgs: jest.Mock };
+    let cachingAdapter: CachingAdapter<typeof mockService>;
+
+    beforeEach(() => {
+      mockService = {
+        getData: jest.fn(),
+        getDataWithArgs: jest.fn(),
+      };
+      cachingAdapter = new CachingAdapter(mockService, 1000); // 1 second TTL
+    });
+
+    it('should cache method results', async () => {
+      const expectedData = { id: 1, name: 'test' };
+      mockService.getData.mockResolvedValue(expectedData);
+
+      const cachedMethod = cachingAdapter.cached(mockService.getData);
+
+      // First call should hit the service
+      const result1 = await cachedMethod();
+      expect(result1).toEqual(expectedData);
+      expect(mockService.getData).toHaveBeenCalledTimes(1);
+
+      // Second call should use cache
+      const result2 = await cachedMethod();
+      expect(result2).toEqual(expectedData);
+      expect(mockService.getData).toHaveBeenCalledTimes(1); // Still only called once
+    });
+
+    it('should respect TTL and refresh cache', async () => {
+      const expectedData = { id: 1, name: 'test' };
+      mockService.getData.mockResolvedValue(expectedData);
+
+      const cachingAdapterShortTTL = new CachingAdapter(mockService, 10); // 10ms TTL
+      const cachedMethod = cachingAdapterShortTTL.cached(mockService.getData);
+
+      // First call
+      await cachedMethod();
+      expect(mockService.getData).toHaveBeenCalledTimes(1);
+
+      // Wait for TTL to expire
+      await new Promise((resolve) => setTimeout(resolve, 20));
+
+      // Second call should hit service again
+      await cachedMethod();
+      expect(mockService.getData).toHaveBeenCalledTimes(2);
+    });
+
+    it('should use custom cache key function', async () => {
+      const expectedData = { result: 'test' };
+      mockService.getDataWithArgs.mockResolvedValue(expectedData);
+
+      const cachedMethod = cachingAdapter.cached(
+        mockService.getDataWithArgs,
+        (arg1: string, arg2: number) => `${arg1}-${arg2}`,
+      );
+
+      // Calls with different args should be cached separately
+      await cachedMethod('test', 1);
+      await cachedMethod('test', 2);
+      await cachedMethod('test', 1); // This should use cache
+
+      expect(mockService.getDataWithArgs).toHaveBeenCalledTimes(2);
+      expect(mockService.getDataWithArgs).toHaveBeenCalledWith('test', 1);
+      expect(mockService.getDataWithArgs).toHaveBeenCalledWith('test', 2);
+    });
+
+    it('should clear cache', async () => {
+      const expectedData = { id: 1 };
+      mockService.getData.mockResolvedValue(expectedData);
+
+      const cachedMethod = cachingAdapter.cached(mockService.getData);
+
+      // First call
+      await cachedMethod();
+      expect(mockService.getData).toHaveBeenCalledTimes(1);
+
+      // Clear cache
+      cachingAdapter.clearCache();
+
+      // Next call should hit service again
+      await cachedMethod();
+      expect(mockService.getData).toHaveBeenCalledTimes(2);
+    });
+
+    it('should get underlying service', () => {
+      const underlyingService = cachingAdapter.getService();
+      expect(underlyingService).toBe(mockService);
+    });
+  });
+
+  describe('RetryAdapter', () => {
+    let mockService: { unreliableMethod: jest.Mock };
+    let retryAdapter: RetryAdapter<typeof mockService>;
+
+    beforeEach(() => {
+      mockService = {
+        unreliableMethod: jest.fn(),
+      };
+      retryAdapter = new RetryAdapter(mockService, 2, 10); // 2 retries, 10ms delay
+    });
+
+    it('should succeed on first try', async () => {
+      const expectedResult = 'success';
+      mockService.unreliableMethod.mockResolvedValue(expectedResult);
+
+      const retryableMethod = retryAdapter.retryable(mockService.unreliableMethod);
+      const result = await retryableMethod('arg1', 'arg2');
+
+      expect(result).toBe(expectedResult);
+      expect(mockService.unreliableMethod).toHaveBeenCalledTimes(1);
+      expect(mockService.unreliableMethod).toHaveBeenCalledWith('arg1', 'arg2');
+    });
+
+    it('should retry on failure and eventually succeed', async () => {
+      const expectedResult = 'success';
+      mockService.unreliableMethod
+        .mockRejectedValueOnce(new Error('Failure 1'))
+        .mockRejectedValueOnce(new Error('Failure 2'))
+        .mockResolvedValue(expectedResult);
+
+      const retryableMethod = retryAdapter.retryable(mockService.unreliableMethod);
+      const result = await retryableMethod();
+
+      expect(result).toBe(expectedResult);
+      expect(mockService.unreliableMethod).toHaveBeenCalledTimes(3);
+    });
+
+    it('should fail after max retries', async () => {
+      const error = new Error('Persistent failure');
+      mockService.unreliableMethod.mockRejectedValue(error);
+
+      const retryableMethod = retryAdapter.retryable(mockService.unreliableMethod);
+
+      await expect(retryableMethod()).rejects.toThrow('Persistent failure');
+      expect(mockService.unreliableMethod).toHaveBeenCalledTimes(3); // Initial + 2 retries
+    });
+
+    it('should respect shouldRetry function', async () => {
+      const nonRetriableError = new Error('Non-retriable error');
+
+      mockService.unreliableMethod.mockRejectedValue(nonRetriableError);
+
+      const retryableMethod = retryAdapter.retryable(
+        mockService.unreliableMethod,
+        (error) => error instanceof Error && error.message.includes('Retriable'),
+      );
+
+      await expect(retryableMethod()).rejects.toThrow('Non-retriable error');
+      expect(mockService.unreliableMethod).toHaveBeenCalledTimes(1); // No retries
+    });
+
+    it('should retry with exponential backoff', async () => {
+      const startTime = Date.now();
+      mockService.unreliableMethod.mockRejectedValue(new Error('Always fails'));
+
+      const retryableMethod = retryAdapter.retryable(mockService.unreliableMethod);
+
+      await expect(retryableMethod()).rejects.toThrow('Always fails');
+
+      const endTime = Date.now();
+      const duration = endTime - startTime;
+
+      // Should take at least 10ms + 20ms (exponential backoff)
+      // Being lenient with timing in tests
+      expect(duration).toBeGreaterThan(20);
+    });
+
+    it('should get underlying service', () => {
+      const underlyingService = retryAdapter.getService();
+      expect(underlyingService).toBe(mockService);
+    });
+  });
+
+  describe('Adapter composition', () => {
+    it('should compose caching and retry adapters', async () => {
+      const mockService = { getData: jest.fn() };
+
+      // Wrap with retry first, then caching
+      const retryAdapter = new RetryAdapter(mockService, 2, 10);
+      const cachingAdapter = new CachingAdapter(retryAdapter.getService(), 1000);
+
+      const expectedData = 'success';
+      mockService.getData
+        .mockRejectedValueOnce(new Error('Temporary failure'))
+        .mockResolvedValue(expectedData);
+
+      const retryableMethod = retryAdapter.retryable(mockService.getData);
+      const cachedRetryableMethod = cachingAdapter.cached(retryableMethod);
+
+      // First call should retry and succeed
+      const result1 = await cachedRetryableMethod();
+      expect(result1).toBe(expectedData);
+      expect(mockService.getData).toHaveBeenCalledTimes(2); // Failed once, succeeded on retry
+
+      // Second call should use cache
+      const result2 = await cachedRetryableMethod();
+      expect(result2).toBe(expectedData);
+      expect(mockService.getData).toHaveBeenCalledTimes(2); // No additional calls
+    });
+  });
+});
