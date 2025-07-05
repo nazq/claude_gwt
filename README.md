@@ -1,6 +1,7 @@
 <div align="center">
   
-  <img src="https://raw.githubusercontent.com/nazq/claude_gwt/master/docs/images/logo.svg" alt="Claude GWT Logo" width="200" height="200">
+  <!-- Logo placeholder - add logo.svg to docs/images/ -->
+  <h1>🌳</h1>
   
   <h1>🌳 Claude GWT</h1>
   
@@ -36,7 +37,7 @@
   
   <br>
   
-  <img src="https://raw.githubusercontent.com/nazq/claude_gwt/master/docs/images/demo.gif" alt="Claude GWT Demo" width="100%" style="max-width: 800px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+  <!-- Demo GIF placeholder - add demo.gif to docs/images/ -->
   
 </div>
 
@@ -157,10 +158,10 @@ cgwt 0  # → Overview of all branches
 
 ### Prerequisites
 
-- **Node.js** 18.0+ 
-- **Git** 2.20+
-- **Tmux** 3.0+ (for session management)
-- **Claude CLI** (install from [claude.ai/download](https://claude.ai/download))
+- **Node.js** ≥ 18.0.0 (LTS recommended)
+- **Git** ≥ 2.20.0
+- **Tmux** ≥ 3.0 (for session management)
+- **Claude Desktop** - Get it from [claude.ai](https://claude.ai)
 
 ### Install Methods
 
@@ -222,7 +223,15 @@ claude-gwt --url https://github.com/user/repo.git
 
 ### 2️⃣ Create Feature Branches
 
-<img src="https://raw.githubusercontent.com/nazq/claude_gwt/master/docs/images/create-branch.gif" alt="Create Branch" width="600">
+```bash
+# Interactive menu appears:
+? What would you like to do?
+  ❯ Create new worktree
+    List branches
+    Switch to supervisor mode
+    Remove worktree
+    Shutdown all sessions
+```
 
 The interactive CLI will guide you:
 1. Select **"Create new worktree"**
@@ -255,10 +264,8 @@ claude-gwt --supervisor
 ## 🎬 Demo
 
 <div align="center">
-  <a href="https://asciinema.org/a/claude-gwt-demo">
-    <img src="https://raw.githubusercontent.com/nazq/claude_gwt/master/docs/images/demo-terminal.svg" alt="Terminal Demo" width="100%" style="max-width: 800px;">
-  </a>
-  <p><em>Click to watch full demo</em></p>
+  <p><strong>🎥 Demo Video Coming Soon!</strong></p>
+  <p><em>Check out the examples below to see claude-gwt in action</em></p>
 </div>
 
 ### Real-World Workflow Example

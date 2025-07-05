@@ -5,9 +5,9 @@ All notable changes to claude-gwt will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0] - 2025-07-05
+## [0.1.0-beta.1] - 2025-07-05
 
-### 🎉 Initial Release
+### 🎉 Initial Beta Release
 
 #### Added
 - **Core Features**
@@ -44,4 +44,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CI/CD pipeline with multi-platform testing
 - Docker support for containerized workflows
 
-[1.0.0]: https://github.com/nazq/claude_gwt/releases/tag/v1.0.0
+[0.1.0-beta.1]: https://github.com/nazq/claude_gwt/releases/tag/v0.1.0-beta.1

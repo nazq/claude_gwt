@@ -1,0 +1,19 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <rect width="200" height="200" rx="20" fill="#f0f9ff"/>
+  
+  <!-- Tree trunk -->
+  <rect x="90" y="120" width="20" height="60" rx="2" fill="#8b4513"/>
+  
+  <!-- Tree branches -->
+  <circle cx="100" cy="80" r="35" fill="#228b22"/>
+  <circle cx="75" cy="90" r="25" fill="#32cd32"/>
+  <circle cx="125" cy="90" r="25" fill="#32cd32"/>
+  
+  <!-- AI nodes -->
+  <circle cx="75" cy="90" r="8" fill="#00add8"/>
+  <circle cx="125" cy="90" r="8" fill="#00add8"/>
+  <circle cx="100" cy="65" r="8" fill="#00add8"/>
+  
+  <!-- Text -->
+  <text x="100" y="195" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#1a1a1a">Claude GWT</text>
+</svg>
