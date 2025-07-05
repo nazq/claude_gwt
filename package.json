@@ -1,6 +1,6 @@
 {
   "name": "claude-gwt",
-  "version": "0.1.0-beta.1",
+  "version": "0.1.1-beta.1",
   "description": "[BETA] A beautiful Git Worktree manager with integrated Claude Code orchestration - Experimental software under active development",
   "main": "dist/index.js",
   "bin": {
@@ -37,7 +37,14 @@
     "release": "npm run prepare:publish && npm publish",
     "release:dry": "npm run prepare:publish && npm publish --dry-run",
     "release:beta": "npm run prepare:publish && npm publish --tag beta",
-    "release:beta:dry": "npm run prepare:publish && npm publish --dry-run --tag beta"
+    "release:beta:dry": "npm run prepare:publish && npm publish --dry-run --tag beta",
+    "release:patch": "./scripts/release.sh patch",
+    "release:minor": "./scripts/release.sh minor",
+    "release:major": "./scripts/release.sh major",
+    "release:prepatch": "./scripts/release.sh prepatch beta",
+    "release:preminor": "./scripts/release.sh preminor beta",
+    "release:premajor": "./scripts/release.sh premajor beta",
+    "release:prerelease": "./scripts/release.sh prerelease"
   },
   "keywords": [
     "git",

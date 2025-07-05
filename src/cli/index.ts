@@ -11,7 +11,7 @@ const program = new Command();
 program
   .name('claude-gwt')
   .description('Git Worktree Manager with Claude Code Orchestration')
-  .version('0.1.0-beta.1');
+  .version('0.1.1-beta.1');
 
 // Main command
 program
