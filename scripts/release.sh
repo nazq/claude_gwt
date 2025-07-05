@@ -100,7 +100,7 @@ NEW_VERSION=${NEW_VERSION#v} # Remove 'v' prefix if present
 
 # Update version in CLI file
 print_step "Updating version in CLI..."
-sed -i "s/\.version('.*')/\.version('$NEW_VERSION')/" src/cli/index.ts
+sed -i "s/\.version('[^']*')/\.version('$NEW_VERSION')/" src/cli/index.ts
 
 # Rebuild with new version
 print_step "Rebuilding with new version..."

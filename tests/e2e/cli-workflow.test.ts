@@ -108,7 +108,7 @@ describeSkipIncompatible('CLI End-to-End Workflow', () => {
     it('should show version', async () => {
       const { stdout, code } = await runCLI(['--version']);
       expect(code).toBe(0);
-      expect(stdout).toContain('0.1.1-beta.2');
+      expect(stdout).toContain('0.1.2-beta.0');
     });
   });
 
