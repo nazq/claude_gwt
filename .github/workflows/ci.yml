@@ -52,7 +52,6 @@ jobs:
       run: |
         ls -la dist/
         test -f dist/src/cli/index.js
-        test -f dist/src/cli/cgwt.js
 
   format-check:
     name: Format Check

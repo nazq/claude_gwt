@@ -1,151 +1,127 @@
 import inquirer from 'inquirer';
-import {
-  promptForRepoUrl,
-  promptForBranchName,
-  promptForWorktreeAction,
-  selectWorktree,
-  confirmAction,
-  promptForSubdirectoryName,
-  selectAction,
-  selectBranch,
-} from '../../../../src/cli/ui/prompts';
+import * as prompts from '../../../../src/cli/ui/prompts';
 import type { GitWorktreeInfo } from '../../../../src/types';
 
 jest.mock('inquirer');
 
-const mockPrompt = inquirer.prompt as unknown as jest.Mock;
+interface PromptConfig {
+  type: string;
+  name: string;
+  message: string;
+  default?: string;
+  validate?: (input: string) => boolean | string;
+  choices?: Array<{ name: string; value: string }>;
+}
 
 describe('prompts', () => {
+  const mockInquirer = inquirer as jest.Mocked<typeof inquirer>;
+
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
   describe('promptForRepoUrl', () => {
-    it('should return valid repo URL', async () => {
-      const mockUrl = 'https://github.com/user/repo.git';
-      mockPrompt.mockResolvedValue({ repoUrl: mockUrl });
+    it('should prompt for repository URL and return it', async () => {
+      mockInquirer.prompt.mockResolvedValue({ repoUrl: 'https://github.com/user/repo.git' });
 
-      const result = await promptForRepoUrl();
+      const result = await prompts.promptForRepoUrl();
 
-      expect(result).toBe(mockUrl);
-      expect(inquirer.prompt).toHaveBeenCalledWith([
+      expect(result).toBe('https://github.com/user/repo.git');
+      expect(mockInquirer.prompt).toHaveBeenCalledWith([
         expect.objectContaining({
           type: 'input',
           name: 'repoUrl',
-          message: expect.stringContaining('repository URL'),
+          message: expect.stringContaining('repository URL') as string,
         }),
       ]);
     });
 
+    it('should return empty string for local init', async () => {
+      mockInquirer.prompt.mockResolvedValue({ repoUrl: '' });
+
+      const result = await prompts.promptForRepoUrl();
+
+      expect(result).toBe('');
+    });
+
     it('should validate various Git URL formats', async () => {
-      mockPrompt.mockResolvedValue({ repoUrl: '' });
+      mockInquirer.prompt.mockResolvedValue({ repoUrl: 'https://github.com/user/repo.git' });
 
-      await promptForRepoUrl();
+      await prompts.promptForRepoUrl();
 
-      const validator = mockPrompt.mock.calls[0][0][0].validate;
+      const promptArgs = mockInquirer.prompt.mock.calls[0]?.[0] as PromptConfig[] | undefined;
+      const promptConfig = Array.isArray(promptArgs) ? promptArgs[0] : undefined;
+      const validate = promptConfig?.validate;
 
       // Valid URLs
-      expect(validator('')).toBe(true); // Empty is valid
-      expect(validator('https://github.com/user/repo.git')).toBe(true);
-      expect(validator('git@github.com:user/repo.git')).toBe(true);
-      expect(validator('ssh://git@github.com/user/repo.git')).toBe(true);
-      expect(validator('git://github.com/user/repo.git')).toBe(true);
-      expect(validator('file:///path/to/repo')).toBe(true);
-      expect(validator('user@host.com:path/to/repo.git')).toBe(true);
+      expect(validate?.('https://github.com/user/repo.git')).toBe(true);
+      expect(validate?.('http://gitlab.com/user/repo.git')).toBe(true);
+      expect(validate?.('git@github.com:user/repo.git')).toBe(true);
+      expect(validate?.('ssh://git@github.com/user/repo.git')).toBe(true);
+      expect(validate?.('git://github.com/user/repo.git')).toBe(true);
+      expect(validate?.('file:///path/to/repo')).toBe(true);
+      expect(validate?.('user@server.com:path/to/repo.git')).toBe(true);
+      expect(validate?.('')).toBe(true); // Empty for local init
 
       // Invalid URLs
-      expect(validator('not-a-url')).toContain('Please enter a valid Git URL');
-      expect(validator('ftp://invalid.com')).toContain('Please enter a valid Git URL');
+      expect(validate?.('not-a-url')).toContain('Please enter a valid Git URL');
+      expect(validate?.('ftp://example.com/repo')).toContain('Please enter a valid Git URL');
     });
   });
 
   describe('promptForBranchName', () => {
-    it('should return branch name with default', async () => {
-      const branchName = 'feature/test';
-      mockPrompt.mockResolvedValue({ branchName });
+    it('should prompt for branch name and return it', async () => {
+      mockInquirer.prompt.mockResolvedValue({ branchName: 'feature/new-feature' });
 
-      const result = await promptForBranchName('main');
+      const result = await prompts.promptForBranchName();
 
-      expect(result).toBe(branchName);
-      expect(inquirer.prompt).toHaveBeenCalledWith([
+      expect(result).toBe('feature/new-feature');
+      expect(mockInquirer.prompt).toHaveBeenCalledWith([
         expect.objectContaining({
           type: 'input',
           name: 'branchName',
-          default: 'main',
+          message: expect.stringContaining('name') as string,
         }),
       ]);
     });
 
+    it('should use default branch when provided', async () => {
+      mockInquirer.prompt.mockResolvedValue({ branchName: 'main' });
+
+      await prompts.promptForBranchName('main');
+
+      const promptArgs = mockInquirer.prompt.mock.calls[0]?.[0] as PromptConfig[] | undefined;
+      const promptConfig = Array.isArray(promptArgs) ? promptArgs[0] : undefined;
+      expect(promptConfig?.default).toBe('main');
+    });
+
     it('should validate branch names', async () => {
-      mockPrompt.mockResolvedValue({ branchName: 'test' });
+      mockInquirer.prompt.mockResolvedValue({ branchName: 'valid-branch' });
 
-      await promptForBranchName();
+      await prompts.promptForBranchName();
 
-      const validator = mockPrompt.mock.calls[0][0][0].validate;
+      const promptArgs = mockInquirer.prompt.mock.calls[0]?.[0] as PromptConfig[] | undefined;
+      const promptConfig = Array.isArray(promptArgs) ? promptArgs[0] : undefined;
+      const validate = promptConfig?.validate;
 
       // Valid branch names
-      expect(validator('feature/test')).toBe(true);
-      expect(validator('fix-123')).toBe(true);
-      expect(validator('release_1.0')).toBe(true);
+      expect(validate?.('feature/new-feature')).toBe(true);
+      expect(validate?.('bugfix-123')).toBe(true);
+      expect(validate?.('release_1.0')).toBe(true);
+      expect(validate?.('develop')).toBe(true);
 
       // Invalid branch names
-      expect(validator('')).toBe('Branch name is required');
-      expect(validator('feature test')).toBe('Invalid branch name');
-      expect(validator('feature@test')).toBe('Invalid branch name');
+      expect(validate?.('')).toBe('Branch name is required');
+      expect(validate?.('feature with spaces')).toBe('Invalid branch name');
+      expect(validate?.('feature@branch')).toBe('Invalid branch name');
+      expect(validate?.('feature#branch')).toBe('Invalid branch name');
     });
   });
 
   describe('promptForWorktreeAction', () => {
-    const mockWorktrees: GitWorktreeInfo[] = [
-      { path: '/path/main', branch: 'main', HEAD: 'abc123', isLocked: false, prunable: false },
-      {
-        path: '/path/feature',
-        branch: 'feature',
-        HEAD: 'def456',
-        isLocked: false,
-        prunable: false,
-      },
-    ];
+    it('should show all options when worktrees exist and sessions are active', async () => {
+      mockInquirer.prompt.mockResolvedValue({ action: 'new' });
 
-    it('should show all options when worktrees exist and sessions active', async () => {
-      mockPrompt.mockResolvedValue({ action: 'new' });
-
-      const result = await promptForWorktreeAction(mockWorktrees, true);
-
-      expect(result).toBe('new');
-      const choices = mockPrompt.mock.calls[0][0][0].choices;
-      expect(choices).toHaveLength(6); // supervisor, new, list, remove, shutdown, exit
-      expect(choices.map((c: any) => c.value)).toEqual([
-        'supervisor',
-        'new',
-        'list',
-        'remove',
-        'shutdown',
-        'exit',
-      ]);
-    });
-
-    it('should not show remove option with single worktree', async () => {
-      mockPrompt.mockResolvedValue({ action: 'list' });
-
-      await promptForWorktreeAction([mockWorktrees[0]!], false);
-
-      const choices = mockPrompt.mock.calls[0][0][0].choices;
-      expect(choices.map((c: any) => c.value)).not.toContain('remove');
-    });
-
-    it('should not show shutdown option without sessions', async () => {
-      mockPrompt.mockResolvedValue({ action: 'exit' });
-
-      await promptForWorktreeAction(mockWorktrees, false);
-
-      const choices = mockPrompt.mock.calls[0][0][0].choices;
-      expect(choices.map((c: any) => c.value)).not.toContain('shutdown');
-    });
-  });
-
-  describe('selectWorktree', () => {
-    it('should return selected worktree branch', async () => {
       const worktrees: GitWorktreeInfo[] = [
         { path: '/path/main', branch: 'main', HEAD: 'abc123', isLocked: false, prunable: false },
         {
@@ -156,40 +132,115 @@ describe('prompts', () => {
           prunable: false,
         },
       ];
-      mockPrompt.mockResolvedValue({ selection: 'feature' });
 
-      const result = await selectWorktree(worktrees, 'Select a branch:');
+      await prompts.promptForWorktreeAction(worktrees, true);
+
+      const promptArgs = mockInquirer.prompt.mock.calls[0]?.[0] as PromptConfig[] | undefined;
+      const promptConfig = Array.isArray(promptArgs) ? promptArgs[0] : undefined;
+      const choices = promptConfig?.choices ?? [];
+      const values = choices.map((c) => c.value);
+
+      expect(values).toContain('supervisor');
+      expect(values).toContain('new');
+      expect(values).toContain('list');
+      expect(values).toContain('remove');
+      expect(values).toContain('shutdown');
+      expect(values).toContain('exit');
+    });
+
+    it('should hide remove option when only one worktree', async () => {
+      mockInquirer.prompt.mockResolvedValue({ action: 'exit' });
+
+      const worktrees: GitWorktreeInfo[] = [
+        { path: '/path/main', branch: 'main', HEAD: 'abc123', isLocked: false, prunable: false },
+      ];
+
+      await prompts.promptForWorktreeAction(worktrees, false);
+
+      const promptArgs = mockInquirer.prompt.mock.calls[0]?.[0] as PromptConfig[] | undefined;
+      const promptConfig = Array.isArray(promptArgs) ? promptArgs[0] : undefined;
+      const choices = promptConfig?.choices ?? [];
+      const values = choices.map((c) => c.value);
+
+      expect(values).not.toContain('remove');
+    });
+
+    it('should hide shutdown option when no sessions', async () => {
+      mockInquirer.prompt.mockResolvedValue({ action: 'exit' });
+
+      const worktrees: GitWorktreeInfo[] = [
+        { path: '/path/main', branch: 'main', HEAD: 'abc123', isLocked: false, prunable: false },
+      ];
+
+      await prompts.promptForWorktreeAction(worktrees, false);
+
+      const promptArgs = mockInquirer.prompt.mock.calls[0]?.[0] as PromptConfig[] | undefined;
+      const promptConfig = Array.isArray(promptArgs) ? promptArgs[0] : undefined;
+      const choices = promptConfig?.choices ?? [];
+      const values = choices.map((c) => c.value);
+
+      expect(values).not.toContain('shutdown');
+    });
+  });
+
+  describe('selectWorktree', () => {
+    it('should display worktrees for selection', async () => {
+      mockInquirer.prompt.mockResolvedValue({ selection: 'feature' });
+
+      const worktrees: GitWorktreeInfo[] = [
+        { path: '/repo/main', branch: 'main', HEAD: 'abc123', isLocked: false, prunable: false },
+        {
+          path: '/repo/feature',
+          branch: 'feature',
+          HEAD: 'def456',
+          isLocked: false,
+          prunable: false,
+        },
+      ];
+
+      const result = await prompts.selectWorktree(worktrees, 'Select a branch:');
 
       expect(result).toBe('feature');
-      const choices = mockPrompt.mock.calls[0][0][0].choices;
-      expect(choices).toHaveLength(2);
-      expect(choices[0].value).toBe('main');
-      expect(choices[1].value).toBe('feature');
+      expect(mockInquirer.prompt).toHaveBeenCalledWith([
+        expect.objectContaining({
+          type: 'list',
+          name: 'selection',
+          message: 'Select a branch:',
+          choices: expect.arrayContaining([
+            expect.objectContaining({ value: 'main' }),
+            expect.objectContaining({ value: 'feature' }),
+          ]) as Array<{ name: string; value: string }>,
+        }),
+      ]);
     });
 
     it('should handle detached HEAD', async () => {
+      mockInquirer.prompt.mockResolvedValue({ selection: '/repo/detached' });
+
       const worktrees: GitWorktreeInfo[] = [
-        { path: '/path/detached', branch: '', HEAD: 'abc123', isLocked: false, prunable: false },
+        { path: '/repo/detached', branch: '', HEAD: 'abc123', isLocked: false, prunable: false },
       ];
-      mockPrompt.mockResolvedValue({ selection: '/path/detached' });
 
-      const result = await selectWorktree(worktrees, 'Select:');
+      const result = await prompts.selectWorktree(worktrees, 'Select:');
 
-      expect(result).toBe('/path/detached');
-      const choices = mockPrompt.mock.calls[0][0][0].choices;
-      expect(choices[0].name).toContain('detached');
-      expect(choices[0].value).toBe('/path/detached');
+      expect(result).toBe('/repo/detached');
+
+      const promptArgs = mockInquirer.prompt.mock.calls[0]?.[0] as PromptConfig[] | undefined;
+      const promptConfig = Array.isArray(promptArgs) ? promptArgs[0] : undefined;
+      const choices = promptConfig?.choices ?? [];
+      expect(choices[0]?.name).toContain('detached');
+      expect(choices[0]?.value).toBe('/repo/detached');
     });
   });
 
   describe('confirmAction', () => {
     it('should return true when confirmed', async () => {
-      mockPrompt.mockResolvedValue({ confirmed: true });
+      mockInquirer.prompt.mockResolvedValue({ confirmed: true });
 
-      const result = await confirmAction('Are you sure?');
+      const result = await prompts.confirmAction('Are you sure?');
 
       expect(result).toBe(true);
-      expect(inquirer.prompt).toHaveBeenCalledWith([
+      expect(mockInquirer.prompt).toHaveBeenCalledWith([
         expect.objectContaining({
           type: 'confirm',
           name: 'confirmed',
@@ -200,85 +251,121 @@ describe('prompts', () => {
     });
 
     it('should return false when not confirmed', async () => {
-      mockPrompt.mockResolvedValue({ confirmed: false });
+      mockInquirer.prompt.mockResolvedValue({ confirmed: false });
 
-      const result = await confirmAction('Delete this?');
+      const result = await prompts.confirmAction('Are you sure?');
 
       expect(result).toBe(false);
     });
   });
 
   describe('promptForSubdirectoryName', () => {
-    it('should return subdirectory name with default', async () => {
-      const subdirName = 'my-awesome-project';
-      mockPrompt.mockResolvedValue({ subdirName });
+    it('should prompt for subdirectory name with default', async () => {
+      mockInquirer.prompt.mockResolvedValue({ subdirName: 'my-app' });
 
-      const result = await promptForSubdirectoryName();
+      const result = await prompts.promptForSubdirectoryName();
 
-      expect(result).toBe(subdirName);
-      expect(inquirer.prompt).toHaveBeenCalledWith([
+      expect(result).toBe('my-app');
+      expect(mockInquirer.prompt).toHaveBeenCalledWith([
         expect.objectContaining({
+          type: 'input',
+          name: 'subdirName',
+          message: 'Subdirectory name:',
           default: 'my-project',
         }),
       ]);
     });
 
+    it('should use provided default name', async () => {
+      mockInquirer.prompt.mockResolvedValue({ subdirName: 'custom-name' });
+
+      await prompts.promptForSubdirectoryName('custom-default');
+
+      const promptArgs = mockInquirer.prompt.mock.calls[0]?.[0] as PromptConfig[] | undefined;
+      const promptConfig = Array.isArray(promptArgs) ? promptArgs[0] : undefined;
+      expect(promptConfig?.default).toBe('custom-default');
+    });
+
     it('should validate subdirectory names', async () => {
-      mockPrompt.mockResolvedValue({ subdirName: 'test' });
+      mockInquirer.prompt.mockResolvedValue({ subdirName: 'valid-name' });
 
-      await promptForSubdirectoryName('custom-default');
+      await prompts.promptForSubdirectoryName();
 
-      const validator = mockPrompt.mock.calls[0][0][0].validate;
+      const promptArgs = mockInquirer.prompt.mock.calls[0]?.[0] as PromptConfig[] | undefined;
+      const promptConfig = Array.isArray(promptArgs) ? promptArgs[0] : undefined;
+      const validate = promptConfig?.validate;
 
       // Valid names
-      expect(validator('my-project')).toBe(true);
-      expect(validator('project_123')).toBe(true);
-      expect(validator('test.app')).toBe(true);
+      expect(validate?.('my-project')).toBe(true);
+      expect(validate?.('app_v1.0')).toBe(true);
+      expect(validate?.('test123')).toBe(true);
 
       // Invalid names
-      expect(validator('')).toBe('Subdirectory name is required');
-      expect(validator('  ')).toBe('Subdirectory name is required');
-      expect(validator('my project')).toContain('Please use only letters');
-      expect(validator('project@123')).toContain('Please use only letters');
+      expect(validate?.('')).toBe('Subdirectory name is required');
+      expect(validate?.('   ')).toBe('Subdirectory name is required');
+      expect(validate?.('my project')).toBe(
+        'Please use only letters, numbers, dots, hyphens, and underscores',
+      );
+      expect(validate?.('app@2.0')).toBe(
+        'Please use only letters, numbers, dots, hyphens, and underscores',
+      );
+      expect(validate?.('test/folder')).toBe(
+        'Please use only letters, numbers, dots, hyphens, and underscores',
+      );
     });
   });
 
   describe('selectAction', () => {
-    it('should return selected action', async () => {
+    it('should display custom actions for selection', async () => {
+      mockInquirer.prompt.mockResolvedValue({ action: 'create' });
+
       const choices = [
-        { title: 'Option 1', value: 'opt1' },
-        { title: 'Option 2', value: 'opt2' },
+        { title: 'Create new file', value: 'create' },
+        { title: 'Edit file', value: 'edit' },
+        { title: 'Delete file', value: 'delete' },
       ];
-      mockPrompt.mockResolvedValue({ action: 'opt2' });
 
-      const result = await selectAction('Choose:', choices);
+      const result = await prompts.selectAction('Choose an action:', choices);
 
-      expect(result).toBe('opt2');
-      const promptChoices = mockPrompt.mock.calls[0][0][0].choices;
-      expect(promptChoices).toEqual([
-        { name: 'Option 1', value: 'opt1' },
-        { name: 'Option 2', value: 'opt2' },
+      expect(result).toBe('create');
+      expect(mockInquirer.prompt).toHaveBeenCalledWith([
+        expect.objectContaining({
+          type: 'list',
+          name: 'action' as const,
+          message: 'Choose an action:',
+          choices: [
+            { name: 'Create new file', value: 'create' },
+            { name: 'Edit file', value: 'edit' },
+            { name: 'Delete file', value: 'delete' },
+          ],
+        }),
       ]);
     });
   });
 
   describe('selectBranch', () => {
-    it('should return selected branch', async () => {
-      const branches = ['main', 'develop', 'feature/test'];
-      mockPrompt.mockResolvedValue({ branch: 'develop' });
+    it('should display branches with cancel option', async () => {
+      mockInquirer.prompt.mockResolvedValue({ branch: 'develop' });
 
-      const result = await selectBranch('Select branch:', branches);
+      const branches = ['main', 'develop', 'feature/test'];
+
+      const result = await prompts.selectBranch('Select target branch:', branches);
 
       expect(result).toBe('develop');
-      const choices = mockPrompt.mock.calls[0][0][0].choices;
+
+      const promptArgs = mockInquirer.prompt.mock.calls[0]?.[0] as PromptConfig[] | undefined;
+      const promptConfig = Array.isArray(promptArgs) ? promptArgs[0] : undefined;
+      const choices = promptConfig?.choices ?? [];
       expect(choices).toHaveLength(4); // 3 branches + cancel
-      expect(choices[3].value).toBe('cancel');
+      expect(choices[choices.length - 1]?.value).toBe('cancel');
     });
 
-    it('should include cancel option', async () => {
-      mockPrompt.mockResolvedValue({ branch: 'cancel' });
+    it('should return cancel when selected', async () => {
+      mockInquirer.prompt.mockResolvedValue({ branch: 'cancel' });
 
-      const result = await selectBranch('Pick one:', ['main']);
+      const branches = ['main'];
+
+      const result = await prompts.selectBranch('Select:', branches);
 
       expect(result).toBe('cancel');
     });

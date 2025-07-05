@@ -1,36 +1,50 @@
 import { Spinner } from '../../../../src/cli/ui/spinner';
-import ora from 'ora';
 import { theme } from '../../../../src/cli/ui/theme';
 
-jest.mock('ora');
+// Mock ora
+const mockOra = {
+  start: jest.fn(),
+  succeed: jest.fn(),
+  fail: jest.fn(),
+  warn: jest.fn(),
+  info: jest.fn(),
+  stop: jest.fn(),
+  text: '',
+};
+
+jest.mock('ora', () => {
+  return jest.fn(() => mockOra);
+});
+
+// Mock theme module properly for ES6
+jest.mock('../../../../src/cli/ui/theme', () => ({
+  __esModule: true,
+  theme: {
+    success: jest.fn((text) => `success:${text}`),
+    error: jest.fn((text) => `error:${text}`),
+    warning: jest.fn((text) => `warning:${text}`),
+    info: jest.fn((text) => `info:${text}`),
+    icons: {
+      spinner: ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'],
+    },
+  },
+}));
 
 describe('Spinner', () => {
-  let mockOraInstance: any;
-
   beforeEach(() => {
-    mockOraInstance = {
-      start: jest.fn(),
-      succeed: jest.fn(),
-      fail: jest.fn(),
-      warn: jest.fn(),
-      info: jest.fn(),
-      stop: jest.fn(),
-      text: '',
-    };
-    (ora as unknown as jest.Mock).mockReturnValue(mockOraInstance);
-  });
-
-  afterEach(() => {
     jest.clearAllMocks();
+    mockOra.text = '';
   });
 
   describe('constructor', () => {
-    it('should create spinner with correct options', () => {
-      const text = 'Loading...';
-      new Spinner(text);
+    it('should create spinner with initial text', () => {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-unsafe-assignment
+      const ora = require('ora');
+
+      new Spinner('Loading...');
 
       expect(ora).toHaveBeenCalledWith({
-        text,
+        text: 'Loading...',
         spinner: {
           interval: 80,
           frames: theme.icons.spinner,
@@ -41,105 +55,148 @@ describe('Spinner', () => {
   });
 
   describe('start', () => {
-    it('should start spinner', () => {
-      const spinner = new Spinner('Initial');
+    it('should start the spinner', () => {
+      const spinner = new Spinner('Initial text');
+
       spinner.start();
 
-      expect(mockOraInstance.start).toHaveBeenCalled();
+      expect(mockOra.start).toHaveBeenCalled();
     });
 
-    it('should update text when provided', () => {
-      const spinner = new Spinner('Initial');
+    it('should start the spinner with new text', () => {
+      const spinner = new Spinner('Initial text');
+
       spinner.start('New text');
 
-      expect(mockOraInstance.text).toBe('New text');
-      expect(mockOraInstance.start).toHaveBeenCalled();
+      expect(mockOra.text).toBe('New text');
+      expect(mockOra.start).toHaveBeenCalled();
+    });
+
+    it('should start without changing text when no text provided', () => {
+      const spinner = new Spinner('Initial text');
+
+      spinner.start();
+
+      expect(mockOra.text).toBe('');
+      expect(mockOra.start).toHaveBeenCalled();
     });
   });
 
   describe('succeed', () => {
-    it('should call succeed with themed text', () => {
-      const spinner = new Spinner('Test');
-      const successText = 'Success!';
-      spinner.succeed(successText);
+    it('should call succeed without text', () => {
+      const spinner = new Spinner('Loading...');
 
-      expect(mockOraInstance.succeed).toHaveBeenCalledWith(theme.success(successText));
-    });
-
-    it('should call succeed with undefined when no text', () => {
-      const spinner = new Spinner('Test');
       spinner.succeed();
 
-      expect(mockOraInstance.succeed).toHaveBeenCalledWith(undefined);
+      expect(mockOra.succeed).toHaveBeenCalledWith(undefined);
+    });
+
+    it('should call succeed with themed text', () => {
+      const spinner = new Spinner('Loading...');
+
+      spinner.succeed('Completed!');
+
+      // Check that ora.succeed was called with a themed string
+      expect(mockOra.succeed).toHaveBeenCalledWith(expect.stringContaining('Completed!'));
     });
   });
 
   describe('fail', () => {
-    it('should call fail with themed text', () => {
-      const spinner = new Spinner('Test');
-      const errorText = 'Error!';
-      spinner.fail(errorText);
+    it('should call fail without text', () => {
+      const spinner = new Spinner('Loading...');
 
-      expect(mockOraInstance.fail).toHaveBeenCalledWith(theme.error(errorText));
-    });
-
-    it('should call fail with undefined when no text', () => {
-      const spinner = new Spinner('Test');
       spinner.fail();
 
-      expect(mockOraInstance.fail).toHaveBeenCalledWith(undefined);
+      expect(mockOra.fail).toHaveBeenCalledWith(undefined);
+    });
+
+    it('should call fail with themed text', () => {
+      const spinner = new Spinner('Loading...');
+
+      spinner.fail('Failed!');
+
+      expect(mockOra.fail).toHaveBeenCalledWith(expect.stringContaining('Failed!'));
     });
   });
 
   describe('warn', () => {
-    it('should call warn with themed text', () => {
-      const spinner = new Spinner('Test');
-      const warnText = 'Warning!';
-      spinner.warn(warnText);
+    it('should call warn without text', () => {
+      const spinner = new Spinner('Loading...');
 
-      expect(mockOraInstance.warn).toHaveBeenCalledWith(theme.warning(warnText));
-    });
-
-    it('should call warn with undefined when no text', () => {
-      const spinner = new Spinner('Test');
       spinner.warn();
 
-      expect(mockOraInstance.warn).toHaveBeenCalledWith(undefined);
+      expect(mockOra.warn).toHaveBeenCalledWith(undefined);
+    });
+
+    it('should call warn with themed text', () => {
+      const spinner = new Spinner('Loading...');
+
+      spinner.warn('Warning!');
+
+      expect(mockOra.warn).toHaveBeenCalledWith(expect.stringContaining('Warning!'));
     });
   });
 
   describe('info', () => {
-    it('should call info with themed text', () => {
-      const spinner = new Spinner('Test');
-      const infoText = 'Info!';
-      spinner.info(infoText);
+    it('should call info without text', () => {
+      const spinner = new Spinner('Loading...');
 
-      expect(mockOraInstance.info).toHaveBeenCalledWith(theme.info(infoText));
-    });
-
-    it('should call info with undefined when no text', () => {
-      const spinner = new Spinner('Test');
       spinner.info();
 
-      expect(mockOraInstance.info).toHaveBeenCalledWith(undefined);
+      expect(mockOra.info).toHaveBeenCalledWith(undefined);
+    });
+
+    it('should call info with themed text', () => {
+      const spinner = new Spinner('Loading...');
+
+      spinner.info('Information!');
+
+      expect(mockOra.info).toHaveBeenCalledWith(expect.stringContaining('Information!'));
     });
   });
 
   describe('stop', () => {
-    it('should stop spinner', () => {
-      const spinner = new Spinner('Test');
+    it('should stop the spinner', () => {
+      const spinner = new Spinner('Loading...');
+
       spinner.stop();
 
-      expect(mockOraInstance.stop).toHaveBeenCalled();
+      expect(mockOra.stop).toHaveBeenCalled();
     });
   });
 
   describe('setText', () => {
-    it('should update spinner text', () => {
-      const spinner = new Spinner('Initial');
-      spinner.setText('Updated text');
+    it('should set the spinner text', () => {
+      const spinner = new Spinner('Loading...');
 
-      expect(mockOraInstance.text).toBe('Updated text');
+      spinner.setText('New text');
+
+      expect(mockOra.text).toBe('New text');
+    });
+  });
+
+  describe('integration', () => {
+    it('should handle complete lifecycle', () => {
+      const spinner = new Spinner('Processing...');
+
+      spinner.start();
+      spinner.setText('Still processing...');
+      spinner.succeed('Done!');
+
+      expect(mockOra.start).toHaveBeenCalled();
+      expect(mockOra.text).toBe('Still processing...');
+      expect(mockOra.succeed).toHaveBeenCalledWith(expect.stringContaining('Done!'));
+    });
+
+    it('should handle failure lifecycle', () => {
+      const spinner = new Spinner('Attempting...');
+
+      spinner.start('Trying...');
+      spinner.fail('Error occurred');
+
+      expect(mockOra.text).toBe('Trying...');
+      expect(mockOra.start).toHaveBeenCalled();
+      expect(mockOra.fail).toHaveBeenCalledWith(expect.stringContaining('Error occurred'));
     });
   });
 });

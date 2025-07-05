@@ -1,6 +1,9 @@
 // Global test setup
 import { jest } from '@jest/globals';
 
+// Set NODE_ENV to test to ensure proper logger initialization
+process.env['NODE_ENV'] = 'test';
+
 // Set test timeout
 jest.setTimeout(20000);
 

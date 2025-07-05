@@ -3,7 +3,6 @@ import { existsSync } from 'fs';
 import { simpleGit, type SimpleGit } from 'simple-git';
 import type { GitWorktreeInfo } from '../../types';
 import { GitOperationError } from '../errors/CustomErrors';
-import { retry } from '../utils/retry';
 
 export class WorktreeManager {
   private git: SimpleGit;
@@ -22,24 +21,11 @@ export class WorktreeManager {
 
   async listWorktrees(): Promise<GitWorktreeInfo[]> {
     try {
-      const operation = async (): Promise<GitWorktreeInfo[]> => {
-        const result = await this.git.raw(['worktree', 'list', '--porcelain']);
-        const worktrees = this.parseWorktreeList(result);
-        // Filter out the .bare directory - it's an implementation detail
-        return worktrees.filter((wt) => !wt.path.endsWith('/.bare'));
-      };
+      const result = await this.git.raw(['worktree', 'list', '--porcelain']);
+      const worktrees = this.parseWorktreeList(result);
 
-      // Use retry in CI environments
-      if (process.env['CI'] === 'true') {
-        return await retry(operation, {
-          maxAttempts: 3,
-          onRetry: (error, attempt) => {
-            console.warn(`Git worktree list failed (attempt ${attempt}/3):`, error.message);
-          },
-        });
-      }
-
-      return await operation();
+      // Filter out the .bare directory - it's an implementation detail
+      return worktrees.filter((wt) => !wt.path.endsWith('/.bare'));
     } catch (error) {
       throw new GitOperationError(
         `Failed to list worktrees: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -50,46 +36,32 @@ export class WorktreeManager {
 
   async addWorktree(branch: string, baseBranch?: string): Promise<string> {
     try {
-      const operation = async (): Promise<string> => {
-        // Create worktrees inside the project directory
-        const worktreePath = path.join(this.basePath, branch);
-        const args = ['worktree', 'add'];
+      // Create worktrees inside the project directory
+      const worktreePath = path.join(this.basePath, branch);
+      const args = ['worktree', 'add'];
 
-        if (baseBranch) {
-          args.push('-b', branch, worktreePath, baseBranch);
+      if (baseBranch) {
+        args.push('-b', branch, worktreePath, baseBranch);
+      } else {
+        // Check if branch exists locally or remotely
+        const branches = await this.git.branch(['-a']);
+        const localBranchExists = branches.all.includes(branch);
+        const remoteBranchExists = branches.all.includes(`remotes/origin/${branch}`);
+
+        if (localBranchExists) {
+          // Branch exists locally, just create worktree
+          args.push(worktreePath, branch);
+        } else if (remoteBranchExists) {
+          // Track the remote branch
+          args.push('-b', branch, worktreePath, `origin/${branch}`);
         } else {
-          // Check if branch exists locally or remotely
-          const branches = await this.git.branch(['-a']);
-          const localBranchExists = branches.all.includes(branch);
-          const remoteBranchExists = branches.all.includes(`remotes/origin/${branch}`);
-
-          if (localBranchExists) {
-            // Branch exists locally, just create worktree
-            args.push(worktreePath, branch);
-          } else if (remoteBranchExists) {
-            // Track the remote branch
-            args.push('-b', branch, worktreePath, `origin/${branch}`);
-          } else {
-            // Create new branch
-            args.push('-b', branch, worktreePath);
-          }
+          // Create new branch
+          args.push('-b', branch, worktreePath);
         }
-
-        await this.git.raw(args);
-        return worktreePath;
-      };
-
-      // Use retry in CI environments
-      if (process.env['CI'] === 'true') {
-        return await retry(operation, {
-          maxAttempts: 3,
-          onRetry: (error, attempt) => {
-            console.warn(`Git worktree add failed (attempt ${attempt}/3):`, error.message);
-          },
-        });
       }
 
-      return await operation();
+      await this.git.raw(args);
+      return worktreePath;
     } catch (error) {
       throw new GitOperationError(
         `Failed to add worktree: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -100,27 +72,13 @@ export class WorktreeManager {
 
   async removeWorktree(branch: string, force = false): Promise<void> {
     try {
-      const operation = async (): Promise<void> => {
-        // If branch is just a name, convert to full path
-        const worktreePath = branch.startsWith('/') ? branch : path.join(this.basePath, branch);
+      // If branch is just a name, convert to full path
+      const worktreePath = branch.startsWith('/') ? branch : path.join(this.basePath, branch);
 
-        const args = ['worktree', 'remove', worktreePath];
-        if (force) args.push('--force');
+      const args = ['worktree', 'remove', worktreePath];
+      if (force) args.push('--force');
 
-        await this.git.raw(args);
-      };
-
-      // Use retry in CI environments
-      if (process.env['CI'] === 'true') {
-        await retry(operation, {
-          maxAttempts: 3,
-          onRetry: (error, attempt) => {
-            console.warn(`Git worktree remove failed (attempt ${attempt}/3):`, error.message);
-          },
-        });
-      } else {
-        await operation();
-      }
+      await this.git.raw(args);
     } catch (error) {
       throw new GitOperationError(
         `Failed to remove worktree: ${error instanceof Error ? error.message : 'Unknown error'}`,

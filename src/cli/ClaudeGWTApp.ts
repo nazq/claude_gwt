@@ -26,7 +26,7 @@ export class ClaudeGWTApp {
 
     try {
       if (!this.options.quiet) {
-        await showBanner();
+        showBanner();
       }
 
       const detector = new GitDetector(this.basePath);

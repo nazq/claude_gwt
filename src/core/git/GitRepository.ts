@@ -2,7 +2,6 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { simpleGit, type SimpleGit } from 'simple-git';
 import { GitOperationError } from '../errors/CustomErrors';
-import { retry } from '../utils/retry';
 
 export class GitRepository {
   private git: SimpleGit;
@@ -20,36 +19,22 @@ export class GitRepository {
       let defaultBranch = 'main';
 
       if (repoUrl) {
-        const cloneOperation = async (): Promise<void> => {
-          // Clone the bare repository
-          await bareGit.clone(repoUrl, '.', ['--bare']);
+        // Clone the bare repository
+        await bareGit.clone(repoUrl, '.', ['--bare']);
 
-          // Detect the default branch from remote HEAD
-          try {
-            const headRef = await bareGit.raw(['symbolic-ref', 'HEAD']);
-            const match = headRef.match(/refs\/heads\/(.+)/);
-            if (match?.[1]) {
-              defaultBranch = match[1].trim();
-            }
-          } catch {
-            // If we can't detect, we'll use 'main' or 'master'
-            const branches = await bareGit.branch();
-            if (branches.all.includes('master')) {
-              defaultBranch = 'master';
-            }
+        // Detect the default branch from remote HEAD
+        try {
+          const headRef = await bareGit.raw(['symbolic-ref', 'HEAD']);
+          const match = headRef.match(/refs\/heads\/(.+)/);
+          if (match?.[1]) {
+            defaultBranch = match[1].trim();
           }
-        };
-
-        // Use retry in CI environments
-        if (process.env['CI'] === 'true') {
-          await retry(cloneOperation, {
-            maxAttempts: 3,
-            onRetry: (error, attempt) => {
-              console.warn(`Git clone failed (attempt ${attempt}/3):`, error.message);
-            },
-          });
-        } else {
-          await cloneOperation();
+        } catch {
+          // If we can't detect, we'll use 'main' or 'master'
+          const branches = await bareGit.branch();
+          if (branches.all.includes('master')) {
+            defaultBranch = 'master';
+          }
         }
       } else {
         await bareGit.init(['--bare']);
@@ -100,21 +85,7 @@ export class GitRepository {
 
   async fetch(): Promise<void> {
     try {
-      const operation = async (): Promise<void> => {
-        await this.git.fetch(['--all']);
-      };
-
-      // Use retry in CI environments
-      if (process.env['CI'] === 'true') {
-        await retry(operation, {
-          maxAttempts: 3,
-          onRetry: (error, attempt) => {
-            console.warn(`Git fetch failed (attempt ${attempt}/3):`, error.message);
-          },
-        });
-      } else {
-        await operation();
-      }
+      await this.git.fetch(['--all']);
     } catch (error) {
       throw new GitOperationError(
         `Failed to fetch: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -163,25 +134,7 @@ export class GitRepository {
 
       // Add the original repo as a remote to the bare repo
       await bareGit.addRemote('origin', this.basePath);
-
-      const fetchOperation = async (): Promise<void> => {
-        await bareGit.fetch('origin', ['+refs/heads/*:refs/heads/*', '+refs/tags/*:refs/tags/*']);
-      };
-
-      // Use retry in CI environments
-      if (process.env['CI'] === 'true') {
-        await retry(fetchOperation, {
-          maxAttempts: 3,
-          onRetry: (error, attempt) => {
-            console.warn(
-              `Git fetch during conversion failed (attempt ${attempt}/3):`,
-              error.message,
-            );
-          },
-        });
-      } else {
-        await fetchOperation();
-      }
+      await bareGit.fetch('origin', ['+refs/heads/*:refs/heads/*', '+refs/tags/*:refs/tags/*']);
 
       // Move the original .git directory to a backup
       const gitDir = path.join(this.basePath, '.git');
@@ -202,25 +155,7 @@ export class GitRepository {
 
       // Add the original directory as a worktree
       const worktreeGit = simpleGit(bareDir);
-
-      const worktreeAddOperation = async (): Promise<void> => {
-        await worktreeGit.raw(['worktree', 'add', this.basePath, currentBranch]);
-      };
-
-      // Use retry in CI environments
-      if (process.env['CI'] === 'true') {
-        await retry(worktreeAddOperation, {
-          maxAttempts: 3,
-          onRetry: (error, attempt) => {
-            console.warn(
-              `Git worktree add during conversion failed (attempt ${attempt}/3):`,
-              error.message,
-            );
-          },
-        });
-      } else {
-        await worktreeAddOperation();
-      }
+      await worktreeGit.raw(['worktree', 'add', this.basePath, currentBranch]);
 
       // Move bare repo to proper location
       const finalBareDir = path.join(this.basePath, '.bare');

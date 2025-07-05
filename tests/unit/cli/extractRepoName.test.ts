@@ -4,7 +4,9 @@ describe('extractRepoNameFromUrl', () => {
   // Access private method through prototype
   const extractRepoName = (url: string): string => {
     const app = new ClaudeGWTApp('.', {});
-    return (app as any).extractRepoNameFromUrl(url);
+    // @ts-expect-error Testing private method
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return
+    return app.extractRepoNameFromUrl(url);
   };
 
   it('should extract repo name from GitHub HTTPS URLs', () => {

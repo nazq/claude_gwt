@@ -30,7 +30,7 @@ program
     if (options.debug) {
       Logger.setLogLevel('debug');
     } else if (options.veryVerbose) {
-      Logger.setLogLevel('verbose');
+      Logger.setLogLevel('trace');
     } else if (options.verbose) {
       Logger.setLogLevel('info');
     } else {

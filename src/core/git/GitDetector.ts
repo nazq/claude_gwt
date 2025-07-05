@@ -151,7 +151,7 @@ export class GitDetector {
       }
 
       const status = await this.getGit().status();
-      const branch = status.current || undefined;
+      const branch = status.current ?? undefined;
 
       const remotes = await this.getGit().getRemotes(true);
       const remote = remotes[0]?.refs?.fetch;

@@ -80,7 +80,7 @@ describe('Tmux bind-key command validation', () => {
         // Exception: stdin marker "-" in commands like "tmux load-buffer -"
         const isStdinMarker = lastPart === '-' && cmd.includes('load-buffer');
 
-        if (lastPart && lastPart.match(/^-/) && !isStdinMarker) {
+        if (lastPart?.match(/^-/) && !isStdinMarker) {
           console.log('\n=== PROBLEMATIC BIND-KEY FOUND ===');
           console.log('Bind-key part:', bindKeyPart);
           console.log('Full command:', cmd);
@@ -120,8 +120,11 @@ describe('Tmux bind-key command validation', () => {
     const problematicCommands = bindKeyCommands.filter((cmd) => {
       // Check for various issues
       return (
+        // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
         cmd.match(/bind-key\s*$/) ||
+        // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
         cmd.match(/bind-key\s+$/) ||
+        // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
         cmd.match(/bind-key\s+-[a-zA-Z]+\s*$/) ||
         !cmd.match(/bind-key.*\s+\S+/)
       );
@@ -139,11 +142,11 @@ describe('Tmux bind-key command validation', () => {
     // Since the user sees exactly 4 bind-key errors, let's check if any command
     // is being executed 4 times or if there are 4 specific problematic commands
     const commands: string[] = [];
-    let callCount = 0;
+    // let callCount = 0;
 
     mockExecSync.mockImplementation((cmd: string) => {
       commands.push(cmd);
-      callCount++;
+      // callCount++;
 
       // Simulate bind-key error for certain commands
       if (cmd.includes('bind-key') && !cmd.includes('unbind-key')) {
@@ -151,6 +154,7 @@ describe('Tmux bind-key command validation', () => {
         const lastPart = parts[parts.length - 1];
 
         // Check if command might cause "too few arguments" error
+        // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
         if ((lastPart && lastPart.startsWith('-')) || parts.length < 3) {
           throw new Error('command bind-key: too few arguments (need at least 1)');
         }
@@ -159,7 +163,7 @@ describe('Tmux bind-key command validation', () => {
       return Buffer.from('');
     });
 
-    let errorCount = 0;
+    // let errorCount = 0;
     try {
       TmuxEnhancer.configureSession('test-session', {
         sessionName: 'test-session',
@@ -168,13 +172,13 @@ describe('Tmux bind-key command validation', () => {
       });
     } catch (e) {
       // Count errors
-      errorCount++;
+      // errorCount++;
     }
 
     // Check for duplicate commands
     const commandCounts = new Map<string, number>();
     commands.forEach((cmd) => {
-      commandCounts.set(cmd, (commandCounts.get(cmd) || 0) + 1);
+      commandCounts.set(cmd, (commandCounts.get(cmd) ?? 0) + 1);
     });
 
     console.log('\nCommands executed multiple times:');
@@ -218,8 +222,8 @@ describe('Tmux bind-key command validation', () => {
       console.log(cmd);
 
       // Check if quotes are balanced
-      const singleQuotes = (cmd.match(/'/g) || []).length;
-      const doubleQuotes = (cmd.match(/"/g) || []).length;
+      const singleQuotes = (cmd.match(/'/g) ?? []).length;
+      const doubleQuotes = (cmd.match(/"/g) ?? []).length;
 
       expect(singleQuotes % 2).toBe(0);
       expect(doubleQuotes % 2).toBe(0);

@@ -1,4 +1,4 @@
-import { execSync } from 'child_process';
+import { execSync, type ExecSyncOptions } from 'child_process';
 import * as path from 'path';
 import { Logger } from '../core/utils/logger';
 import type { GitRepository } from '../core/git/GitRepository';
@@ -17,7 +17,26 @@ export interface PaneLayout {
   layout: 'even-horizontal' | 'even-vertical' | 'main-horizontal' | 'main-vertical' | 'tiled';
 }
 
+export interface TmuxExecutor {
+  execSync(command: string, options?: ExecSyncOptions): string | Buffer;
+}
+
+export class DefaultTmuxExecutor implements TmuxExecutor {
+  execSync(command: string, options?: ExecSyncOptions): string | Buffer {
+    return execSync(command, options);
+  }
+}
+
 export class TmuxEnhancer {
+  private static executor: TmuxExecutor = new DefaultTmuxExecutor();
+
+  static setExecutor(executor: TmuxExecutor): void {
+    this.executor = executor;
+  }
+
+  private static execTmux(command: string, options?: ExecSyncOptions): string | Buffer {
+    return this.executor.execSync(command, options);
+  }
   /**
    * Configure enhanced tmux settings for a session
    */
@@ -88,16 +107,16 @@ export class TmuxEnhancer {
       try {
         // Copy mode settings are per-session
         if (setting.trim() && setting.startsWith('set')) {
-          execSync(`tmux ${setting} -t ${sessionName} 2>/dev/null`);
+          this.execTmux(`tmux ${setting} -t ${sessionName} 2>/dev/null`);
         } else if (
           setting.trim() &&
           (setting.startsWith('bind-key') || setting.startsWith('unbind-key'))
         ) {
           // Log bind-key commands for debugging
           Logger.debug('Executing bind-key command', { command: `tmux ${setting}` });
-          execSync(`tmux ${setting} 2>/dev/null`);
+          this.execTmux(`tmux ${setting} 2>/dev/null`);
         } else if (setting.trim()) {
-          execSync(`tmux ${setting} 2>/dev/null`);
+          this.execTmux(`tmux ${setting} 2>/dev/null`);
         }
       } catch (error) {
         // Log failures for debugging
@@ -154,13 +173,13 @@ export class TmuxEnhancer {
         // Handle different command types
         if (setting.startsWith('set ')) {
           const option = setting.substring(4);
-          execSync(`tmux set -t ${sessionName} ${option} 2>/dev/null`);
+          this.execTmux(`tmux set -t ${sessionName} ${option} 2>/dev/null`);
         } else if (setting.startsWith('setw ')) {
           const option = setting.substring(5);
-          execSync(`tmux setw -t ${sessionName} ${option} 2>/dev/null`);
+          this.execTmux(`tmux setw -t ${sessionName} ${option} 2>/dev/null`);
         } else {
           // For any other commands, just run them as-is
-          execSync(`tmux ${setting} 2>/dev/null`);
+          this.execTmux(`tmux ${setting} 2>/dev/null`);
         }
       } catch (error) {
         // Log the actual error message
@@ -208,7 +227,7 @@ export class TmuxEnhancer {
     hooks.forEach((hook) => {
       try {
         if (hook.trim()) {
-          execSync(`tmux ${hook} 2>/dev/null`);
+          this.execTmux(`tmux ${hook} 2>/dev/null`);
         }
       } catch {
         // Some hooks might not be supported
@@ -257,7 +276,7 @@ export class TmuxEnhancer {
         // Key bindings should be global, not per-session
         if (binding.trim()) {
           Logger.debug('Executing key binding', { command: `tmux ${binding}` });
-          execSync(`tmux ${binding} 2>/dev/null`);
+          this.execTmux(`tmux ${binding} 2>/dev/null`);
         }
       } catch (error) {
         // Log failures for debugging
@@ -280,7 +299,7 @@ export class TmuxEnhancer {
 
       try {
         // Set session group (tmux 3.2+)
-        execSync(`tmux set -t ${sessionName} @session-group "${projectGroup}" 2>/dev/null`);
+        this.execTmux(`tmux set -t ${sessionName} @session-group "${projectGroup}" 2>/dev/null`);
 
         // Session grouping handled - status-left is already configured
       } catch {
@@ -306,24 +325,24 @@ export class TmuxEnhancer {
 
     try {
       // Create a new window for comparison
-      execSync(`tmux new-window -t ${sessionName} -n "compare"`);
+      this.execTmux(`tmux new-window -t ${sessionName} -n "compare"`);
 
       // Kill any existing panes in the new window
-      execSync(`tmux kill-pane -a -t ${sessionName}:compare 2>/dev/null || true`);
+      this.execTmux(`tmux kill-pane -a -t ${sessionName}:compare 2>/dev/null || true`);
 
       // Create the layout first based on number of branches
       if (branches.length === 2) {
         // Side by side
-        execSync(`tmux split-window -t ${sessionName}:compare -h -p 50`);
+        this.execTmux(`tmux split-window -t ${sessionName}:compare -h -p 50`);
       } else if (branches.length === 3) {
         // One on top, two on bottom
-        execSync(`tmux split-window -t ${sessionName}:compare -v -p 50`);
-        execSync(`tmux split-window -t ${sessionName}:compare.2 -h -p 50`);
+        this.execTmux(`tmux split-window -t ${sessionName}:compare -v -p 50`);
+        this.execTmux(`tmux split-window -t ${sessionName}:compare.2 -h -p 50`);
       } else if (branches.length === 4) {
         // 2x2 grid
-        execSync(`tmux split-window -t ${sessionName}:compare -h -p 50`);
-        execSync(`tmux split-window -t ${sessionName}:compare.1 -v -p 50`);
-        execSync(`tmux split-window -t ${sessionName}:compare.2 -v -p 50`);
+        this.execTmux(`tmux split-window -t ${sessionName}:compare -h -p 50`);
+        this.execTmux(`tmux split-window -t ${sessionName}:compare.1 -v -p 50`);
+        this.execTmux(`tmux split-window -t ${sessionName}:compare.2 -v -p 50`);
       }
 
       // Now pipe each Claude session to its pane
@@ -332,30 +351,32 @@ export class TmuxEnhancer {
         const paneIndex = index + 1;
 
         // First set the pane title
-        execSync(`tmux select-pane -t ${sessionName}:compare.${paneIndex} -T " ${branch} "`);
+        this.execTmux(`tmux select-pane -t ${sessionName}:compare.${paneIndex} -T " ${branch} "`);
 
         // Connect the pane to show the Claude session
-        execSync(
+        this.execTmux(
           `tmux send-keys -t ${sessionName}:compare.${paneIndex} "clear && echo 'Connecting to ${branch} Claude session...' && sleep 1 && tmux attach-session -t ${targetSession}" Enter`,
         );
       });
 
       // Configure pane borders and styling
-      execSync(`tmux set -t ${sessionName}:compare pane-border-status top`);
-      execSync(`tmux set -t ${sessionName}:compare pane-border-style "fg=colour240"`);
-      execSync(`tmux set -t ${sessionName}:compare pane-active-border-style "fg=colour32,bold"`);
-      execSync(
+      this.execTmux(`tmux set -t ${sessionName}:compare pane-border-status top`);
+      this.execTmux(`tmux set -t ${sessionName}:compare pane-border-style "fg=colour240"`);
+      this.execTmux(
+        `tmux set -t ${sessionName}:compare pane-active-border-style "fg=colour32,bold"`,
+      );
+      this.execTmux(
         `tmux set -t ${sessionName}:compare pane-border-format "#[fg=colour255,bg=colour32] #{pane_title} #[fg=colour240,bg=default]"`,
       );
 
       // Set window options for better display
-      execSync(`tmux setw -t ${sessionName}:compare remain-on-exit off`);
-      execSync(`tmux setw -t ${sessionName}:compare aggressive-resize on`);
+      this.execTmux(`tmux setw -t ${sessionName}:compare remain-on-exit off`);
+      this.execTmux(`tmux setw -t ${sessionName}:compare aggressive-resize on`);
 
       Logger.info('Comparison layout created successfully');
 
       // Switch to the comparison window
-      execSync(`tmux select-window -t ${sessionName}:compare`);
+      this.execTmux(`tmux select-window -t ${sessionName}:compare`);
     } catch (error) {
       Logger.error('Failed to create comparison layout', error);
     }
@@ -366,13 +387,15 @@ export class TmuxEnhancer {
    */
   static toggleSynchronizedPanes(sessionName: string): boolean {
     try {
-      const currentState = execSync(
-        `tmux show-window-options -t ${sessionName} -v synchronize-panes 2>/dev/null || echo off`,
-        { encoding: 'utf-8' },
+      const currentState = String(
+        this.execTmux(
+          `tmux show-window-options -t ${sessionName} -v synchronize-panes 2>/dev/null || echo off`,
+          { encoding: 'utf-8' },
+        ),
       ).trim();
 
       const newState = currentState === 'on' ? 'off' : 'on';
-      execSync(`tmux setw -t ${sessionName} synchronize-panes ${newState}`);
+      this.execTmux(`tmux setw -t ${sessionName} synchronize-panes ${newState}`);
 
       Logger.info('Toggled synchronized panes', { sessionName, newState });
       return newState === 'on';
@@ -394,17 +417,17 @@ export class TmuxEnhancer {
 
     try {
       // Create new window for dashboard
-      execSync(`tmux new-window -t ${sessionName} -n dashboard`);
+      this.execTmux(`tmux new-window -t ${sessionName} -n dashboard`);
 
       // Create a pane for each branch (up to 6 for readability)
       const branchesToShow = branches.slice(0, 6);
 
       branchesToShow.slice(1).forEach(() => {
-        execSync(`tmux split-window -t ${sessionName}:dashboard`);
+        this.execTmux(`tmux split-window -t ${sessionName}:dashboard`);
       });
 
       // Use tiled layout for dashboard
-      execSync(`tmux select-layout -t ${sessionName}:dashboard tiled`);
+      this.execTmux(`tmux select-layout -t ${sessionName}:dashboard tiled`);
 
       // Show git status in each pane
       branchesToShow.forEach((branch, index) => {
@@ -420,7 +443,9 @@ export class TmuxEnhancer {
           git status -sb
         `;
 
-        execSync(`tmux send-keys -t ${sessionName}:dashboard.${paneIndex} "${statusCmd}" Enter`);
+        this.execTmux(
+          `tmux send-keys -t ${sessionName}:dashboard.${paneIndex} "${statusCmd}" Enter`,
+        );
       });
 
       Logger.info('Dashboard window created successfully');

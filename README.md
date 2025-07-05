@@ -1,10 +1,10 @@
 # Claude GWT (Git Worktree Tool)
 
-[![CI](https://github.com/nazq/claude_gwt/actions/workflows/ci.yml/badge.svg)](https://github.com/nazq/claude_gwt/actions/workflows/ci.yml)
-[![npm version](https://badge.fury.io/js/claude-gwt.svg)](https://www.npmjs.com/package/claude-gwt)
+[![CI](https://github.com/nazq/claude-gwt/actions/workflows/ci.yml/badge.svg)](https://github.com/nazq/claude-gwt/actions/workflows/ci.yml)
+[![npm version](https://badge.fury.io/js/claude-gwt.svg)](https://badge.fury.io/js/claude-gwt)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![codecov](https://codecov.io/gh/nazq/claude_gwt/branch/master/graph/badge.svg)](https://codecov.io/gh/nazq/claude_gwt)
-[![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org)
+[![codecov](https://codecov.io/gh/nazq/claude-gwt/branch/master/graph/badge.svg)](https://codecov.io/gh/nazq/claude-gwt)
+[![Node.js Version](https://img.shields.io/node/v/claude-gwt.svg)](https://nodejs.org)
 
 A powerful Git worktree manager with integrated Claude AI orchestration. Manage multiple Git branches in parallel with dedicated Claude instances for each branch.
 
@@ -13,8 +13,10 @@ A powerful Git worktree manager with integrated Claude AI orchestration. Manage 
 - 🌳 **Git Worktree Management** - Create, switch, and manage Git worktrees effortlessly
 - 🤖 **Claude AI Orchestration** - Run supervisor and branch-specific Claude instances via tmux
 - 🔄 **Session Management** - Quick switching between Claude sessions with `cgwt` command
+- 📊 **Token Tracking** - Monitor and analyze Claude API usage with detailed reports
 - 🎨 **Beautiful CLI** - Interactive terminal UI with colors and animations
 - ⚙️ **Flexible Configuration** - Customize contexts for supervisor and branch workers
+- 🔌 **MCP Integration** - Model Context Protocol server for Claude Code integration
 - 🐳 **Docker Support** - Run in containers with full functionality
 
 ## 📦 Installation
@@ -106,6 +108,12 @@ cgwt s feature-auth
 
 # Show status
 cgwt ?
+
+# Token tracking
+cgwt tokens              # Current session usage
+cgwt tokens --today      # Today's usage
+cgwt tokens --cost       # Cost analysis
+cgwt tokens --export csv # Export data
 
 # Advanced features
 cgwt compare             # Compare branches side-by-side

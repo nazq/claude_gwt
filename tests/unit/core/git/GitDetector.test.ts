@@ -15,6 +15,7 @@ jest.mock('fs', () => ({
 
 jest.mock('simple-git');
 
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument */
 describe('GitDetector', () => {
   const mockFs = fs as jest.Mocked<typeof fs>;
   const mockGit = {

@@ -9,7 +9,7 @@ export async function promptForRepoUrl(): Promise<string> {
       type: 'input',
       name: 'repoUrl',
       message: `${theme.git('Git')} repository URL (leave empty for local init):`,
-      validate: (input: string) => {
+      validate: (input: string): boolean | string => {
         if (!input) return true;
         // Support various Git URL formats
         const patterns = [
@@ -36,7 +36,7 @@ export async function promptForBranchName(defaultBranch?: string): Promise<strin
       name: 'branchName',
       message: `${theme.branch('Branch')} name:`,
       default: defaultBranch,
-      validate: (input: string) => {
+      validate: (input: string): boolean | string => {
         if (!input) return 'Branch name is required';
         const validBranch = /^[a-zA-Z0-9._\-/]+$/.test(input);
         return validBranch || 'Invalid branch name';
@@ -126,12 +126,12 @@ export async function promptForSubdirectoryName(defaultName = 'my-project'): Pro
       name: 'subdirName',
       message: 'Subdirectory name:',
       default: defaultName,
-      validate: (input: string) => {
+      validate: (input: string): boolean | string => {
         if (!input || input.trim().length === 0) {
           return 'Subdirectory name is required';
         }
         // Check for valid directory name
-        const validName = /^[a-zA-Z0-9._\-]+$/.test(input);
+        const validName = /^[a-zA-Z0-9._-]+$/.test(input);
         if (!validName) {
           return 'Please use only letters, numbers, dots, hyphens, and underscores';
         }

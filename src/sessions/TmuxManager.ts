@@ -359,12 +359,8 @@ ${customContext}`
       const claudeCmd = this.getClaudeCommand();
 
       // Use exec to handle the complex tmux command properly
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const { execSync: execSyncInherit } = require('child_process') as {
-        execSync: typeof execSync;
-      };
       try {
-        execSyncInherit(
+        execSync(
           `tmux new-session -s ${sessionName} -c ${workingDirectory} \\; set -g mouse on \\; set -g mode-keys vi \\; send-keys "${claudeCmd}" Enter`,
           { stdio: 'inherit' },
         );

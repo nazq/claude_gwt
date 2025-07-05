@@ -53,6 +53,7 @@ node dist/src/cli/index.js [options]
 - Unit tests for all business logic
 - Integration tests for Git operations
 - Mocked file system and Git operations
+- Remember tests are code treat them as such
 
 ### Git Worktree Management
 The application uses a bare repository pattern:

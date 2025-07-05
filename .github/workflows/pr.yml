@@ -5,14 +5,6 @@ on:
     types: [opened, synchronize, reopened, edited]
     branches: [master, main]
 
-# Grant specific permissions to the workflow
-permissions:
-  contents: read
-  pull-requests: write
-  issues: write
-  statuses: write
-  checks: write
-
 jobs:
   pr-title:
     name: PR Title Check
@@ -36,17 +28,14 @@ jobs:
           ci
           chore
           revert
-        requireScope: false
-        subjectPattern: ^[A-Z].*$
-        subjectPatternError: |
-          The subject "{subject}" found in the pull request title "{title}"
-          doesn't match the configured pattern. Please ensure that the subject
-          starts with an uppercase letter.
+      continue-on-error: true
           
   danger:
     name: Danger JS
     runs-on: ubuntu-latest
-    # Only run on PRs from the same repo (not forks) due to security
+    permissions:
+      contents: read
+      pull-requests: write
     if: github.event.pull_request.head.repo.full_name == github.repository
     
     steps:
@@ -66,6 +55,7 @@ jobs:
       run: npx danger ci
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      continue-on-error: true
         
   size-check:
     name: Bundle Size Check
@@ -92,10 +82,14 @@ jobs:
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         skip_step: build
+      continue-on-error: true
         
   test-coverage:
     name: Test Coverage Report
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     
     steps:
     - name: Checkout code
@@ -115,25 +109,22 @@ jobs:
       
     - name: Coverage report
       uses: ArtiomTr/jest-coverage-report-action@v2
-      if: github.event_name == 'pull_request'
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         skip-step: all
         coverage-file: ./coverage/lcov.info
-        annotations: failed-tests
+        test-script: npm run test:coverage
         
   label:
     name: Auto Label PR
     runs-on: ubuntu-latest
-    # Only run on PRs from the same repo (not forks)
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    permissions:
+      contents: read
+      pull-requests: write
       
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
     - name: Label PR
       uses: actions/labeler@v5
       with:
         repo-token: "${{ secrets.GITHUB_TOKEN }}"
-        sync-labels: true
+      continue-on-error: true

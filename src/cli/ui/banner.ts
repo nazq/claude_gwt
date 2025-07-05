@@ -1,8 +1,8 @@
 import figlet from 'figlet';
+import boxen from 'boxen';
 import { theme } from './theme';
-import { createBox } from './boxen-wrapper';
 
-export async function showBanner(): Promise<void> {
+export function showBanner(): void {
   const banner = figlet.textSync('Claude GWT', {
     font: 'Standard',
     horizontalLayout: 'default',
@@ -14,7 +14,7 @@ export async function showBanner(): Promise<void> {
 
   const content = `${theme.primary(banner)}\n\n${theme.muted(subtitle)}\n${theme.dim(version)}`;
 
-  const boxedBanner = await createBox(content, {
+  const boxedBanner = boxen(content, {
     padding: 1,
     margin: 1,
     borderStyle: 'round',
