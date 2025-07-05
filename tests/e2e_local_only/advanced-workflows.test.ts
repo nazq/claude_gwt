@@ -30,6 +30,10 @@ describe('Advanced Workflows E2E', () => {
 
   beforeAll(async () => {
     tmuxAvailable = await TmuxManager.isTmuxAvailable();
+
+    // Set up git config for tests
+    await execCommandSafe('git', ['config', '--global', 'user.email', 'test@example.com']);
+    await execCommandSafe('git', ['config', '--global', 'user.name', 'Test User']);
   });
 
   beforeEach(async () => {
@@ -66,8 +70,6 @@ describe('Advanced Workflows E2E', () => {
 
       // Commit initial content
       await execCommandSafe('git', ['add', '.'], { cwd: mainPath });
-      await execCommandSafe('git', ['config', 'user.email', 'test@example.com'], { cwd: mainPath });
-      await execCommandSafe('git', ['config', 'user.name', 'Test User'], { cwd: mainPath });
       await execCommandSafe('git', ['commit', '-m', 'Initial commit'], { cwd: mainPath });
 
       // Create feature branches
@@ -118,8 +120,6 @@ describe('Advanced Workflows E2E', () => {
 
       // Setup main branch
       const mainPath = await manager.addWorktree('main');
-      await execCommandSafe('git', ['config', 'user.email', 'test@example.com'], { cwd: mainPath });
-      await execCommandSafe('git', ['config', 'user.name', 'Test User'], { cwd: mainPath });
       await fs.writeFile(path.join(mainPath, 'base.txt'), 'Base content');
       await execCommandSafe('git', ['add', '.'], { cwd: mainPath });
       await execCommandSafe('git', ['commit', '-m', 'Base commit'], { cwd: mainPath });
@@ -194,8 +194,6 @@ describe('Advanced Workflows E2E', () => {
 
       // Create main branch with history
       const mainPath = await manager.addWorktree('main');
-      await execCommandSafe('git', ['config', 'user.email', 'test@example.com'], { cwd: mainPath });
-      await execCommandSafe('git', ['config', 'user.name', 'Test User'], { cwd: mainPath });
 
       // Create multiple commits
       for (let i = 0; i < 5; i++) {
@@ -234,8 +232,6 @@ describe('Advanced Workflows E2E', () => {
 
       // Setup branches
       const mainPath = await manager.addWorktree('main');
-      await execCommandSafe('git', ['config', 'user.email', 'test@example.com'], { cwd: mainPath });
-      await execCommandSafe('git', ['config', 'user.name', 'Test User'], { cwd: mainPath });
       await fs.writeFile(path.join(mainPath, 'base.txt'), 'Base');
       await execCommandSafe('git', ['add', '.'], { cwd: mainPath });
       await execCommandSafe('git', ['commit', '-m', 'Base'], { cwd: mainPath });
@@ -269,8 +265,6 @@ describe('Advanced Workflows E2E', () => {
       const manager = new WorktreeManager(testDir);
 
       const mainPath = await manager.addWorktree('main');
-      await execCommandSafe('git', ['config', 'user.email', 'test@example.com'], { cwd: mainPath });
-      await execCommandSafe('git', ['config', 'user.name', 'Test User'], { cwd: mainPath });
 
       // Create many files
       const fileCount = 100;

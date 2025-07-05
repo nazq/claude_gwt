@@ -44,6 +44,10 @@ describe('Claude GWT Full E2E Workflow', () => {
     if (!tmuxAvailable) {
       console.log('⚠️  Tmux not available - some tests will be skipped');
     }
+
+    // Set up git config for tests
+    await execCommandSafe('git', ['config', '--global', 'user.email', 'test@example.com']);
+    await execCommandSafe('git', ['config', '--global', 'user.name', 'Test User']);
   });
 
   afterAll(async () => {
@@ -189,8 +193,6 @@ describe('Claude GWT Full E2E Workflow', () => {
       // Skip: This test requires complex setup as conversion fetches from the original repo
       // Create a regular git repo first
       await execCommandSafe('git', ['init'], { cwd: testDir });
-      await execCommandSafe('git', ['config', 'user.email', 'test@example.com'], { cwd: testDir });
-      await execCommandSafe('git', ['config', 'user.name', 'Test User'], { cwd: testDir });
 
       // Create initial commit
       const testFile = path.join(testDir, 'README.md');

@@ -39,6 +39,10 @@ describe('Session Management E2E', () => {
     if (!tmuxAvailable) {
       console.log('⚠️  Tmux not available - most tests will be skipped');
     }
+
+    // Set up git config for tests
+    await execCommandSafe('git', ['config', '--global', 'user.email', 'test@example.com']);
+    await execCommandSafe('git', ['config', '--global', 'user.name', 'Test User']);
   });
 
   beforeEach(async () => {
