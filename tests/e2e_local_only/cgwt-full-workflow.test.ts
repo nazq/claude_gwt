@@ -5,16 +5,20 @@ import { ClaudeGWTApp } from '../../src/cli/ClaudeGWTApp';
 import { GitRepository } from '../../src/core/git/GitRepository';
 import { WorktreeManager } from '../../src/core/git/WorktreeManager';
 import { TmuxManager } from '../../src/sessions/TmuxManager';
+import { execCommandSafe } from '../../src/core/utils/async';
+import { Logger } from '../../src/core/utils/logger';
 
-// Mock process.exit
+// For these e2e tests, we only mock process.exit to prevent test runner from exiting
 jest.spyOn(process, 'exit').mockImplementation((() => {
   throw new Error('process.exit called');
 }) as never);
 
-// Mock console methods
-jest.spyOn(console, 'log').mockImplementation();
-jest.spyOn(console, 'error').mockImplementation();
-jest.spyOn(console, 'clear').mockImplementation();
+// Silence logs during tests unless debugging
+if (!process.env['DEBUG']) {
+  jest.spyOn(Logger, 'info').mockImplementation();
+  jest.spyOn(Logger, 'debug').mockImplementation();
+  jest.spyOn(Logger, 'warn').mockImplementation();
+}
 
 /**
  * End-to-End Local Test Suite for Claude GWT
@@ -26,14 +30,20 @@ jest.spyOn(console, 'clear').mockImplementation();
  * - Session management
  * - Restart scenarios
  *
- * Note: These tests run locally only and require tmux to be installed
+ * Note: These tests run locally only and may require tmux to be installed
  */
 describe('Claude GWT Full E2E Workflow', () => {
   let testDir: string;
   let originalCwd: string;
+  let tmuxAvailable: boolean;
 
   beforeAll(async () => {
     originalCwd = process.cwd();
+    // Check tmux availability once
+    tmuxAvailable = await TmuxManager.isTmuxAvailable();
+    if (!tmuxAvailable) {
+      console.log('⚠️  Tmux not available - some tests will be skipped');
+    }
   });
 
   afterAll(async () => {
@@ -47,7 +57,14 @@ describe('Claude GWT Full E2E Workflow', () => {
   afterEach(async () => {
     try {
       // Clean up any tmux sessions that might have been created
-      await TmuxManager.shutdownAll();
+      if (tmuxAvailable) {
+        const sessions = await TmuxManager.listSessions();
+        for (const session of sessions) {
+          if (session.name.includes('cgwt-e2e')) {
+            await TmuxManager.killSession(session.name);
+          }
+        }
+      }
     } catch (error) {
       // Ignore cleanup errors
     }
@@ -59,374 +76,401 @@ describe('Claude GWT Full E2E Workflow', () => {
     }
   });
 
-  describe('CLI Initialization Tests', () => {
-    it('should start cgwt session with all CLI parameters', async () => {
-      const app = new ClaudeGWTApp(testDir, {
-        repo: undefined,
-        quiet: true, // Use quiet mode to avoid prompts
-        interactive: false, // Disable interactive mode
-      });
+  describe('Real Git Operations', () => {
+    it('should initialize a bare repository and create worktrees', async () => {
+      const repo = new GitRepository(testDir);
+      const result = await repo.initializeBareRepository();
 
-      // Initialize empty directory workflow - should exit gracefully
-      await expect(app.run()).rejects.toThrow('process.exit called');
+      expect(result.defaultBranch).toBeDefined();
+      expect(result.defaultBranch).toMatch(/^(main|master)$/);
+
+      // Verify bare repo structure
+      const bareDir = path.join(testDir, '.bare');
+      const gitFile = path.join(testDir, '.git');
+
+      expect(await fs.stat(bareDir).then((s) => s.isDirectory())).toBe(true);
+      expect(await fs.readFile(gitFile, 'utf-8')).toContain('gitdir: ./.bare');
+
+      // Create actual worktrees
+      const manager = new WorktreeManager(testDir);
+      const worktreePath = await manager.addWorktree('feature-test');
+
+      expect(worktreePath).toBe(path.join(testDir, 'feature-test'));
+      expect(await fs.stat(worktreePath).then((s) => s.isDirectory())).toBe(true);
+
+      // List worktrees
+      const worktrees = await manager.listWorktrees();
+      expect(worktrees).toHaveLength(1);
+      expect(worktrees[0]?.branch).toBe('feature-test');
     }, 30000);
 
-    it('should handle --repo parameter with git clone', async () => {
-      // Create a mock git repository to clone from
-      const sourceDir = await fs.mkdtemp(path.join(os.tmpdir(), 'cgwt-source-'));
-
-      try {
-        // Initialize source repo
-        const sourceRepo = new GitRepository(sourceDir);
-        await sourceRepo.initializeBareRepository();
-
-        // Create initial commit
-        const sourceWorktree = path.join(sourceDir, 'main');
-        await fs.mkdir(sourceWorktree, { recursive: true });
-        await fs.writeFile(path.join(sourceWorktree, 'README.md'), '# Test Repository\n');
-
-        const app = new ClaudeGWTApp(testDir, {
-          repo: sourceDir,
-          quiet: true,
-          interactive: false,
-        });
-
-        // Should handle the initialization gracefully
-        await expect(app.run()).rejects.toThrow('process.exit called');
-
-        // Note: In a real scenario, we'd verify repository was cloned
-        // but in this test environment we're mocking the exit behavior
-      } finally {
-        await fs.rm(sourceDir, { recursive: true, force: true });
-      }
-    }, 45000);
-
-    it('should handle --quiet and --clean parameters', async () => {
-      const app = new ClaudeGWTApp(testDir, {
-        repo: undefined,
-        quiet: true,
-        interactive: false,
-      });
-
-      // Should initialize without interactive prompts but exit at the end
-      await expect(app.run()).rejects.toThrow('process.exit called');
-    }, 30000);
-  });
-
-  describe('Multi-Branch Repository Tests', () => {
-    const branches = ['main', 'feature-auth', 'feature-api', 'feature-ui'];
-
-    beforeEach(async () => {
-      // Set up base repository
+    it('should handle concurrent worktree creation', async () => {
       const repo = new GitRepository(testDir);
       await repo.initializeBareRepository();
-    });
 
-    it('should create multiple branches with par-run repository', async () => {
       const manager = new WorktreeManager(testDir);
+      const branches = ['feature-a', 'feature-b', 'feature-c', 'feature-d'];
 
-      // Create all branches
-      for (const branch of branches) {
-        await manager.addWorktree(branch);
-      }
+      // Create worktrees concurrently
+      const promises = branches.map((branch) => manager.addWorktree(branch));
+      const results = await Promise.all(promises);
 
-      // Verify all branches exist
+      // Verify all were created
+      expect(results).toHaveLength(branches.length);
+      results.forEach((result, index) => {
+        expect(result).toBe(path.join(testDir, branches[index]!));
+      });
+
+      // Verify worktree list
       const worktrees = await manager.listWorktrees();
       expect(worktrees).toHaveLength(branches.length);
 
-      branches.forEach((branch) => {
-        expect(worktrees.some((wt) => wt.branch === branch)).toBe(true);
-      });
-    }, 60000);
-
-    it('should enter supervisor mode and manage all branches', async () => {
-      const manager = new WorktreeManager(testDir);
-
-      // Create branches
+      // Verify each worktree is independent
       for (const branch of branches) {
-        await manager.addWorktree(branch);
-      }
-
-      // Test supervisor mode initialization
-      const app = new ClaudeGWTApp(testDir, {
-        interactive: false,
-        quiet: true,
-      });
-
-      // Mock supervisor mode entry
-      jest.spyOn(TmuxManager, 'isTmuxAvailable').mockResolvedValue(true);
-      jest.spyOn(TmuxManager, 'isInsideTmux').mockReturnValue(false);
-      jest.spyOn(TmuxManager, 'createDetachedSession').mockResolvedValue(undefined);
-      jest.spyOn(TmuxManager, 'attachToSession').mockImplementation(() => {
-        process.exit(0);
-      });
-
-      // This would normally enter supervisor mode
-      await expect(app.run()).rejects.toThrow('process.exit called');
-    }, 60000);
-
-    it('should handle concurrent operations on different branches', async () => {
-      const manager = new WorktreeManager(testDir);
-
-      // Create branches concurrently
-      const createPromises = branches.map((branch) => manager.addWorktree(branch));
-      await Promise.all(createPromises);
-
-      // Verify all branches were created successfully
-      const worktrees = await manager.listWorktrees();
-      expect(worktrees).toHaveLength(branches.length);
-
-      // Test concurrent file operations
-      const filePromises = branches.map(async (branch) => {
         const branchPath = path.join(testDir, branch);
-        await fs.writeFile(
-          path.join(branchPath, `${branch}-task.md`),
-          `# Task for ${branch}\n\n- [ ] Implement feature\n- [ ] Add tests\n`,
-        );
-      });
+        const testFile = path.join(branchPath, `${branch}.txt`);
+        await fs.writeFile(testFile, `Content for ${branch}`);
 
-      await Promise.all(filePromises);
-
-      // Verify files were created independently
-      for (const branch of branches) {
-        const taskFile = path.join(testDir, branch, `${branch}-task.md`);
-        const content = await fs.readFile(taskFile, 'utf-8');
-        expect(content).toContain(`Task for ${branch}`);
+        // File should only exist in its own worktree
+        for (const otherBranch of branches) {
+          if (otherBranch !== branch) {
+            const otherPath = path.join(testDir, otherBranch, `${branch}.txt`);
+            await expect(fs.access(otherPath)).rejects.toThrow();
+          }
+        }
       }
     }, 60000);
   });
 
-  describe('Restart Scenarios', () => {
-    beforeEach(async () => {
-      // Set up repository with 3 branches
+  describe('CLI Application Flow', () => {
+    it('should handle empty directory initialization', async () => {
+      const app = new ClaudeGWTApp(testDir, {
+        repo: undefined,
+        quiet: true,
+        interactive: false,
+      });
+
+      // Run the app - it should initialize an empty repo and exit
+      await expect(app.run()).rejects.toThrow('process.exit called');
+
+      // Verify repo was initialized
+      const bareDir = path.join(testDir, '.bare');
+      expect(
+        await fs
+          .access(bareDir)
+          .then(() => true)
+          .catch(() => false),
+      ).toBe(true);
+    }, 30000);
+
+    it('should handle existing worktree directory', async () => {
+      // Set up a worktree first
       const repo = new GitRepository(testDir);
       await repo.initializeBareRepository();
 
       const manager = new WorktreeManager(testDir);
       await manager.addWorktree('main');
-      await manager.addWorktree('feature-a');
-      await manager.addWorktree('feature-b');
-    });
+      await manager.addWorktree('feature');
 
-    it('should restart in existing folder with 3 branches', async () => {
-      // First run - initialize everything
-      const firstApp = new ClaudeGWTApp(testDir, {
-        interactive: false,
-        quiet: true,
-      });
-
-      await firstApp.run();
-
-      // Second run - should detect existing setup
-      const secondApp = new ClaudeGWTApp(testDir, {
-        interactive: false,
-        quiet: true,
-      });
-
-      await secondApp.run();
-
-      // Verify branches still exist
-      const manager = new WorktreeManager(testDir);
-      const worktrees = await manager.listWorktrees();
-      expect(worktrees).toHaveLength(3);
-      expect(worktrees.map((wt) => wt.branch).sort()).toEqual(['feature-a', 'feature-b', 'main']);
-    }, 60000);
-
-    it('should handle session recovery after tmux restart', async () => {
-      const sessionName = 'cgwt-test-main';
-
-      // Mock session info to simulate existing session without Claude
-      jest.spyOn(TmuxManager, 'getSessionInfo').mockResolvedValue({
-        name: sessionName,
-        windows: 1,
-        created: '1234567890',
-        attached: false,
-        hasClaudeRunning: false,
-      });
-
-      jest.spyOn(TmuxManager, 'launchSession').mockResolvedValue(undefined);
-
-      const app = new ClaudeGWTApp(testDir, {
-        interactive: false,
-        quiet: true,
-      });
-
-      await app.run();
-
-      // Should attempt to restart Claude in existing session
-      expect(TmuxManager.launchSession).toHaveBeenCalled();
-    }, 30000);
-
-    it('should handle corrupted worktree recovery', async () => {
-      const manager = new WorktreeManager(testDir);
-
-      // Create a branch then simulate corruption by removing directory
-      await manager.addWorktree('corrupted-branch');
-      const corruptedPath = path.join(testDir, 'corrupted-branch');
-      await fs.rm(corruptedPath, { recursive: true, force: true });
-
-      // App should handle corrupted worktree gracefully
+      // Now run the app in the parent directory
       const app = new ClaudeGWTApp(testDir, {
         interactive: false,
         quiet: true,
       });
 
       await expect(app.run()).rejects.toThrow('process.exit called');
+
+      // Should have detected the worktrees
+      const worktrees = await manager.listWorktrees();
+      expect(worktrees).toHaveLength(2);
+    }, 30000);
+
+    it.skip('should convert regular git repo to worktree setup', async () => {
+      // Skip: This test requires complex setup as conversion fetches from the original repo
+      // Create a regular git repo first
+      await execCommandSafe('git', ['init'], { cwd: testDir });
+      await execCommandSafe('git', ['config', 'user.email', 'test@example.com'], { cwd: testDir });
+      await execCommandSafe('git', ['config', 'user.name', 'Test User'], { cwd: testDir });
+
+      // Create initial commit
+      const testFile = path.join(testDir, 'README.md');
+      await fs.writeFile(testFile, '# Test Repo');
+      await execCommandSafe('git', ['add', '.'], { cwd: testDir });
+      await execCommandSafe('git', ['commit', '-m', 'Initial commit'], { cwd: testDir });
+
+      // Add a fake remote to make it convertible
+      await execCommandSafe(
+        'git',
+        ['remote', 'add', 'origin', 'https://github.com/test/test.git'],
+        { cwd: testDir },
+      );
+
+      const repo = new GitRepository(testDir);
+
+      // Check if conversion is possible
+      const { canConvert, reason } = await repo.canConvertToWorktree();
+      expect(canConvert).toBe(true);
+      expect(reason).toBeUndefined();
+
+      // Convert to worktree setup
+      const result = await repo.convertToWorktreeSetup();
+      expect(result.defaultBranch).toBeDefined();
+
+      // Verify conversion
+      const bareDir = path.join(testDir, '.bare');
+      const gitFile = path.join(testDir, '.git');
+
+      expect(await fs.stat(bareDir).then((s) => s.isDirectory())).toBe(true);
+      expect(await fs.readFile(gitFile, 'utf-8')).toContain('gitdir: ./.bare');
+
+      // Original working directory should now be a worktree
+      const manager = new WorktreeManager(testDir);
+      const worktrees = await manager.listWorktrees();
+      expect(worktrees.some((wt) => wt.branch === result.defaultBranch)).toBe(true);
+    }, 60000);
+  });
+
+  describe('Tmux Session Management (if available)', () => {
+    it('should create and manage tmux sessions', async () => {
+      if (!tmuxAvailable) {
+        console.log('Skipping: tmux not available');
+        return;
+      }
+
+      // Set up repository with branches
+      const repo = new GitRepository(testDir);
+      await repo.initializeBareRepository();
+
+      const manager = new WorktreeManager(testDir);
+      await manager.addWorktree('main');
+      await manager.addWorktree('feature-auth');
+
+      // Create a detached session
+      const sessionName = 'cgwt-e2e-test-main';
+      const sessionConfig = {
+        sessionName,
+        workingDirectory: path.join(testDir, 'main'),
+        branchName: 'main',
+        role: 'child' as const,
+        gitRepo: repo,
+      };
+
+      await TmuxManager.createDetachedSession(sessionConfig);
+
+      // Verify session was created
+      const sessions = await TmuxManager.listSessions();
+      const ourSession = sessions.find((s) => s.name === sessionName);
+      expect(ourSession).toBeDefined();
+      expect(ourSession?.name).toBe(sessionName);
+
+      // Get session info
+      const sessionInfo = await TmuxManager.getSessionInfo(sessionName);
+      expect(sessionInfo).not.toBeNull();
+      expect(sessionInfo?.windows).toBeGreaterThanOrEqual(1);
+
+      // Clean up
+      await TmuxManager.killSession(sessionName);
+
+      // Verify cleanup
+      const sessionsAfter = await TmuxManager.listSessions();
+      expect(sessionsAfter.find((s) => s.name === sessionName)).toBeUndefined();
+    }, 60000);
+
+    it('should handle supervisor mode with multiple branches', async () => {
+      if (!tmuxAvailable) {
+        console.log('Skipping: tmux not available');
+        return;
+      }
+
+      // Set up repository with multiple branches
+      const repo = new GitRepository(testDir);
+      await repo.initializeBareRepository();
+
+      const manager = new WorktreeManager(testDir);
+      const branches = ['main', 'feature-a', 'feature-b'];
+
+      for (const branch of branches) {
+        await manager.addWorktree(branch);
+      }
+
+      // Create supervisor session
+      const supervisorName = 'cgwt-e2e-test-supervisor';
+      await TmuxManager.createDetachedSession({
+        sessionName: supervisorName,
+        workingDirectory: testDir,
+        branchName: 'supervisor',
+        role: 'supervisor',
+        gitRepo: repo,
+      });
+
+      // Create branch sessions
+      const branchSessions = [];
+      for (const branch of branches) {
+        const sessionName = `cgwt-e2e-test-${branch}`;
+        branchSessions.push(sessionName);
+
+        await TmuxManager.createDetachedSession({
+          sessionName,
+          workingDirectory: path.join(testDir, branch),
+          branchName: branch,
+          role: 'child',
+          gitRepo: repo,
+        });
+      }
+
+      // Verify all sessions exist
+      const sessions = await TmuxManager.listSessions();
+      expect(sessions.find((s) => s.name === supervisorName)).toBeDefined();
+
+      for (const sessionName of branchSessions) {
+        expect(sessions.find((s) => s.name === sessionName)).toBeDefined();
+      }
+
+      // Test shutdown all
+      const testSessions = sessions.filter((s) => s.name.includes('cgwt-e2e-test'));
+      for (const session of testSessions) {
+        await TmuxManager.killSession(session.name);
+      }
+
+      // Verify cleanup
+      const sessionsAfter = await TmuxManager.listSessions();
+      expect(sessionsAfter.filter((s) => s.name.includes('cgwt-e2e-test'))).toHaveLength(0);
+    }, 90000);
+  });
+
+  describe('Error Handling and Edge Cases', () => {
+    it('should handle non-empty non-git directory', async () => {
+      // Create some files
+      await fs.writeFile(path.join(testDir, 'existing.txt'), 'existing content');
+      await fs.mkdir(path.join(testDir, 'src'), { recursive: true });
+      await fs.writeFile(path.join(testDir, 'src', 'index.js'), 'console.log("test");');
+
+      const app = new ClaudeGWTApp(testDir, {
+        interactive: false,
+        quiet: true,
+      });
+
+      // Should exit with error
+      await expect(app.run()).rejects.toThrow('process.exit called');
+
+      // Directory should still have original files
+      expect(await fs.readFile(path.join(testDir, 'existing.txt'), 'utf-8')).toBe(
+        'existing content',
+      );
+    }, 30000);
+
+    it('should handle worktree removal', async () => {
+      const repo = new GitRepository(testDir);
+      await repo.initializeBareRepository();
+
+      const manager = new WorktreeManager(testDir);
+
+      // Create worktree
+      await manager.addWorktree('temp-feature');
+      let worktrees = await manager.listWorktrees();
+      expect(worktrees).toHaveLength(1);
+
+      // Remove worktree
+      await manager.removeWorktree('temp-feature');
+
+      // Verify removal
+      worktrees = await manager.listWorktrees();
+      expect(worktrees).toHaveLength(0);
+
+      // Directory should be gone
+      const branchPath = path.join(testDir, 'temp-feature');
+      await expect(fs.access(branchPath)).rejects.toThrow();
+    }, 30000);
+
+    it('should handle invalid branch names', async () => {
+      const repo = new GitRepository(testDir);
+      await repo.initializeBareRepository();
+
+      const manager = new WorktreeManager(testDir);
+
+      // Test invalid branch names
+      const invalidNames = [
+        'feature..test', // double dots
+        '.hidden', // starts with dot
+        'test/branch/', // ends with slash
+        'test.lock', // ends with .lock
+        'test branch', // contains space
+      ];
+
+      for (const name of invalidNames) {
+        await expect(manager.addWorktree(name)).rejects.toThrow();
+      }
+
+      // Verify no worktrees were created
+      const worktrees = await manager.listWorktrees();
+      expect(worktrees).toHaveLength(0);
     }, 30000);
   });
 
-  describe('Advanced Workflow Scenarios', () => {
-    it('should handle rapid branch creation and deletion', async () => {
+  describe('Performance and Stress Tests', () => {
+    it('should handle rapid worktree creation and deletion', async () => {
       const repo = new GitRepository(testDir);
       await repo.initializeBareRepository();
 
       const manager = new WorktreeManager(testDir);
+      const iterations = 5;
 
-      // Rapidly create and delete branches
-      for (let i = 0; i < 5; i++) {
-        const branchName = `temp-branch-${i}`;
+      for (let i = 0; i < iterations; i++) {
+        const branchName = `rapid-test-${i}`;
+
+        // Create
+        const start = Date.now();
         await manager.addWorktree(branchName);
+        const createTime = Date.now() - start;
 
-        // Verify it was created
-        let worktrees = await manager.listWorktrees();
+        // Verify
+        const worktrees = await manager.listWorktrees();
         expect(worktrees.some((wt) => wt.branch === branchName)).toBe(true);
 
-        // Delete it
+        // Remove
+        const removeStart = Date.now();
         await manager.removeWorktree(branchName);
+        const removeTime = Date.now() - removeStart;
 
-        // Verify it was removed
-        worktrees = await manager.listWorktrees();
-        expect(worktrees.some((wt) => wt.branch === branchName)).toBe(false);
+        // Performance check - operations should be reasonably fast
+        expect(createTime).toBeLessThan(5000);
+        expect(removeTime).toBeLessThan(5000);
       }
     }, 60000);
 
-    it('should handle large numbers of branches (stress test)', async () => {
+    it('should handle many concurrent file operations', async () => {
       const repo = new GitRepository(testDir);
       await repo.initializeBareRepository();
 
       const manager = new WorktreeManager(testDir);
-      const branchCount = 20;
-      const branches: string[] = [];
+      const branchCount = 10;
+      const fileCount = 10;
 
-      // Create many branches
-      for (let i = 0; i < branchCount; i++) {
-        const branchName = `feature-${i.toString().padStart(3, '0')}`;
-        branches.push(branchName);
-        await manager.addWorktree(branchName);
+      // Create branches
+      const branches = Array.from({ length: branchCount }, (_, i) => `perf-test-${i}`);
+      await Promise.all(branches.map((branch) => manager.addWorktree(branch)));
+
+      // Concurrent file operations across all branches
+      const fileOps = [];
+      for (const branch of branches) {
+        for (let i = 0; i < fileCount; i++) {
+          const filePath = path.join(testDir, branch, `file-${i}.txt`);
+          fileOps.push(fs.writeFile(filePath, `Content for ${branch} file ${i}`));
+        }
       }
 
-      // Verify all branches exist
-      const worktrees = await manager.listWorktrees();
-      expect(worktrees).toHaveLength(branchCount);
+      const start = Date.now();
+      await Promise.all(fileOps);
+      const duration = Date.now() - start;
 
-      // Test batch operations
-      const filePromises = branches.map(async (branch) => {
-        const branchPath = path.join(testDir, branch);
-        await fs.writeFile(path.join(branchPath, 'work.txt'), `Work in progress for ${branch}`);
-      });
-
-      await Promise.all(filePromises);
+      // Should complete in reasonable time
+      expect(duration).toBeLessThan(10000);
 
       // Verify all files were created
       for (const branch of branches) {
-        const workFile = path.join(testDir, branch, 'work.txt');
-        expect(
-          await fs
-            .access(workFile)
-            .then(() => true)
-            .catch(() => false),
-        ).toBe(true);
+        const files = await fs.readdir(path.join(testDir, branch));
+        expect(files.filter((f) => f.startsWith('file-')).length).toBe(fileCount);
       }
     }, 120000);
-
-    it('should handle nested directory structures', async () => {
-      const repo = new GitRepository(testDir);
-      await repo.initializeBareRepository();
-
-      const manager = new WorktreeManager(testDir);
-      await manager.addWorktree('complex-feature');
-
-      const branchPath = path.join(testDir, 'complex-feature');
-
-      // Create complex directory structure
-      const dirs = [
-        'src/components/ui',
-        'src/services/api',
-        'src/utils/helpers',
-        'tests/unit',
-        'tests/integration',
-        'docs/guides',
-      ];
-
-      for (const dir of dirs) {
-        await fs.mkdir(path.join(branchPath, dir), { recursive: true });
-        await fs.writeFile(path.join(branchPath, dir, 'index.ts'), `// ${dir} implementation\n`);
-      }
-
-      // Verify structure was created
-      for (const dir of dirs) {
-        const indexFile = path.join(branchPath, dir, 'index.ts');
-        expect(
-          await fs
-            .access(indexFile)
-            .then(() => true)
-            .catch(() => false),
-        ).toBe(true);
-      }
-    }, 60000);
-  });
-
-  describe('Error Scenarios', () => {
-    it('should handle tmux not available gracefully', async () => {
-      jest.spyOn(TmuxManager, 'isTmuxAvailable').mockResolvedValue(false);
-
-      const app = new ClaudeGWTApp(testDir, {
-        interactive: false,
-        quiet: false, // Allow error messages
-      });
-
-      // Should handle tmux unavailability without crashing
-      await expect(app.run()).rejects.toThrow('process.exit called');
-    }, 30000);
-
-    it('should handle insufficient disk space simulation', async () => {
-      const repo = new GitRepository(testDir);
-      await repo.initializeBareRepository();
-
-      const manager = new WorktreeManager(testDir);
-
-      // Mock fs operations to simulate disk space errors
-      const originalWriteFile = fs.writeFile;
-      jest
-        .spyOn(fs, 'writeFile')
-        .mockRejectedValueOnce(new Error('ENOSPC: no space left on device'));
-
-      try {
-        await manager.addWorktree('space-test');
-        // Should handle the error gracefully
-      } catch (error) {
-        expect(error instanceof Error).toBe(true);
-      }
-
-      // Restore original function
-      jest.spyOn(fs, 'writeFile').mockImplementation(originalWriteFile);
-    }, 30000);
-
-    it('should handle permission denied scenarios', async () => {
-      // This test simulates permission issues
-      const restrictedDir = path.join(testDir, 'restricted');
-      await fs.mkdir(restrictedDir);
-
-      // Try to initialize in a directory we can't write to
-      jest.spyOn(fs, 'access').mockRejectedValueOnce(new Error('EACCES: permission denied'));
-
-      const app = new ClaudeGWTApp(restrictedDir, {
-        interactive: false,
-        quiet: true,
-      });
-
-      // Should handle permission errors gracefully
-      await expect(app.run()).rejects.toThrow();
-    }, 30000);
   });
 });

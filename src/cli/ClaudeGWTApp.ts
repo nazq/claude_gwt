@@ -193,6 +193,9 @@ export class ClaudeGWTApp {
 
     if (this.options.interactive !== false && worktrees.length > 0) {
       await this.interactiveWorktreeMenu(worktreeManager, worktrees);
+    } else if (this.options.interactive === false) {
+      // In non-interactive mode, exit after showing status
+      process.exit(0);
     }
   }
 

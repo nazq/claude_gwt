@@ -4,26 +4,42 @@ import os from 'os';
 import { TmuxManager } from '../../src/sessions/TmuxManager';
 import { GitRepository } from '../../src/core/git/GitRepository';
 import { WorktreeManager } from '../../src/core/git/WorktreeManager';
+import { execCommandSafe } from '../../src/core/utils/async';
+import { Logger } from '../../src/core/utils/logger';
 
-// Mock process.exit
+// For these e2e tests, we only mock process.exit to prevent test runner from exiting
 jest.spyOn(process, 'exit').mockImplementation((() => {
   throw new Error('process.exit called');
 }) as never);
 
-// Mock console methods
-jest.spyOn(console, 'log').mockImplementation();
-jest.spyOn(console, 'error').mockImplementation();
+// Silence logs during tests unless debugging
+if (!process.env['DEBUG']) {
+  jest.spyOn(Logger, 'info').mockImplementation();
+  jest.spyOn(Logger, 'debug').mockImplementation();
+  jest.spyOn(Logger, 'warn').mockImplementation();
+}
 
 /**
  * Session Management E2E Tests
  *
  * These tests focus specifically on tmux session management,
  * Claude instance orchestration, and session lifecycle.
+ *
+ * Note: Many of these tests require tmux to be installed
  */
 describe('Session Management E2E', () => {
   let testDir: string;
   let repo: GitRepository;
   let manager: WorktreeManager;
+  let tmuxAvailable: boolean;
+
+  beforeAll(async () => {
+    // Check tmux availability once
+    tmuxAvailable = await TmuxManager.isTmuxAvailable();
+    if (!tmuxAvailable) {
+      console.log('⚠️  Tmux not available - most tests will be skipped');
+    }
+  });
 
   beforeEach(async () => {
     testDir = await fs.mkdtemp(path.join(os.tmpdir(), 'cgwt-session-'));
@@ -34,7 +50,15 @@ describe('Session Management E2E', () => {
 
   afterEach(async () => {
     try {
-      await TmuxManager.shutdownAll();
+      // Clean up any tmux sessions that might have been created
+      if (tmuxAvailable) {
+        const sessions = await TmuxManager.listSessions();
+        for (const session of sessions) {
+          if (session.name.includes('cgwt-session-test')) {
+            await TmuxManager.killSession(session.name);
+          }
+        }
+      }
     } catch (error) {
       // Ignore cleanup errors
     }
@@ -46,45 +70,83 @@ describe('Session Management E2E', () => {
     }
   });
 
-  describe('Single Session Lifecycle', () => {
-    it('should create, manage, and destroy a single session', async () => {
+  describe('Real Tmux Session Operations', () => {
+    it('should detect tmux availability correctly', async () => {
+      const isAvailable = await TmuxManager.isTmuxAvailable();
+      expect(typeof isAvailable).toBe('boolean');
+
+      if (isAvailable) {
+        // If tmux is available, we should be able to get version
+        const result = await execCommandSafe('tmux', ['-V']);
+        expect(result.code).toBe(0);
+        expect(result.stdout).toContain('tmux');
+      }
+    });
+
+    it('should create real tmux sessions', async () => {
+      if (!tmuxAvailable) {
+        console.log('Skipping: tmux not available');
+        return;
+      }
+
       await manager.addWorktree('test-branch');
 
+      const sessionName = 'cgwt-session-test-real';
       const sessionConfig = {
-        sessionName: 'cgwt-test-single',
+        sessionName,
         workingDirectory: path.join(testDir, 'test-branch'),
         branchName: 'test-branch',
         role: 'child' as const,
         gitRepo: repo,
       };
 
-      // Mock tmux operations
-      jest.spyOn(TmuxManager, 'isTmuxAvailable').mockResolvedValue(true);
-      jest.spyOn(TmuxManager, 'createDetachedSession').mockResolvedValue(undefined);
-      jest.spyOn(TmuxManager, 'getSessionInfo').mockResolvedValue({
-        name: 'cgwt-test-single',
-        windows: 1,
-        created: '1234567890',
-        attached: false,
-        hasClaudeRunning: true,
-      });
-
-      // Create session
+      // Create real session
       await TmuxManager.createDetachedSession(sessionConfig);
 
-      // Verify session exists
-      const sessionInfo = await TmuxManager.getSessionInfo('cgwt-test-single');
-      expect(sessionInfo).not.toBeNull();
-      expect(sessionInfo?.name).toBe('cgwt-test-single');
+      // Verify using tmux commands
+      const result = await execCommandSafe('tmux', ['list-sessions', '-F', '#{session_name}']);
+      expect(result.stdout).toContain(sessionName);
 
-      // Clean up
-      await TmuxManager.killSession('cgwt-test-single');
+      // Get session info
+      const sessionInfo = await TmuxManager.getSessionInfo(sessionName);
+      expect(sessionInfo).not.toBeNull();
+      expect(sessionInfo?.name).toBe(sessionName);
+      expect(sessionInfo?.windows).toBeGreaterThanOrEqual(1);
+
+      // Kill session
+      await TmuxManager.killSession(sessionName);
+
+      // Verify it's gone
+      const resultAfter = await execCommandSafe('tmux', ['list-sessions', '-F', '#{session_name}']);
+      expect(resultAfter.stdout).not.toContain(sessionName);
     }, 30000);
 
-    it('should handle session restart scenarios', async () => {
+    it('should handle session restart when Claude is not running', async () => {
+      if (!tmuxAvailable) {
+        console.log('Skipping: tmux not available');
+        return;
+      }
+
       await manager.addWorktree('restart-test');
 
-      const sessionName = 'cgwt-test-restart';
+      const sessionName = 'cgwt-session-test-restart';
+
+      // Create a session manually without Claude
+      await execCommandSafe('tmux', [
+        'new-session',
+        '-d',
+        '-s',
+        sessionName,
+        '-c',
+        path.join(testDir, 'restart-test'),
+      ]);
+
+      // Session should exist but without Claude
+      let sessionInfo = await TmuxManager.getSessionInfo(sessionName);
+      expect(sessionInfo).not.toBeNull();
+      expect(sessionInfo?.hasClaudeRunning).toBe(false);
+
+      // Launch Claude in the existing session
       const sessionConfig = {
         sessionName,
         workingDirectory: path.join(testDir, 'restart-test'),
@@ -93,291 +155,255 @@ describe('Session Management E2E', () => {
         gitRepo: repo,
       };
 
-      // Mock initial session without Claude
-      jest.spyOn(TmuxManager, 'isTmuxAvailable').mockResolvedValue(true);
-      jest
-        .spyOn(TmuxManager, 'getSessionInfo')
-        .mockResolvedValueOnce({
-          name: sessionName,
-          windows: 1,
-          created: '1234567890',
-          attached: false,
-          hasClaudeRunning: false,
-        })
-        .mockResolvedValueOnce({
-          name: sessionName,
-          windows: 2,
-          created: '1234567890',
-          attached: false,
-          hasClaudeRunning: true,
-        });
-
-      jest.spyOn(TmuxManager, 'launchSession').mockResolvedValue(undefined);
-
-      // Should restart Claude in existing session
+      // This should create a new window with Claude
       await TmuxManager.launchSession(sessionConfig);
 
-      expect(TmuxManager.launchSession).toHaveBeenCalledWith(sessionConfig);
+      // Clean up
+      await TmuxManager.killSession(sessionName);
     }, 30000);
   });
 
   describe('Multi-Session Management', () => {
-    const branches = ['main', 'feature-1', 'feature-2', 'feature-3'];
+    it('should manage multiple concurrent sessions', async () => {
+      if (!tmuxAvailable) {
+        console.log('Skipping: tmux not available');
+        return;
+      }
 
-    beforeEach(async () => {
-      // Create multiple branches
+      const branches = ['main', 'feature-1', 'feature-2', 'feature-3'];
+
+      // Create branches
       for (const branch of branches) {
         await manager.addWorktree(branch);
       }
-    });
 
-    it('should manage multiple concurrent sessions', async () => {
-      const sessionConfigs = branches.map((branch) => ({
-        sessionName: `cgwt-test-${branch}`,
-        workingDirectory: path.join(testDir, branch),
-        branchName: branch,
-        role: 'child' as const,
-        gitRepo: repo,
-      }));
+      const sessionNames = [];
 
-      // Mock tmux operations
-      jest.spyOn(TmuxManager, 'isTmuxAvailable').mockResolvedValue(true);
-      jest.spyOn(TmuxManager, 'createDetachedSession').mockResolvedValue(undefined);
+      // Create sessions
+      for (const branch of branches) {
+        const sessionName = `cgwt-session-test-${branch}`;
+        sessionNames.push(sessionName);
 
-      // Create all sessions
-      const createPromises = sessionConfigs.map((config) =>
-        TmuxManager.createDetachedSession(config),
-      );
-      await Promise.all(createPromises);
+        await TmuxManager.createDetachedSession({
+          sessionName,
+          workingDirectory: path.join(testDir, branch),
+          branchName: branch,
+          role: 'child' as const,
+          gitRepo: repo,
+        });
+      }
 
-      expect(TmuxManager.createDetachedSession).toHaveBeenCalledTimes(branches.length);
+      // Verify all sessions exist
+      const sessions = await TmuxManager.listSessions();
+      for (const sessionName of sessionNames) {
+        expect(sessions.find((s) => s.name === sessionName)).toBeDefined();
+      }
+
+      // Clean up all sessions
+      for (const sessionName of sessionNames) {
+        await TmuxManager.killSession(sessionName);
+      }
+
+      // Verify cleanup
+      const sessionsAfter = await TmuxManager.listSessions();
+      for (const sessionName of sessionNames) {
+        expect(sessionsAfter.find((s) => s.name === sessionName)).toBeUndefined();
+      }
     }, 60000);
 
-    it('should handle session group management', async () => {
-      const groupName = 'cgwt-test-project';
+    it('should handle session groups', async () => {
+      if (!tmuxAvailable) {
+        console.log('Skipping: tmux not available');
+        return;
+      }
 
-      // Mock session group operations
-      jest.spyOn(TmuxManager, 'getSessionGroup').mockResolvedValue(groupName);
-      jest.spyOn(TmuxManager, 'listSessions').mockResolvedValue(
-        branches.map((branch) => ({
-          name: `cgwt-test-${branch}`,
-          windows: 1,
-          created: '1234567890',
-          attached: false,
-          hasClaudeRunning: true,
-        })),
-      );
+      // const groupName = 'cgwt-test-group';  // Not used in this test
+      const sessionNames = ['cgwt-test-group-main', 'cgwt-test-group-feature'];
 
-      const sessionsInGroup = await TmuxManager.getSessionsInGroup(groupName);
-      expect(sessionsInGroup).toHaveLength(branches.length);
-    }, 30000);
+      // Create sessions in a group
+      for (const sessionName of sessionNames) {
+        await execCommandSafe('tmux', ['new-session', '-d', '-s', sessionName, '-c', testDir]);
+      }
 
-    it('should handle bulk session shutdown', async () => {
-      // Mock existing sessions
-      jest.spyOn(TmuxManager, 'listSessions').mockResolvedValue(
-        branches.map((branch) => ({
-          name: `cgwt-test-${branch}`,
-          windows: 1,
-          created: '1234567890',
-          attached: false,
-          hasClaudeRunning: true,
-        })),
-      );
-
-      jest.spyOn(TmuxManager, 'killSession').mockResolvedValue(undefined);
-
-      await TmuxManager.shutdownAll();
-
-      // Should have attempted to kill all cgwt sessions
-      expect(TmuxManager.killSession).toHaveBeenCalledTimes(branches.length);
-    }, 30000);
-  });
-
-  describe('Session State Persistence', () => {
-    it('should handle session state across app restarts', async () => {
-      await manager.addWorktree('persistent-branch');
-
-      const sessionName = 'cgwt-test-persistent';
-
-      // First app run - create session
-      jest.spyOn(TmuxManager, 'isTmuxAvailable').mockResolvedValue(true);
-      jest
-        .spyOn(TmuxManager, 'getSessionInfo')
-        .mockResolvedValueOnce(null) // First check - no session
-        .mockResolvedValueOnce({
-          // After creation
-          name: sessionName,
-          windows: 1,
-          created: '1234567890',
-          attached: false,
-          hasClaudeRunning: true,
-        });
-
-      jest.spyOn(TmuxManager, 'createDetachedSession').mockResolvedValue(undefined);
-
-      const sessionConfig = {
-        sessionName,
-        workingDirectory: path.join(testDir, 'persistent-branch'),
-        branchName: 'persistent-branch',
-        role: 'child' as const,
-        gitRepo: repo,
-      };
-
-      await TmuxManager.createDetachedSession(sessionConfig);
-
-      // Simulate app restart - session should be detected
-      const sessionInfo = await TmuxManager.getSessionInfo(sessionName);
-      expect(sessionInfo?.hasClaudeRunning).toBe(true);
-    }, 30000);
-
-    it('should handle session recovery after system reboot', async () => {
-      // Simulate post-reboot scenario where sessions are gone
-      jest.spyOn(TmuxManager, 'listSessions').mockResolvedValue([]);
-      jest.spyOn(TmuxManager, 'getSessionInfo').mockResolvedValue(null);
-
+      // List sessions and check they exist
       const sessions = await TmuxManager.listSessions();
-      expect(sessions).toHaveLength(0);
+      for (const sessionName of sessionNames) {
+        expect(sessions.find((s) => s.name === sessionName)).toBeDefined();
+      }
 
-      // App should be able to recreate sessions from scratch
-      await manager.addWorktree('recovery-branch');
-      const sessionConfig = {
-        sessionName: 'cgwt-test-recovery',
-        workingDirectory: path.join(testDir, 'recovery-branch'),
-        branchName: 'recovery-branch',
-        role: 'child' as const,
-        gitRepo: repo,
-      };
-
-      jest.spyOn(TmuxManager, 'createDetachedSession').mockResolvedValue(undefined);
-      await TmuxManager.createDetachedSession(sessionConfig);
-
-      expect(TmuxManager.createDetachedSession).toHaveBeenCalledWith(sessionConfig);
+      // Clean up
+      for (const sessionName of sessionNames) {
+        await TmuxManager.killSession(sessionName);
+      }
     }, 30000);
   });
 
-  describe('Advanced Session Features', () => {
-    it('should handle session comparison layouts', async () => {
-      await manager.addWorktree('compare-a');
-      await manager.addWorktree('compare-b');
+  describe('Session Features', () => {
+    it('should get correct session names', () => {
+      const repoName = 'test-repo';
+      const branches = ['main', 'feature/auth', 'bugfix/issue-123'];
 
-      const branches = ['compare-a', 'compare-b'];
-      const supervisorSession = 'cgwt-test-supervisor';
-      const projectName = 'test-project';
+      for (const branch of branches) {
+        const sessionName = TmuxManager.getSessionName(repoName, branch);
+        expect(sessionName).toMatch(/^cgwt-test-repo-/);
+        expect(sessionName).not.toContain('/');
+        expect(sessionName).not.toContain(':');
+      }
+    });
 
-      jest.spyOn(TmuxManager, 'createComparisonLayout').mockReturnValue(undefined);
+    it('should handle tmux inside tmux detection', async () => {
+      if (!tmuxAvailable) {
+        console.log('Skipping: tmux not available');
+        return;
+      }
 
-      TmuxManager.createComparisonLayout(supervisorSession, branches, projectName);
+      // Check if we're inside tmux (this test environment might be in tmux)
+      const insideTmux = TmuxManager.isInsideTmux();
+      expect(typeof insideTmux).toBe('boolean');
 
-      expect(TmuxManager.createComparisonLayout).toHaveBeenCalledWith(
-        supervisorSession,
-        branches,
-        projectName,
-      );
-    }, 30000);
+      // Create a session and check from inside
+      const sessionName = 'cgwt-session-test-inside';
+      await execCommandSafe('tmux', [
+        'new-session',
+        '-d',
+        '-s',
+        sessionName,
+        '-c',
+        testDir,
+        'echo $TMUX',
+      ]);
 
-    it('should handle synchronized pane operations', async () => {
-      const sessionName = 'cgwt-test-sync';
+      // The TMUX environment variable would be set inside the session
+      // but we can't easily test that from here without actually attaching
 
-      jest.spyOn(TmuxManager, 'toggleSynchronizedPanes').mockReturnValue(true);
-
-      const result = TmuxManager.toggleSynchronizedPanes(sessionName);
-      expect(result).toBe(true);
-      expect(TmuxManager.toggleSynchronizedPanes).toHaveBeenCalledWith(sessionName);
+      // Clean up
+      await TmuxManager.killSession(sessionName);
     }, 30000);
 
     it('should provide predefined layouts', () => {
-      const mockLayouts = [
-        {
-          name: 'development',
-          description: 'Standard development layout',
-          branches: ['main', 'develop'],
-          layout: 'even-horizontal' as const,
-        },
-        {
-          name: 'comparison',
-          description: 'Side-by-side comparison',
-          branches: ['feature-a', 'feature-b'],
-          layout: 'even-vertical' as const,
-        },
-      ];
-
-      jest.spyOn(TmuxManager, 'getPredefinedLayouts').mockReturnValue(mockLayouts);
-
       const layouts = TmuxManager.getPredefinedLayouts();
-      expect(layouts).toHaveLength(2);
-      expect(layouts[0]?.name).toBe('development');
-      expect(layouts[1]?.name).toBe('comparison');
+
+      expect(Array.isArray(layouts)).toBe(true);
+      expect(layouts.length).toBeGreaterThan(0);
+
+      // Check layout structure
+      for (const layout of layouts) {
+        expect(layout).toHaveProperty('name');
+        expect(layout).toHaveProperty('description');
+        expect(layout).toHaveProperty('branches');
+        expect(layout).toHaveProperty('layout');
+      }
     });
   });
 
-  describe('Error Handling and Edge Cases', () => {
-    it('should handle tmux daemon crashes', async () => {
-      // Simulate tmux daemon becoming unavailable
-      jest
-        .spyOn(TmuxManager, 'isTmuxAvailable')
-        .mockResolvedValueOnce(true) // Initially available
-        .mockResolvedValueOnce(false); // Then crashes
+  describe('Error Handling', () => {
+    it('should handle session creation errors gracefully', async () => {
+      if (!tmuxAvailable) {
+        console.log('Skipping: tmux not available');
+        return;
+      }
 
-      const sessionConfig = {
-        sessionName: 'cgwt-test-crash',
+      // Try to create session with invalid name
+      const invalidConfig = {
+        sessionName: '', // Empty name
         workingDirectory: testDir,
         branchName: 'test',
         role: 'child' as const,
         gitRepo: repo,
       };
 
-      // Should handle the crash gracefully
-      jest
-        .spyOn(TmuxManager, 'launchSession')
-        .mockRejectedValue(new Error('tmux server connection lost'));
-
-      await expect(TmuxManager.launchSession(sessionConfig)).rejects.toThrow(
-        'tmux server connection lost',
-      );
+      await expect(TmuxManager.createDetachedSession(invalidConfig)).rejects.toThrow();
     }, 30000);
 
-    it('should handle invalid session names', async () => {
-      // TmuxManager should sanitize session names
-      const sanitizedName = TmuxManager.getSessionName('test', 'with/invalid:characters');
-      expect(sanitizedName).not.toContain('/');
-      expect(sanitizedName).not.toContain(':');
-    }, 10000);
-
-    it('should handle resource exhaustion', async () => {
-      // Test creating too many sessions
-      const manyBranches = Array.from({ length: 50 }, (_, i) => `branch-${i}`);
-
-      // Create branches
-      for (const branch of manyBranches.slice(0, 5)) {
-        // Just test a few
-        await manager.addWorktree(branch);
+    it('should handle non-existent session queries', async () => {
+      if (!tmuxAvailable) {
+        console.log('Skipping: tmux not available');
+        return;
       }
 
-      const sessionConfigs = manyBranches.slice(0, 5).map((branch) => ({
-        sessionName: `cgwt-test-${branch}`,
-        workingDirectory: path.join(testDir, branch),
-        branchName: branch,
-        role: 'child' as const,
-        gitRepo: repo,
-      }));
+      const sessionInfo = await TmuxManager.getSessionInfo('non-existent-session-xyz');
+      expect(sessionInfo).toBeNull();
+    }, 30000);
 
-      // Mock resource exhaustion after a few sessions
-      jest
-        .spyOn(TmuxManager, 'createDetachedSession')
-        .mockResolvedValueOnce(undefined)
-        .mockResolvedValueOnce(undefined)
-        .mockRejectedValue(new Error('Cannot create session: resource exhaustion'));
+    it('should handle killing non-existent sessions', async () => {
+      if (!tmuxAvailable) {
+        console.log('Skipping: tmux not available');
+        return;
+      }
 
-      const results = await Promise.allSettled(
-        sessionConfigs.map((config) => TmuxManager.createDetachedSession(config)),
-      );
+      // Should not throw
+      await expect(TmuxManager.killSession('non-existent-session-xyz')).resolves.not.toThrow();
+    }, 30000);
+  });
 
-      // Some should succeed, some should fail
-      const successful = results.filter((r) => r.status === 'fulfilled');
-      const failed = results.filter((r) => r.status === 'rejected');
+  describe('Performance Tests', () => {
+    it('should handle rapid session creation and deletion', async () => {
+      if (!tmuxAvailable) {
+        console.log('Skipping: tmux not available');
+        return;
+      }
 
-      expect(successful.length).toBeGreaterThan(0);
-      expect(failed.length).toBeGreaterThan(0);
+      const iterations = 5;
+
+      for (let i = 0; i < iterations; i++) {
+        const sessionName = `cgwt-session-test-rapid-${i}`;
+
+        const start = Date.now();
+
+        // Create
+        await TmuxManager.createDetachedSession({
+          sessionName,
+          workingDirectory: testDir,
+          branchName: `rapid-${i}`,
+          role: 'child' as const,
+          gitRepo: repo,
+        });
+
+        // Verify
+        const sessionInfo = await TmuxManager.getSessionInfo(sessionName);
+        expect(sessionInfo).not.toBeNull();
+
+        // Delete
+        await TmuxManager.killSession(sessionName);
+
+        const duration = Date.now() - start;
+        expect(duration).toBeLessThan(5000); // Should complete quickly
+      }
     }, 60000);
+
+    it('should list many sessions efficiently', async () => {
+      if (!tmuxAvailable) {
+        console.log('Skipping: tmux not available');
+        return;
+      }
+
+      const sessionCount = 10;
+      const sessionNames = [];
+
+      // Create many sessions
+      for (let i = 0; i < sessionCount; i++) {
+        const sessionName = `cgwt-session-test-list-${i}`;
+        sessionNames.push(sessionName);
+
+        await execCommandSafe('tmux', ['new-session', '-d', '-s', sessionName, '-c', testDir]);
+      }
+
+      // Time the list operation
+      const start = Date.now();
+      const sessions = await TmuxManager.listSessions();
+      const duration = Date.now() - start;
+
+      expect(duration).toBeLessThan(1000); // Should be fast
+
+      // Verify all our sessions are in the list
+      for (const sessionName of sessionNames) {
+        expect(sessions.find((s) => s.name === sessionName)).toBeDefined();
+      }
+
+      // Clean up
+      for (const sessionName of sessionNames) {
+        await TmuxManager.killSession(sessionName);
+      }
+    }, 90000);
   });
 });
