@@ -133,7 +133,7 @@ export class TmuxDriver {
             windows: parseInt(windows ?? '0', 10),
             created: parseInt(created ?? '0', 10),
             attached: attached === '1',
-            group: group ?? undefined,
+            group: group?.trim() ? group.trim() : undefined,
           };
         });
     } catch (error) {

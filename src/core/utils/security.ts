@@ -134,8 +134,9 @@ export function isValidDirectoryName(name: string): boolean {
     return false;
   }
 
-  // Check for invalid characters (excluding control characters)
-  const invalidChars = /[<>:"|?*]/;
+  // Check for invalid characters (including control characters)
+  // eslint-disable-next-line no-control-regex
+  const invalidChars = /[<>:"|?*\x00-\x1F\x7F]/;
   if (invalidChars.test(name)) return false;
 
   // Must be non-empty after trimming
