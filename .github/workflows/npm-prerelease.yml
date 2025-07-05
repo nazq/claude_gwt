@@ -1,0 +1,104 @@
+name: Publish Pre-release to npm
+
+on:
+  push:
+    branches:
+      - next
+      - beta
+      - alpha
+  workflow_dispatch:
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    outputs:
+      should_publish: ${{ steps.check.outputs.should_publish }}
+      version: ${{ steps.check.outputs.version }}
+      tag: ${{ steps.check.outputs.tag }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check if version changed
+        id: check
+        run: |
+          # Get current version from package.json
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          echo "Current version: $CURRENT_VERSION"
+          
+          # Check if this version is already published
+          PUBLISHED_VERSION=$(npm view claude-gwt@$CURRENT_VERSION version 2>/dev/null || echo "")
+          
+          if [ -z "$PUBLISHED_VERSION" ]; then
+            echo "Version $CURRENT_VERSION is not yet published"
+            echo "should_publish=true" >> $GITHUB_OUTPUT
+            echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+            
+            # Determine tag from branch name
+            BRANCH_NAME="${{ github.ref_name }}"
+            case $BRANCH_NAME in
+              next) TAG="next" ;;
+              beta) TAG="beta" ;;
+              alpha) TAG="alpha" ;;
+              *) TAG="next" ;;
+            esac
+            echo "tag=$TAG" >> $GITHUB_OUTPUT
+          else
+            echo "Version $CURRENT_VERSION is already published"
+            echo "should_publish=false" >> $GITHUB_OUTPUT
+          fi
+
+  publish:
+    needs: check-version
+    if: needs.check-version.outputs.should_publish == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          registry-url: 'https://registry.npmjs.org'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build package
+        run: npm run build:clean
+
+      - name: Configure npm for publishing
+        run: |
+          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
+          npm config set access public
+
+      - name: Publish pre-release
+        run: |
+          echo "Publishing version ${{ needs.check-version.outputs.version }} with tag: ${{ needs.check-version.outputs.tag }}"
+          npm publish --tag ${{ needs.check-version.outputs.tag }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Create publish summary
+        if: success()
+        run: |
+          echo "## 🚀 Pre-release Published Successfully" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Package**: claude-gwt" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: ${{ needs.check-version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tag**: ${{ needs.check-version.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Registry**: https://www.npmjs.com/package/claude-gwt" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Installation" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "npm install -g claude-gwt@${{ needs.check-version.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
