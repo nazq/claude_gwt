@@ -159,8 +159,18 @@ describe('Session Management E2E', () => {
         gitRepo: repo,
       };
 
-      // This should create a new window with Claude
-      await TmuxManager.launchSession(sessionConfig);
+      // In CI, we can't attach to sessions, so create detached session instead
+      if (process.env['CI']) {
+        await TmuxManager.createDetachedSession(sessionConfig);
+      } else {
+        // This should create a new window with Claude
+        await TmuxManager.launchSession(sessionConfig);
+      }
+
+      // Verify Claude is now running
+      sessionInfo = await TmuxManager.getSessionInfo(sessionName);
+      expect(sessionInfo).not.toBeNull();
+      expect(sessionInfo?.hasClaudeRunning).toBe(true);
 
       // Clean up
       await TmuxManager.killSession(sessionName);
