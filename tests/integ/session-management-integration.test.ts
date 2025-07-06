@@ -28,7 +28,7 @@ if (!process.env['DEBUG']) {
  *
  * Note: Many of these tests require tmux to be installed
  */
-describe('Session Management E2E', () => {
+describe('Session Management Integration', () => {
   let testDir: string;
   let repo: GitRepository;
   let manager: WorktreeManager;
@@ -39,12 +39,6 @@ describe('Session Management E2E', () => {
     tmuxAvailable = await TmuxManager.isTmuxAvailable();
     if (!tmuxAvailable) {
       console.log('⚠️  Tmux not available - most tests will be skipped');
-    }
-
-    // Skip tmux tests if requested via env var
-    if (process.env['SKIP_TMUX_TESTS'] === 'true') {
-      console.log('⚠️  SKIP_TMUX_TESTS=true - tmux tests will be skipped');
-      tmuxAvailable = false;
     }
 
     // Set up git config for tests

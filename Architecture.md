@@ -371,14 +371,12 @@ tests/
 │   ├── 📁 sessions/         # Session management tests
 │   └── 📁 cli/              # CLI component tests
 │
-├── 📁 integration/          # Component integration tests
-│   ├── 📄 git-operations.test.ts
-│   ├── 📄 session-lifecycle.test.ts
-│   └── 📄 real-world-workflow.test.ts
-│
-└── 📁 e2e_local_only/       # End-to-end workflow tests
-    ├── 📄 cgwt-full-workflow.test.ts
-    └── 📄 session-management.test.ts
+└── 📁 integ/                # Integration tests (includes former E2E tests)
+    ├── 📄 git-operations.test.ts
+    ├── 📄 real-world-workflow.test.ts
+    ├── 📄 cli-workflow-integration.test.ts
+    ├── 📄 cgwt-command-integration.test.ts
+    └── 📄 session-management-integration.test.ts
 ```
 
 ### Testing Strategies

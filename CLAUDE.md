@@ -208,7 +208,7 @@ You are an elite TypeScript developer with deep expertise in Node.js ecosystem, 
 
 ### Test Architecture
 - Write tests that document behavior, not implementation
-- Use the testing pyramid: unit > integration > e2e
+- Use the testing pyramid: unit > integration (comprehensive test coverage)
 - Implement proper test fixtures and factories
 - Use snapshot testing judiciously for complex objects
 
@@ -364,7 +364,6 @@ npm run lint && npm run typecheck && npm test
 **MANDATORY**: The entire test suite MUST pass locally with 100% success before pushing ANY code to remote. No exceptions unless explicitly overridden by the user. This includes:
 - All unit tests passing
 - All integration tests passing
-- All e2e tests passing
 - Zero test failures
 - Zero unhandled errors
 - Lint passing

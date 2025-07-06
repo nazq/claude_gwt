@@ -11,7 +11,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 /**
- * End-to-End Test Suite for cgwt command
+ * Integration Test Suite for cgwt command
  *
  * These tests verify the cgwt quick session switcher functionality:
  * - List sessions with proper formatting
@@ -20,7 +20,7 @@ const __dirname = dirname(__filename);
  * - Switch by branch name
  * - Handle tmux session switching
  */
-describe('cgwt command E2E tests', () => {
+describe('cgwt command integration tests', () => {
   let testDir: string;
   let originalCwd: string;
   let tmuxAvailable: boolean;
@@ -36,12 +36,6 @@ describe('cgwt command E2E tests', () => {
     tmuxAvailable = await TmuxManager.isTmuxAvailable();
     if (!tmuxAvailable) {
       console.log('⚠️  Tmux not available - tests will be skipped');
-    }
-
-    // Skip tmux tests if requested via env var
-    if (process.env['SKIP_TMUX_TESTS'] === 'true') {
-      console.log('⚠️  SKIP_TMUX_TESTS=true - tmux tests will be skipped');
-      tmuxAvailable = false;
     }
 
     // Set up git config for tests
