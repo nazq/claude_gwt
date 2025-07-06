@@ -20,6 +20,7 @@ export default defineConfig({
         'src/**/*.test.ts',
         'src/**/*.spec.ts',
         'src/**/index.ts',
+        'src/cli/cgwt.ts',
       ],
       thresholds: {
         branches: 15,
