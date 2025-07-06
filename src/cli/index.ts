@@ -66,6 +66,7 @@ async function main(): Promise<void> {
     await program.parseAsync();
   } catch (error) {
     console.error('Unexpected error:', error);
+    Logger.error('Unexpected CLI error', error);
     process.exit(1);
   }
 }
@@ -73,5 +74,6 @@ async function main(): Promise<void> {
 // Run the CLI
 main().catch((error) => {
   console.error('Fatal error:', error);
+  Logger.error('Fatal CLI error in main', error);
   process.exit(1);
 });

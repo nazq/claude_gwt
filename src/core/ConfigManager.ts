@@ -401,6 +401,9 @@ router.post('/endpoint',
    * Initialize configuration for a new user
    */
   initializeUserConfig(): void {
+    Logger.info('Initializing user configuration');
+
+    // User configuration display - this is meant for user output
     console.log(`\n🎯 Claude GWT Configuration`);
     console.log(`\nConfiguration directory: ${this.configDir}`);
     console.log(`Context directory: ${this.contextDir}`);
@@ -419,5 +422,10 @@ router.post('/endpoint',
     console.log(`  • Project contexts are loaded by project name`);
     console.log(`  • Branch contexts can be nested under project directories`);
     console.log(`  • Templates can be referenced in your prompts`);
+
+    Logger.info('User configuration initialized', {
+      configDir: this.configDir,
+      contextDir: this.contextDir,
+    });
   }
 }

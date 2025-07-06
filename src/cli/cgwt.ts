@@ -7,6 +7,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { execSync } from 'child_process';
+import { logger } from '../core/utils/logger.js';
 
 interface Session {
   path: string;
@@ -52,6 +53,7 @@ program.argument('[index]', 'Session index to switch to').action((index: string 
     // Invalid argument
     console.error(chalk.red(`Invalid argument: ${index}`));
     console.log(chalk.gray('Usage: cgwt [index] or cgwt l or cgwt s <branch>'));
+    logger.warn('Invalid argument provided', { argument: index });
   }
 });
 
@@ -66,11 +68,13 @@ function listSessions(): void {
       }).trim();
     } catch (e) {
       console.log(chalk.yellow('Not in a Claude GWT managed repository'));
+      logger.warn('Not in a Claude GWT managed repository', { operation: 'list' });
       return;
     }
 
     if (!gitDir.includes('.bare')) {
       console.log(chalk.yellow('Not in a Claude GWT managed repository'));
+      logger.warn('Not in a Claude GWT managed repository', { operation: 'check' });
       return;
     }
 
@@ -157,6 +161,7 @@ function listSessions(): void {
     }
 
     console.log(chalk.hex('#00D9FF')('\n📋 Claude GWT Sessions:'));
+    logger.info('Listing sessions', { sessionCount: sessions.length });
 
     sessions.forEach((session, index) => {
       // Determine if this is the current session
@@ -211,8 +216,10 @@ function listSessions(): void {
     });
 
     console.log(chalk.gray('\nSwitch with: cgwt <number> or cgwt s <branch>'));
+    logger.debug('Session list displayed');
   } catch (error) {
     console.error(chalk.red('Error listing sessions:'), error);
+    logger.error('Error listing sessions', error);
   }
 }
 
@@ -227,11 +234,13 @@ function switchSession(target: string): void {
       }).trim();
     } catch (e) {
       console.log(chalk.yellow('Not in a Claude GWT managed repository'));
+      logger.warn('Not in a Claude GWT managed repository', { operation: 'check' });
       return;
     }
 
     if (!gitDir.includes('.bare')) {
       console.log(chalk.yellow('Not in a Claude GWT managed repository'));
+      logger.warn('Not in a Claude GWT managed repository', { operation: 'check' });
       return;
     }
 
@@ -271,6 +280,7 @@ function switchSession(target: string): void {
       } else {
         console.error(chalk.red(`Invalid index: ${target}`));
         console.log(chalk.gray(`Available indices: 0-${sessions.length - 1}`));
+        logger.error('Invalid index provided', { target, validRange: `0-${sessions.length - 1}` });
         return;
       }
     } else {
@@ -283,13 +293,16 @@ function switchSession(target: string): void {
       if (!targetSession) {
         console.error(chalk.red(`Branch not found: ${target}`));
         console.log(chalk.gray('Available branches:'));
+        const availableBranches: string[] = [];
         sessions.forEach((s) => {
           let branchName = s.branch ?? 'detached';
           if (branchName.startsWith('refs/heads/')) {
             branchName = branchName.substring(11);
           }
+          availableBranches.push(branchName);
           console.log(chalk.gray(`  - ${branchName}`));
         });
+        logger.error('Branch not found', { target, availableBranches });
         return;
       }
     }
@@ -309,12 +322,14 @@ function switchSession(target: string): void {
         const repoName = pathParts[pathParts.length - 2] ?? 'claude-gwt';
         sessionName = `cgwt-${repoName}-supervisor`;
         console.log(chalk.green(`Switching to supervisor...`));
+        logger.info('Switching to supervisor session');
       } else {
         // Regular branch session
         const pathParts = targetSession.path.split('/');
         const repoName = pathParts[pathParts.length - 2] ?? 'claude-gwt';
         sessionName = `cgwt-${repoName}-${branchDisplay}`.replace(/[^a-zA-Z0-9_-]/g, '-');
         console.log(chalk.green(`Switching to ${branchDisplay}...`));
+        logger.info('Switching to branch session', { branch: branchDisplay });
       }
 
       // Check if we're inside tmux
@@ -334,10 +349,12 @@ function switchSession(target: string): void {
         console.log(chalk.bold(`  cd ${targetSession.path} && claude-gwt`));
         console.log(chalk.gray('\nOr just change directory:'));
         console.log(chalk.bold(`  cd ${targetSession.path}`));
+        logger.warn('Tmux session not found', { sessionName, targetPath: targetSession.path });
       }
     }
   } catch (error) {
     console.error(chalk.red('Error switching session:'), error);
+    logger.error('Error switching session', error, { target });
   }
 }
 

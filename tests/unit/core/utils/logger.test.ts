@@ -3,30 +3,31 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 // Mock pino BEFORE importing logger
-const mockPinoLogger = {
-  info: vi.fn(),
-  error: vi.fn(),
-  debug: vi.fn(),
-  warn: vi.fn(),
-  fatal: vi.fn(),
-  trace: vi.fn(),
-  isLevelEnabled: vi.fn().mockImplementation((_level) => {
-    // In test environment, should be silent (no levels enabled)
-    return false;
-  }),
-  flush: vi.fn(),
-  child: vi.fn().mockImplementation(() => ({ ...mockPinoLogger })),
-  bindings: vi.fn().mockReturnValue({ name: 'claude-gwt' }),
-  level: 'info',
-};
+vi.mock('pino', () => {
+  const mockPinoLogger = {
+    info: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+    warn: vi.fn(),
+    fatal: vi.fn(),
+    trace: vi.fn(),
+    isLevelEnabled: vi.fn().mockImplementation((_level) => false),
+    flush: vi.fn(),
+    child: vi.fn().mockImplementation(function () {
+      return this;
+    }),
+    bindings: vi.fn().mockReturnValue({ name: 'claude-gwt' }),
+    level: 'info',
+  };
 
-const mockPino = vi.fn().mockReturnValue(mockPinoLogger);
-// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
-(mockPino as any).destination = vi.fn().mockReturnValue({});
+  const mockPino = vi.fn().mockReturnValue(mockPinoLogger);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
+  (mockPino as any).destination = vi.fn().mockReturnValue({});
 
-vi.mock('pino', () => ({
-  default: mockPino,
-}));
+  return {
+    default: mockPino,
+  };
+});
 
 // Mock fs
 vi.mock('fs');
@@ -99,8 +100,7 @@ describe('StructuredLogger (Pino)', () => {
       // Test is challenging because jest global is always defined
       // Let's verify the gitignore code is working by checking if it's called when not in test mode
 
-      // Reset mocks
-      mockPino.mockClear();
+      // Reset mocks - remove mockPino reference since it's scoped inside the mock
       mockFs.existsSync.mockReturnValue(true);
       mockFs.readFileSync.mockReturnValue('node_modules/\ndist/');
 
