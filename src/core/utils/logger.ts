@@ -222,14 +222,27 @@ export class StructuredLogger {
     return this.bind({ sessionId });
   }
 
+  // Network operation context
+  forNetworkOperation(operation: string, url: string): StructuredLogger {
+    return this.bind({ operation, url, type: 'network' });
+  }
+
+  // Verbose logging (mapped to trace)
+  verbose(message: string, fields?: Record<string, unknown>): void {
+    this.trace(message, fields);
+  }
+
   // Level checking
   isLevelEnabled(level: LogLevel): boolean {
     return this.baseLogger.isLevelEnabled(level);
   }
 
   // Cleanup
-  flush(): void {
-    this.baseLogger.flush();
+  flush(): Promise<void> {
+    return new Promise((resolve) => {
+      this.baseLogger.flush();
+      resolve();
+    });
   }
 }
 
@@ -279,8 +292,12 @@ export const logger = {
   forWorktree: (path: string, branch: string): StructuredLogger =>
     logger.instance.forWorktree(path, branch),
   forSession: (sessionId: string): StructuredLogger => logger.instance.forSession(sessionId),
+  forNetworkOperation: (operation: string, url: string): StructuredLogger =>
+    logger.instance.forNetworkOperation(operation, url),
+  verbose: (message: string, fields?: Record<string, unknown>): void =>
+    logger.instance.verbose(message, fields),
   isLevelEnabled: (level: LogLevel): boolean => logger.instance.isLevelEnabled(level),
-  flush: (): void => logger.instance.flush(),
+  flush: (): Promise<void> => logger.instance.flush(),
   bind: (context: LogContext): StructuredLogger => logger.instance.bind(context),
   child: (bindings: LogContext): StructuredLogger => logger.instance.child(bindings),
 };
@@ -311,5 +328,5 @@ export const Logger = {
     logger.warn('setLogLevel not supported in Pino - create new logger instance');
   },
   getLogPath: (): string => path.join(process.cwd(), '.claude-gwt.log'),
-  close: (): void => logger.flush(),
+  close: async (): Promise<void> => logger.flush(),
 };

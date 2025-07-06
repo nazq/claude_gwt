@@ -320,7 +320,13 @@ describe('Legacy console logger implementation', () => {
   describe('logger singleton', () => {
     it('should export a global logger instance', () => {
       expect(logger).toBeDefined();
-      expect(logger).toBeInstanceOf(StructuredLogger);
+      // The logger singleton is a proxy object that delegates to StructuredLogger
+      expect(logger.info).toBeInstanceOf(Function);
+      expect(logger.error).toBeInstanceOf(Function);
+      expect(logger.debug).toBeInstanceOf(Function);
+      expect(logger.warn).toBeInstanceOf(Function);
+      expect(logger.forNetworkOperation).toBeInstanceOf(Function);
+      expect(logger.flush).toBeInstanceOf(Function);
     });
   });
 

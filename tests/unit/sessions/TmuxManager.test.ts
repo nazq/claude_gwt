@@ -15,6 +15,11 @@ vi.mock('child_process', () => ({
     stdout: '',
     stderr: '',
   }),
+  exec: vi.fn((cmd, cb) => {
+    if (cb) {
+      cb(null, '', '');
+    }
+  }),
 }));
 
 // Mock fs
