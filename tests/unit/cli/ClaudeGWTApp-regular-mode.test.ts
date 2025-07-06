@@ -3,6 +3,7 @@ import { ClaudeGWTApp } from '../../../src/cli/ClaudeGWTApp';
 import * as prompts from '../../../src/cli/ui/prompts';
 import { GitDetector } from '../../../src/core/git/GitDetector';
 import { GitRepository } from '../../../src/core/git/GitRepository';
+import { WorktreeManager } from '../../../src/core/git/WorktreeManager';
 import { TmuxManager } from '../../../src/sessions/TmuxManager';
 import type { DirectoryState } from '../../../src/types';
 import simpleGit from 'simple-git';

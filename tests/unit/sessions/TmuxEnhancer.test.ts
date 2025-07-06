@@ -5,17 +5,10 @@ import { TmuxDriver } from '../../../src/core/drivers/TmuxDriver';
 import { Logger } from '../../../src/core/utils/logger';
 
 vi.mock('../../../src/core/drivers/TmuxDriver');
-vi.mock('../../../src/core/utils/logger', () => ({
-  Logger: {
-    info: vi.fn(),
-    error: vi.fn(),
-    debug: vi.fn(),
-    warn: vi.fn(),
-  },
-}));
+vi.mock('../../../src/core/utils/logger');
 
 describe('TmuxEnhancer', () => {
-  const mockLogger = Logger as vi.Mocked<typeof Logger>;
+  const mockLogger = vi.mocked(Logger);
 
   beforeEach(() => {
     vi.clearAllMocks();
