@@ -34,12 +34,19 @@ node dist/src/cli/index.js [options]
 ### Project Structure
 - **`src/core/`** - Core business logic
   - `git/` - Git operations (detector, repository, worktree manager)
-  - `claude/` - Claude instance management (pending implementation)
-  - `messaging/` - Inter-instance communication (pending implementation)
   - `errors/` - Custom error types
+  - `services/` - Service layer with adapters and factories
+  - `utils/` - Utility functions (async, logger, security)
+  - `di/` - Dependency injection container
+  - `drivers/` - External tool drivers (tmux)
 - **`src/cli/`** - CLI application
   - `ui/` - Terminal UI components (prompts, spinner, theme)
-  - Main app orchestration
+  - `index.ts` - Main CLI entry point (claude-gwt)
+  - `cgwt.ts` - Quick session switcher
+  - `ClaudeGWTApp.ts` - Main app orchestration
+- **`src/sessions/`** - Session management
+  - `TmuxManager.ts` - Tmux session orchestration
+  - `TmuxEnhancer.ts` - Advanced tmux features
 - **`src/types/`** - TypeScript type definitions
 
 ### Key Design Patterns

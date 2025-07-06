@@ -240,10 +240,19 @@ The interactive CLI will guide you:
 
 ### 3️⃣ Switch Between Branches
 
+Use the `cgwt` command for quick navigation:
+
 ```bash
-# Quick switch by index
-cgwt 1  # → feature-auth
-cgwt 2  # → feature-api
+# List all sessions
+cgwt l
+
+# Switch by index
+cgwt 1  # Switch to first session
+cgwt 2  # Switch to second session
+
+# Switch by branch name
+cgwt s feature-auth
+cgwt s main
 
 # Or use the interactive menu
 claude-gwt
@@ -318,26 +327,23 @@ Options:
   -h, --help           Show help
 ```
 
-#### Session Manager: `cgwt`
+#### Quick Switcher: `cgwt`
 
 ```bash
-# Quick switching
-cgwt <index>          # Switch to session by index
-cgwt s <branch>       # Switch to branch by name
+# List all sessions
+cgwt l
+cgwt list
 
-# Session management  
-cgwt l               # List all sessions
-cgwt ?               # Show current status
-cgwt kill <branch>   # Terminate a session
+# Switch by index (1-based)
+cgwt <number>
+cgwt 1    # Switch to first session
+cgwt 2    # Switch to second session
 
-# Advanced features
-cgwt compare         # Side-by-side branch comparison
-cgwt dashboard       # Multi-branch dashboard
-cgwt sync           # Synchronize panes
-
-# Configuration
-cgwt config init    # Initialize config
-cgwt config edit    # Edit configuration
+# Switch by branch name
+cgwt s <branch>
+cgwt switch <branch>
+cgwt s main
+cgwt s feature-auth
 ```
 
 ### Architecture
