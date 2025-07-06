@@ -106,6 +106,9 @@ export class GitRepository {
    * Convert a regular git repository to worktree setup
    */
   async convertToWorktreeSetup(): Promise<{ defaultBranch: string; originalPath: string }> {
+    let tempDir: string | undefined;
+    let backupDir: string | undefined;
+
     try {
       // Get current branch and check for uncommitted changes
       const status = await this.git.status();
@@ -121,8 +124,12 @@ export class GitRepository {
       // Get list of all branches (not used but good to verify they exist)
       await this.git.branch();
 
-      // Create temporary directory for the conversion
-      const tempDir = path.join(this.basePath, '..', `.claude-gwt-convert-${Date.now()}`);
+      // Create temporary directory for the conversion with random suffix to avoid collisions
+      tempDir = path.join(
+        this.basePath,
+        '..',
+        `.claude-gwt-convert-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+      );
       await fs.mkdir(tempDir, { recursive: true });
 
       // Create bare repository
@@ -138,7 +145,7 @@ export class GitRepository {
 
       // Move the original .git directory to a backup
       const gitDir = path.join(this.basePath, '.git');
-      const backupDir = path.join(this.basePath, '.git.backup');
+      backupDir = path.join(this.basePath, '.git.backup');
 
       // Check if it's a regular .git directory (not a worktree)
       const gitStat = await fs.stat(gitDir);
@@ -164,14 +171,43 @@ export class GitRepository {
       // Update .git file to point to new location
       await fs.writeFile(gitFile, `gitdir: ./.bare\n`);
 
-      // Clean up temp directory
-      await fs.rmdir(tempDir, { recursive: true });
+      // Clean up temp directory using fs.rm (rmdir with recursive is deprecated)
+      await fs.rm(tempDir, { recursive: true, force: true });
 
       // Remove backup if everything succeeded
-      await fs.rmdir(backupDir, { recursive: true });
+      await fs.rm(backupDir, { recursive: true, force: true });
 
       return { defaultBranch: currentBranch, originalPath: this.basePath };
     } catch (error) {
+      // Clean up on error
+      if (tempDir) {
+        try {
+          await fs.rm(tempDir, { recursive: true, force: true });
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
+
+      // Restore backup if it exists
+      if (backupDir) {
+        try {
+          const gitDir = path.join(this.basePath, '.git');
+          const gitFile = path.join(this.basePath, '.git');
+
+          // Remove the .git file if it exists
+          try {
+            await fs.unlink(gitFile);
+          } catch {
+            // Ignore if doesn't exist
+          }
+
+          // Restore the backup
+          await fs.rename(backupDir, gitDir);
+        } catch {
+          // Ignore restore errors
+        }
+      }
+
       throw new GitOperationError(
         `Failed to convert repository: ${error instanceof Error ? error.message : 'Unknown error'}`,
         'convert',
