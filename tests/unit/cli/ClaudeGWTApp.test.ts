@@ -1184,7 +1184,13 @@ describe('ClaudeGWTApp', () => {
       vi.spyOn(prompts, 'promptForWorktreeAction')
         .mockResolvedValueOnce('remove')
         .mockResolvedValueOnce('exit');
-      vi.spyOn(prompts, 'selectWorktree').mockResolvedValue('feature');
+      vi.spyOn(prompts, 'selectWorktree').mockResolvedValue({
+        path: '/test/worktree/feature',
+        branch: 'feature',
+        isLocked: false,
+        prunable: false,
+        HEAD: 'abc123',
+      });
       vi.spyOn(prompts, 'confirmAction').mockResolvedValue(true);
 
       const app = new ClaudeGWTApp('/test/worktree', { interactive: true });
@@ -1232,7 +1238,13 @@ describe('ClaudeGWTApp', () => {
       vi.spyOn(prompts, 'promptForWorktreeAction')
         .mockResolvedValueOnce('remove')
         .mockResolvedValueOnce('exit');
-      vi.spyOn(prompts, 'selectWorktree').mockResolvedValue('feature');
+      vi.spyOn(prompts, 'selectWorktree').mockResolvedValue({
+        path: '/test/worktree/feature',
+        branch: 'feature',
+        isLocked: false,
+        prunable: false,
+        HEAD: 'abc123',
+      });
       vi.spyOn(prompts, 'confirmAction').mockResolvedValue(false);
 
       const app = new ClaudeGWTApp('/test/worktree', { interactive: true });
@@ -1278,7 +1290,13 @@ describe('ClaudeGWTApp', () => {
       mockWorktreeManager.prototype.removeWorktree = mockRemoveWorktree;
 
       vi.spyOn(prompts, 'promptForWorktreeAction').mockResolvedValue('remove');
-      vi.spyOn(prompts, 'selectWorktree').mockResolvedValue('feature');
+      vi.spyOn(prompts, 'selectWorktree').mockResolvedValue({
+        path: '/test/worktree/feature',
+        branch: 'feature',
+        isLocked: false,
+        prunable: false,
+        HEAD: 'abc123',
+      });
       vi.spyOn(prompts, 'confirmAction').mockResolvedValue(true);
 
       const app = new ClaudeGWTApp('/test/worktree', { interactive: true });

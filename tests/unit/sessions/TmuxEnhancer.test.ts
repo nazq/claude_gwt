@@ -157,6 +157,7 @@ describe('TmuxEnhancer', () => {
         'v',
         'send-keys -X begin-selection',
         'copy-mode-vi',
+        false,
       );
     });
   });
@@ -202,18 +203,18 @@ describe('TmuxEnhancer', () => {
         'on',
       );
 
-      // Should set status style with green color for child
+      // Should set status style with blue color for child
       expect((TmuxDriver as any).setOption).toHaveBeenCalledWith(
         'cgwt-test-feature',
         'status-style',
-        expect.stringContaining('colour34'), // Green for child
+        expect.stringContaining('colour25'), // Blue for child
       );
 
       // Should set status format
       expect((TmuxDriver as any).setOption).toHaveBeenCalledWith(
         'cgwt-test-feature',
         'status-left',
-        expect.stringContaining('[CGT]'),
+        expect.stringContaining('WRK'),
       );
     });
 

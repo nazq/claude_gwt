@@ -4,6 +4,8 @@ export interface GitWorktreeInfo {
   isLocked: boolean;
   prunable: boolean;
   HEAD: string;
+  isMain?: boolean;
+  isCurrent?: boolean;
 }
 
 export interface ClaudeInstanceConfig {

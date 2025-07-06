@@ -429,21 +429,25 @@ export class ClaudeGWTApp {
     worktreeManager: WorktreeManager,
     worktrees: GitWorktreeInfo[],
   ): Promise<void> {
-    const selection = await prompts.selectWorktree(
+    const selectedWorktree = await prompts.selectWorktree(
       worktrees.filter((wt) => wt.path !== this.basePath),
       'Select branch to remove:',
     );
 
+    if (!selectedWorktree) {
+      return;
+    }
+
     const confirmed = await prompts.confirmAction(
-      `Are you sure you want to remove branch '${theme.branch(selection)}'?`,
+      `Are you sure you want to remove branch '${theme.branch(selectedWorktree.branch)}'?`,
     );
 
     if (confirmed) {
-      const spinner = new Spinner(`Removing branch ${theme.branch(selection)}...`);
+      const spinner = new Spinner(`Removing branch ${theme.branch(selectedWorktree.branch)}...`);
       spinner.start();
 
       try {
-        await worktreeManager.removeWorktree(selection);
+        await worktreeManager.removeWorktree(selectedWorktree.branch);
         spinner.succeed('Branch removed successfully');
       } catch (error) {
         spinner.fail('Failed to remove branch');

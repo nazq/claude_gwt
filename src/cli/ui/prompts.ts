@@ -1,5 +1,4 @@
 import inquirer from 'inquirer';
-import path from 'path';
 import { theme } from './theme.js';
 import type { GitWorktreeInfo } from '../../types/index.js';
 
@@ -8,7 +7,7 @@ export async function promptForRepoUrl(): Promise<string> {
     {
       type: 'input',
       name: 'repoUrl',
-      message: `${theme.git('Git')} repository URL (leave empty for local init):`,
+      message: 'Enter Git repository URL:',
       validate: (input: string): boolean | string => {
         if (!input) return true;
         // Support various Git URL formats
@@ -21,7 +20,7 @@ export async function promptForRepoUrl(): Promise<string> {
           /^[a-zA-Z0-9_-]+@[a-zA-Z0-9.-]+:.+/, // Generic SSH format
         ];
         const isValid = patterns.some((pattern) => pattern.test(input));
-        return isValid || 'Please enter a valid Git URL (https://, git@, ssh://, etc.)';
+        return isValid || 'Please enter a valid Git repository URL';
       },
     },
   ]);
@@ -34,10 +33,14 @@ export async function promptForBranchName(defaultBranch?: string): Promise<strin
     {
       type: 'input',
       name: 'branchName',
-      message: `${theme.branch('Branch')} name:`,
+      message: 'Enter branch name:',
       default: defaultBranch,
       validate: (input: string): boolean | string => {
         if (!input) return 'Branch name is required';
+        // Check for invalid patterns
+        if (input.startsWith('-') || input.endsWith('-') || input.includes('..')) {
+          return 'Invalid branch name';
+        }
         const validBranch = /^[a-zA-Z0-9._\-/]+$/.test(input);
         return validBranch || 'Invalid branch name';
       },
@@ -87,36 +90,56 @@ export async function promptForWorktreeAction(
 
 export async function selectWorktree(
   worktrees: GitWorktreeInfo[],
-  message: string,
-): Promise<string> {
+  message = 'Select a worktree:',
+): Promise<GitWorktreeInfo | undefined> {
   const choices = worktrees.map((wt) => ({
-    name: `${theme.branch(wt.branch || 'detached')} ${theme.dim(`(${path.basename(wt.path)})`)}`,
-    value: wt.branch || wt.path,
+    name: `${wt.branch} (${wt.isMain ? 'main' : wt.branch})${wt.isCurrent ? ' (current)' : ''}`,
+    value: wt,
   }));
 
-  const { selection } = await inquirer.prompt<{ selection: string }>([
+  const { worktree } = await inquirer.prompt<{ worktree: GitWorktreeInfo }>([
     {
       type: 'list',
-      name: 'selection',
+      name: 'worktree',
       message,
       choices,
     },
   ]);
 
-  return selection;
+  return worktree;
 }
 
-export async function confirmAction(message: string): Promise<boolean> {
+export async function confirmAction(message: string, defaultValue = true): Promise<boolean> {
   const { confirmed } = await inquirer.prompt<{ confirmed: boolean }>([
     {
       type: 'confirm',
       name: 'confirmed',
       message,
-      default: false,
+      default: defaultValue,
     },
   ]);
 
   return confirmed;
+}
+
+export async function promptForFolderName(defaultName = 'my-project'): Promise<string> {
+  const { folderName } = await inquirer.prompt<{ folderName: string }>([
+    {
+      type: 'input',
+      name: 'folderName',
+      message: 'Folder name:',
+      default: defaultName,
+      validate: (input: string): boolean | string => {
+        if (!input) return 'Folder name is required';
+        // Disallow .. and paths with /
+        if (input === '..' || input.includes('/')) return 'Invalid folder name';
+        const valid = /^[a-zA-Z0-9._-]+$/.test(input);
+        return valid || 'Invalid folder name';
+      },
+    },
+  ]);
+
+  return folderName;
 }
 
 export async function promptForSubdirectoryName(defaultName = 'my-project'): Promise<string> {
@@ -175,4 +198,68 @@ export async function selectBranch(message: string, branches: string[]): Promise
   ]);
 
   return branch;
+}
+
+// Legacy menu functions for backward compatibility
+export async function showMainMenu(): Promise<string> {
+  const { action } = await inquirer.prompt<{ action: string }>([
+    {
+      type: 'list',
+      name: 'action',
+      message: 'What would you like to do?',
+      choices: [
+        { name: theme.primary('Switch to existing worktree'), value: 'switch' },
+        { name: theme.success('Create new worktree'), value: 'create' },
+        { name: theme.error('Delete worktree'), value: 'delete' },
+        { name: theme.secondary('Refresh worktrees'), value: 'refresh' },
+        { name: theme.muted('Exit'), value: 'exit' },
+      ],
+    },
+  ]);
+  return action;
+}
+
+export async function showEmptyDirectoryMenu(): Promise<string> {
+  const { action } = await inquirer.prompt<{ action: string }>([
+    {
+      type: 'list',
+      name: 'action',
+      message: 'This directory is empty. What would you like to do?',
+      choices: [
+        { name: theme.success('Clone a repository'), value: 'clone' },
+        { name: theme.muted('Exit'), value: 'exit' },
+      ],
+    },
+  ]);
+  return action;
+}
+
+export async function showNonEmptyDirectoryMenu(): Promise<string> {
+  const { action } = await inquirer.prompt<{ action: string }>([
+    {
+      type: 'list',
+      name: 'action',
+      message: 'This directory is not empty. What would you like to do?',
+      choices: [
+        { name: theme.warning('Clone into subdirectory'), value: 'subdirectory' },
+        { name: theme.muted('Exit'), value: 'exit' },
+      ],
+    },
+  ]);
+  return action;
+}
+
+export async function showRegularRepoMenu(): Promise<string> {
+  const { action } = await inquirer.prompt<{ action: string }>([
+    {
+      type: 'list',
+      name: 'action',
+      message: 'This is a regular Git repository. What would you like to do?',
+      choices: [
+        { name: theme.success('Convert to worktree repository'), value: 'convert' },
+        { name: theme.muted('Exit'), value: 'exit' },
+      ],
+    },
+  ]);
+  return action;
 }

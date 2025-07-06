@@ -116,13 +116,17 @@ jobs:
     - name: Run tests with coverage
       run: npm run test:coverage
       
-    - name: Coverage report
-      uses: ArtiomTr/jest-coverage-report-action@v2
+    # Skip jest-coverage-report-action since we use Vitest, not Jest
+    # Codecov provides PR comments for coverage reporting
+        
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
       with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        skip-step: all
-        coverage-file: ./coverage/lcov.info
-        test-script: npm run test:coverage
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: ./coverage/lcov.info
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
         
   label:
     name: Auto Label PR

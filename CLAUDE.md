@@ -2,6 +2,62 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## 🚨 CRITICAL: Pre-Push Testing Requirements
+
+**MANDATORY: Before EVERY git push, you MUST:**
+
+1. **Run ALL tests locally**
+   ```bash
+   npm test
+   ```
+   - Must show ZERO failed tests
+   - Must show "Test Files X passed (X)" with NO failures
+   - If ANY test fails, DO NOT PUSH - fix it first
+
+2. **Run linting**
+   ```bash
+   npm run lint
+   ```
+   - Must pass with NO errors
+
+3. **Run type checking**
+   ```bash
+   npm run typecheck
+   ```
+   - Must pass with NO errors
+
+4. **Run format check**
+   ```bash
+   npm run format:check
+   ```
+   - Must pass or run `npm run format` to fix
+
+**One-liner to verify everything:**
+```bash
+npm run format:check && npm run lint && npm run typecheck && npm test
+```
+
+**NO EXCEPTIONS: If any check fails, fix it before pushing.**
+
+### When Tests Fail
+
+If tests fail locally:
+1. **Read the error message carefully** - it usually tells you exactly what's wrong
+2. **Run the specific failing test** to debug faster:
+   ```bash
+   npm test -- path/to/failing.test.ts
+   ```
+3. **Check test expectations** - the test might be outdated if the implementation changed
+4. **Never skip or comment out failing tests** - fix them or update them
+5. **If you change implementation**, update the corresponding tests
+
+### Common Test Failure Causes
+- Mock setup issues (especially with external dependencies)
+- Type mismatches between test expectations and actual implementation  
+- Hardcoded values in tests that need updating
+- Missing test setup or teardown
+- Race conditions in async tests
+
 ## Common Development Commands
 
 ```bash
@@ -25,9 +81,6 @@ npm run lint:fix       # Fix ESLint issues
 npm run format         # Format code with Prettier
 npm run typecheck      # TypeScript type checking
 
-# IMPORTANT: Before committing
-# Always run full test suite locally to ensure CI will pass:
-npm run lint && npm run typecheck && npm test
 
 # Run the CLI
 node dist/src/cli/index.js [options]
