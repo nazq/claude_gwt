@@ -9,12 +9,12 @@ import type {
   ITmuxManager,
   IApplicationContext,
   IServiceFactory,
-} from './interfaces';
-import { GitRepository } from '../git/GitRepository';
-import { WorktreeManager } from '../git/WorktreeManager';
-import { GitDetector } from '../git/GitDetector';
-import { TmuxManager } from '../../sessions/TmuxManager';
-import type { CLIOptions } from '../../types';
+} from './interfaces.js';
+import { GitRepository } from '../git/GitRepository.js';
+import { WorktreeManager } from '../git/WorktreeManager.js';
+import { GitDetector } from '../git/GitDetector.js';
+import { TmuxManager } from '../../sessions/TmuxManager.js';
+import type { CLIOptions } from '../../types/index.js';
 
 /**
  * Factory for creating Git-related services

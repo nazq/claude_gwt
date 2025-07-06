@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
-import { ClaudeGWTApp } from './ClaudeGWTApp';
-import { theme } from './ui/theme';
-import { Logger } from '../core/utils/logger';
-import type { CLIOptions } from '../types';
+import { ClaudeGWTApp } from './ClaudeGWTApp.js';
+import { theme } from './ui/theme.js';
+import { Logger } from '../core/utils/logger.js';
+import type { CLIOptions } from '../types/index.js';
 
 const program = new Command();
 

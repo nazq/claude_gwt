@@ -2,8 +2,8 @@
  * Error boundary for handling and logging errors consistently
  */
 
-import type { IErrorBoundary, ILogger } from './interfaces';
-import { Logger } from '../utils/logger';
+import type { IErrorBoundary, ILogger } from './interfaces.js';
+import { Logger } from '../utils/logger.js';
 
 export class ErrorBoundary implements IErrorBoundary {
   constructor(private readonly logger: ILogger = Logger) {}

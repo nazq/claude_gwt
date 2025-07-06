@@ -1,6 +1,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
+import { vi } from 'vitest';
 import { TmuxManager } from '../../src/sessions/TmuxManager';
 import { GitRepository } from '../../src/core/git/GitRepository';
 import { WorktreeManager } from '../../src/core/git/WorktreeManager';
@@ -8,15 +9,15 @@ import { execCommandSafe } from '../../src/core/utils/async';
 import { Logger } from '../../src/core/utils/logger';
 
 // For these e2e tests, we only mock process.exit to prevent test runner from exiting
-jest.spyOn(process, 'exit').mockImplementation((() => {
+vi.spyOn(process, 'exit').mockImplementation((() => {
   throw new Error('process.exit called');
 }) as never);
 
 // Silence logs during tests unless debugging
 if (!process.env['DEBUG']) {
-  jest.spyOn(Logger, 'info').mockImplementation();
-  jest.spyOn(Logger, 'debug').mockImplementation();
-  jest.spyOn(Logger, 'warn').mockImplementation();
+  vi.spyOn(Logger, 'info').mockImplementation();
+  vi.spyOn(Logger, 'debug').mockImplementation();
+  vi.spyOn(Logger, 'warn').mockImplementation();
 }
 
 /**
@@ -38,6 +39,12 @@ describe('Session Management E2E', () => {
     tmuxAvailable = await TmuxManager.isTmuxAvailable();
     if (!tmuxAvailable) {
       console.log('⚠️  Tmux not available - most tests will be skipped');
+    }
+
+    // Skip tmux tests if requested via env var
+    if (process.env['SKIP_TMUX_TESTS'] === 'true') {
+      console.log('⚠️  SKIP_TMUX_TESTS=true - tmux tests will be skipped');
+      tmuxAvailable = false;
     }
 
     // Set up git config for tests
@@ -159,22 +166,12 @@ describe('Session Management E2E', () => {
         gitRepo: repo,
       };
 
-      // In CI, we can't attach to sessions, so create detached session instead
-      if (process.env['CI']) {
-        await TmuxManager.createDetachedSession(sessionConfig);
+      // Always create detached session in tests to avoid attaching to terminal
+      await TmuxManager.createDetachedSession(sessionConfig);
 
-        // In CI, Claude won't actually be running in the session
-        // So just verify the session exists
-        sessionInfo = await TmuxManager.getSessionInfo(sessionName);
-        expect(sessionInfo).not.toBeNull();
-      } else {
-        // This should create a new window with Claude
-        await TmuxManager.launchSession(sessionConfig);
-
-        // Verify session was created (Claude won't actually be running in CI)
-        sessionInfo = await TmuxManager.getSessionInfo(sessionName);
-        expect(sessionInfo).not.toBeNull();
-      }
+      // Verify the session exists
+      sessionInfo = await TmuxManager.getSessionInfo(sessionName);
+      expect(sessionInfo).not.toBeNull();
 
       // Clean up
       await TmuxManager.killSession(sessionName);

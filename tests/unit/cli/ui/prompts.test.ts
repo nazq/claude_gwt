@@ -1,8 +1,9 @@
+import { vi } from 'vitest';
 import inquirer from 'inquirer';
 import * as prompts from '../../../../src/cli/ui/prompts';
 import type { GitWorktreeInfo } from '../../../../src/types';
 
-jest.mock('inquirer');
+vi.mock('inquirer');
 
 interface PromptConfig {
   type: string;
@@ -14,10 +15,10 @@ interface PromptConfig {
 }
 
 describe('prompts', () => {
-  const mockInquirer = inquirer as jest.Mocked<typeof inquirer>;
+  const mockInquirer = inquirer as vi.Mocked<typeof inquirer>;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('promptForRepoUrl', () => {

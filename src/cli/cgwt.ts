@@ -7,7 +7,6 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { execSync } from 'child_process';
-import * as path from 'path';
 
 interface Session {
   path: string;
@@ -59,7 +58,16 @@ program.argument('[index]', 'Session index to switch to').action((index: string 
 function listSessions(): void {
   try {
     // Check if we're in a git worktree
-    const gitDir = execSync('git rev-parse --git-dir', { encoding: 'utf8' }).trim();
+    let gitDir: string;
+    try {
+      gitDir = execSync('git rev-parse --git-dir', {
+        encoding: 'utf8',
+        stdio: ['pipe', 'pipe', 'ignore'],
+      }).trim();
+    } catch (e) {
+      console.log(chalk.yellow('Not in a Claude GWT managed repository'));
+      return;
+    }
 
     if (!gitDir.includes('.bare')) {
       console.log(chalk.yellow('Not in a Claude GWT managed repository'));
@@ -92,22 +100,117 @@ function listSessions(): void {
       }
     }
 
-    // Get current directory
-    const cwd = process.cwd();
+    // Get current tmux session if we're inside tmux
+    let currentTmuxSession = '';
+    if (process.env['TMUX']) {
+      try {
+        currentTmuxSession = execSync('tmux display-message -p "#S"', { encoding: 'utf8' }).trim();
+      } catch (e) {
+        // Ignore errors
+      }
+    }
 
-    console.log(chalk.bold('Claude GWT Sessions:'));
-    console.log();
+    // Get repo name from current path
+    const cwdParts = process.cwd().split('/');
+    const currentRepoName = cwdParts[cwdParts.length - 2] ?? '';
+
+    // Detect main branch
+    let mainBranch = 'main';
+    try {
+      // First try to get from origin HEAD
+      const headRef = execSync('git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null', {
+        encoding: 'utf8',
+        stdio: ['pipe', 'pipe', 'ignore'],
+      }).trim();
+      const match = headRef.match(/refs\/remotes\/origin\/(.+)/);
+      if (match?.[1]) {
+        mainBranch = match[1].trim();
+      }
+    } catch {
+      // If origin HEAD not set, try to detect from bare repo config
+      try {
+        const bareConfig = execSync('git -C .bare symbolic-ref HEAD 2>/dev/null', {
+          encoding: 'utf8',
+          stdio: ['pipe', 'pipe', 'ignore'],
+        }).trim();
+        const bareMatch = bareConfig.match(/refs\/heads\/(.+)/);
+        if (bareMatch?.[1]) {
+          mainBranch = bareMatch[1].trim();
+        }
+      } catch {
+        // Final fallback: check which branches exist
+        const branches = sessions.map((s) => {
+          let branch = s.branch;
+          if (branch.startsWith('refs/heads/')) {
+            branch = branch.substring(11);
+          }
+          return branch;
+        });
+
+        // Check for common main branch names
+        if (branches.includes('main')) {
+          mainBranch = 'main';
+        } else if (branches.includes('master')) {
+          mainBranch = 'master';
+        }
+      }
+    }
+
+    console.log(chalk.hex('#00D9FF')('\n📋 Claude GWT Sessions:'));
 
     sessions.forEach((session, index) => {
-      const isCurrent = path.resolve(session.path) === path.resolve(cwd);
-      const marker = isCurrent ? chalk.green('→') : ' ';
-      const branchName = session.branch ?? 'detached';
-      const shortPath = path.basename(session.path);
+      // Determine if this is the current session
+      let isCurrent = false;
 
-      console.log(
-        `${marker} ${chalk.bold(index + 1)} ${chalk.cyan(branchName)} ${chalk.gray(`(${shortPath})`)}`,
+      if (index === 0 && session.path.includes('.bare')) {
+        // Supervisor session
+        const expectedSessionName = `cgwt-${currentRepoName}-supervisor`;
+        isCurrent = currentTmuxSession === expectedSessionName;
+
+        const status = isCurrent ? chalk.green('●') : chalk.gray('○');
+        const supLabel = chalk.magenta('[SUP]');
+        const row = `  ${status} ${chalk.dim('[0]')} ${supLabel}`;
+
+        if (isCurrent) {
+          console.log(chalk.bgGreenBright.black(row + ' '.repeat(Math.max(0, 40 - row.length))));
+        } else {
+          console.log(row);
+        }
+        return;
+      }
+
+      // Regular branch session
+      let branchName = session.branch ?? 'detached';
+      if (branchName.startsWith('refs/heads/')) {
+        branchName = branchName.substring(11);
+      }
+
+      const expectedSessionName = `cgwt-${currentRepoName}-${branchName}`.replace(
+        /[^a-zA-Z0-9_-]/g,
+        '-',
       );
+      isCurrent = currentTmuxSession === expectedSessionName;
+
+      const status = isCurrent ? chalk.green('●') : chalk.gray('○');
+      const indexNum = chalk.dim(`[${index}]`);
+
+      // Different color for main branch vs feature branches
+      const branchColor =
+        branchName === mainBranch
+          ? chalk.yellow(branchName) // Yellow for main branch
+          : chalk.hex('#00D9FF')(branchName); // Cyan for feature branches
+
+      const row = `  ${status} ${indexNum} ${branchColor}`;
+
+      if (isCurrent) {
+        // Add padding to make background consistent width
+        console.log(chalk.bgGreenBright.black(row + ' '.repeat(Math.max(0, 40 - row.length))));
+      } else {
+        console.log(row);
+      }
     });
+
+    console.log(chalk.gray('\nSwitch with: cgwt <number> or cgwt s <branch>'));
   } catch (error) {
     console.error(chalk.red('Error listing sessions:'), error);
   }
@@ -116,7 +219,16 @@ function listSessions(): void {
 function switchSession(target: string): void {
   try {
     // Check if we're in a git worktree
-    const gitDir = execSync('git rev-parse --git-dir', { encoding: 'utf8' }).trim();
+    let gitDir: string;
+    try {
+      gitDir = execSync('git rev-parse --git-dir', {
+        encoding: 'utf8',
+        stdio: ['pipe', 'pipe', 'ignore'],
+      }).trim();
+    } catch (e) {
+      console.log(chalk.yellow('Not in a Claude GWT managed repository'));
+      return;
+    }
 
     if (!gitDir.includes('.bare')) {
       console.log(chalk.yellow('Not in a Claude GWT managed repository'));
@@ -153,33 +265,76 @@ function switchSession(target: string): void {
 
     // Check if target is numeric (index)
     if (!isNaN(Number(target))) {
-      const index = Number(target) - 1;
+      const index = Number(target);
       if (index >= 0 && index < sessions.length) {
         targetSession = sessions[index];
       } else {
         console.error(chalk.red(`Invalid index: ${target}`));
-        console.log(chalk.gray(`Available indices: 1-${sessions.length}`));
+        console.log(chalk.gray(`Available indices: 0-${sessions.length - 1}`));
         return;
       }
     } else {
-      // Target is branch name
-      targetSession = sessions.find((s) => s.branch === target);
+      // Target is branch name - check both with and without refs/heads/ prefix
+      targetSession = sessions.find((s) => {
+        const branch = s.branch;
+        const cleanBranch = branch.startsWith('refs/heads/') ? branch.substring(11) : branch;
+        return cleanBranch === target || branch === target;
+      });
       if (!targetSession) {
         console.error(chalk.red(`Branch not found: ${target}`));
         console.log(chalk.gray('Available branches:'));
-        sessions.forEach((s) => console.log(chalk.gray(`  - ${s.branch ?? 'detached'}`)));
+        sessions.forEach((s) => {
+          let branchName = s.branch ?? 'detached';
+          if (branchName.startsWith('refs/heads/')) {
+            branchName = branchName.substring(11);
+          }
+          console.log(chalk.gray(`  - ${branchName}`));
+        });
         return;
       }
     }
 
-    // Change to the target directory
+    // Switch to the target session
     if (targetSession) {
-      console.log(
-        chalk.green(`Switching to ${targetSession.branch ?? 'session'} at ${targetSession.path}`),
-      );
-      console.log();
-      console.log(chalk.gray('Run this command to change directory:'));
-      console.log(chalk.bold(`  cd ${targetSession.path}`));
+      let branchDisplay = targetSession.branch ?? 'session';
+      if (branchDisplay.startsWith('refs/heads/')) {
+        branchDisplay = branchDisplay.substring(11);
+      }
+
+      // Handle supervisor session specially
+      let sessionName: string;
+      if (targetSession.path.includes('.bare')) {
+        // This is the supervisor session
+        const pathParts = targetSession.path.split('/');
+        const repoName = pathParts[pathParts.length - 2] ?? 'claude-gwt';
+        sessionName = `cgwt-${repoName}-supervisor`;
+        console.log(chalk.green(`Switching to supervisor...`));
+      } else {
+        // Regular branch session
+        const pathParts = targetSession.path.split('/');
+        const repoName = pathParts[pathParts.length - 2] ?? 'claude-gwt';
+        sessionName = `cgwt-${repoName}-${branchDisplay}`.replace(/[^a-zA-Z0-9_-]/g, '-');
+        console.log(chalk.green(`Switching to ${branchDisplay}...`));
+      }
+
+      // Check if we're inside tmux
+      const isInsideTmux = process.env['TMUX'] !== undefined;
+
+      try {
+        if (isInsideTmux) {
+          // If inside tmux, use switch-client
+          execSync(`tmux switch-client -t ${sessionName}`, { stdio: 'inherit' });
+        } else {
+          // If outside tmux, attach to the session
+          execSync(`tmux attach-session -t ${sessionName}`, { stdio: 'inherit' });
+        }
+      } catch (error) {
+        // Session might not exist, fall back to cd command
+        console.log(chalk.yellow('\nTmux session not found. You can start it with:'));
+        console.log(chalk.bold(`  cd ${targetSession.path} && claude-gwt`));
+        console.log(chalk.gray('\nOr just change directory:'));
+        console.log(chalk.bold(`  cd ${targetSession.path}`));
+      }
     }
   } catch (error) {
     console.error(chalk.red('Error switching session:'), error);

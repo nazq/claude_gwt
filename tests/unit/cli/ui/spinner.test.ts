@@ -1,29 +1,30 @@
+import { vi } from 'vitest';
 import { Spinner } from '../../../../src/cli/ui/spinner';
 import { theme } from '../../../../src/cli/ui/theme';
 
 // Mock ora
 const mockOra = {
-  start: jest.fn(),
-  succeed: jest.fn(),
-  fail: jest.fn(),
-  warn: jest.fn(),
-  info: jest.fn(),
-  stop: jest.fn(),
+  start: vi.fn(),
+  succeed: vi.fn(),
+  fail: vi.fn(),
+  warn: vi.fn(),
+  info: vi.fn(),
+  stop: vi.fn(),
   text: '',
 };
 
-jest.mock('ora', () => {
-  return jest.fn(() => mockOra);
-});
+vi.mock('ora', () => ({
+  default: vi.fn(() => mockOra),
+}));
 
 // Mock theme module properly for ES6
-jest.mock('../../../../src/cli/ui/theme', () => ({
+vi.mock('../../../../src/cli/ui/theme', () => ({
   __esModule: true,
   theme: {
-    success: jest.fn((text) => `success:${text}`),
-    error: jest.fn((text) => `error:${text}`),
-    warning: jest.fn((text) => `warning:${text}`),
-    info: jest.fn((text) => `info:${text}`),
+    success: vi.fn((text) => `success:${text}`),
+    error: vi.fn((text) => `error:${text}`),
+    warning: vi.fn((text) => `warning:${text}`),
+    info: vi.fn((text) => `info:${text}`),
     icons: {
       spinner: ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'],
     },
@@ -32,18 +33,17 @@ jest.mock('../../../../src/cli/ui/theme', () => ({
 
 describe('Spinner', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockOra.text = '';
   });
 
   describe('constructor', () => {
-    it('should create spinner with initial text', () => {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-unsafe-assignment
-      const ora = require('ora');
-
+    it('should create spinner with initial text', async () => {
       new Spinner('Loading...');
 
-      expect(ora).toHaveBeenCalledWith({
+      // Check that ora default export was called
+      const oraModule = await import('ora');
+      expect(oraModule.default).toHaveBeenCalledWith({
         text: 'Loading...',
         spinner: {
           interval: 80,

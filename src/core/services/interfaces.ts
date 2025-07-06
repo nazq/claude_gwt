@@ -2,9 +2,9 @@
  * Service interfaces for dependency injection
  */
 
-import type { DirectoryState, GitWorktreeInfo } from '../../types';
-import type { SessionConfig, SessionInfo } from '../../sessions/TmuxManager';
-import type { ExecResult } from '../utils/async';
+import type { DirectoryState, GitWorktreeInfo } from '../../types/index.js';
+import type { SessionConfig, SessionInfo } from '../../sessions/TmuxManager.js';
+import type { ExecResult } from '../utils/async.js';
 
 /**
  * Git repository operations interface

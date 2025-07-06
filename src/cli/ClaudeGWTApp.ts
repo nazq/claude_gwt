@@ -1,16 +1,16 @@
 import path from 'path';
 import { promises as fs } from 'fs';
 import { simpleGit } from 'simple-git';
-import { GitDetector } from '../core/git/GitDetector';
-import { GitRepository } from '../core/git/GitRepository';
-import { WorktreeManager } from '../core/git/WorktreeManager';
-import { TmuxManager } from '../sessions/TmuxManager';
-import { Logger } from '../core/utils/logger';
-import { showBanner } from './ui/banner';
-import { theme } from './ui/theme';
-import { Spinner } from './ui/spinner';
-import * as prompts from './ui/prompts';
-import type { CLIOptions, DirectoryState, GitWorktreeInfo } from '../types';
+import { GitDetector } from '../core/git/GitDetector.js';
+import { GitRepository } from '../core/git/GitRepository.js';
+import { WorktreeManager } from '../core/git/WorktreeManager.js';
+import { TmuxManager } from '../sessions/TmuxManager.js';
+import { Logger } from '../core/utils/logger.js';
+import { showBanner } from './ui/banner.js';
+import { theme } from './ui/theme.js';
+import { Spinner } from './ui/spinner.js';
+import * as prompts from './ui/prompts.js';
+import type { CLIOptions, DirectoryState, GitWorktreeInfo } from '../types/index.js';
 
 export class ClaudeGWTApp {
   private basePath: string;

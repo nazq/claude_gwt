@@ -8,11 +8,11 @@ import type {
   ITmuxManager,
   ILogger,
   IErrorBoundary,
-} from './interfaces';
-import type { SessionConfig, SessionInfo } from '../../sessions/TmuxManager';
-import type { GitWorktreeInfo } from '../../types';
-import { errorBoundary as defaultErrorBoundary } from './ErrorBoundary';
-import { Logger } from '../utils/logger';
+} from './interfaces.js';
+import type { SessionConfig, SessionInfo } from '../../sessions/TmuxManager.js';
+import type { GitWorktreeInfo } from '../../types/index.js';
+import { errorBoundary as defaultErrorBoundary } from './ErrorBoundary.js';
+import { Logger } from '../utils/logger.js';
 
 /**
  * Git service adapter that adds error handling and logging

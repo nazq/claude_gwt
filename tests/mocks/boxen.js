@@ -1,3 +1,3 @@
 // Mock for boxen
-module.exports = (text) => text;
-module.exports.default = module.exports;
+const boxen = (text) => text;
+export default boxen;

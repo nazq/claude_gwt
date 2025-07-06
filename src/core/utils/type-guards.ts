@@ -2,9 +2,9 @@
  * Type guards for runtime type checking
  */
 
-import type { DirectoryState } from '../../types';
-import type { SessionInfo } from '../../sessions/TmuxManager';
-import type { GitWorktreeInfo } from '../../types';
+import type { DirectoryState } from '../../types/index.js';
+import type { SessionInfo } from '../../sessions/TmuxManager.js';
+import type { GitWorktreeInfo } from '../../types/index.js';
 
 /**
  * Check if a value is a valid DirectoryState

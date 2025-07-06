@@ -1,17 +1,18 @@
+import { vi } from 'vitest';
 import { ConfigManager } from '../../../src/core/ConfigManager';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 
-jest.mock('fs');
-jest.mock('../../../src/core/utils/logger');
+vi.mock('fs');
+vi.mock('../../../src/core/utils/logger');
 
 describe('ConfigManager', () => {
-  const mockFs = fs as jest.Mocked<typeof fs>;
+  const mockFs = fs as vi.Mocked<typeof fs>;
   const originalEnv = process.env;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     // Reset singleton
     // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
     (ConfigManager as any).instance = undefined;
@@ -70,7 +71,7 @@ describe('ConfigManager', () => {
         .mockReturnValueOnce(true) // context dir exists
         .mockReturnValueOnce(false); // config file does not exist
 
-      const mockWriteFileSync = jest.spyOn(mockFs, 'writeFileSync');
+      const mockWriteFileSync = vi.spyOn(mockFs, 'writeFileSync');
       mockFs.writeFileSync.mockImplementation(() => {});
 
       ConfigManager.getInstance();

@@ -1,18 +1,15 @@
 // Global test setup
-import { jest } from '@jest/globals';
+import { vi } from 'vitest';
 
 // Set NODE_ENV to test to ensure proper logger initialization
 process.env['NODE_ENV'] = 'test';
 
-// Set test timeout
-jest.setTimeout(20000);
-
 // Mock console methods to keep test output clean
 global.console = {
   ...console,
-  log: jest.fn(),
-  debug: jest.fn(),
-  info: jest.fn(),
-  warn: jest.fn(),
-  error: jest.fn(),
+  log: vi.fn(),
+  debug: vi.fn(),
+  info: vi.fn(),
+  warn: vi.fn(),
+  error: vi.fn(),
 };

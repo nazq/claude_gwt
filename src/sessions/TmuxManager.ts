@@ -1,12 +1,12 @@
 import { spawnSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
-import { Logger } from '../core/utils/logger';
-import { TmuxEnhancer } from './TmuxEnhancer';
-import type { GitRepository } from '../core/git/GitRepository';
-import { ConfigManager } from '../core/ConfigManager';
-import { TmuxDriver } from '../core/drivers/TmuxDriver';
-import { sanitizePath, sanitizeSessionName } from '../core/utils/security';
+import { Logger } from '../core/utils/logger.js';
+import { TmuxEnhancer } from './TmuxEnhancer.js';
+import type { GitRepository } from '../core/git/GitRepository.js';
+import { ConfigManager } from '../core/ConfigManager.js';
+import { TmuxDriver } from '../core/drivers/TmuxDriver.js';
+import { sanitizePath, sanitizeSessionName } from '../core/utils/security.js';
 
 export interface SessionConfig {
   sessionName: string;

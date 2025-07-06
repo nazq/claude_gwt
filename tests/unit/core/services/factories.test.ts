@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument */
+import { vi } from 'vitest';
 import {
   GitServiceFactory,
   TmuxServiceFactory,
@@ -15,9 +16,9 @@ import {
 import type { CLIOptions } from '../../../../src/types';
 
 // Mock the actual implementations
-jest.mock('../../../../src/core/git/GitRepository');
-jest.mock('../../../../src/core/git/WorktreeManager');
-jest.mock('../../../../src/core/git/GitDetector');
+vi.mock('../../../../src/core/git/GitRepository');
+vi.mock('../../../../src/core/git/WorktreeManager');
+vi.mock('../../../../src/core/git/GitDetector');
 
 describe('Service Factories', () => {
   describe('GitServiceFactory', () => {
@@ -107,7 +108,7 @@ describe('Service Factories', () => {
     });
 
     it('should create session config with all parameters', () => {
-      const mockGitRepo = { getCurrentBranch: jest.fn() } as any;
+      const mockGitRepo = { getCurrentBranch: vi.fn() } as any;
 
       const config = factory.create(
         'test-repo',
@@ -165,7 +166,7 @@ describe('Service Factories', () => {
     });
 
     it('should register and retrieve factories', () => {
-      const mockFactory = { create: jest.fn() };
+      const mockFactory = { create: vi.fn() };
 
       registry.register('test', mockFactory);
 
@@ -175,7 +176,7 @@ describe('Service Factories', () => {
 
     it('should create services using registered factories', () => {
       const mockFactory = {
-        create: jest.fn().mockReturnValue({ name: 'test-service' }),
+        create: vi.fn().mockReturnValue({ name: 'test-service' }),
       };
 
       registry.register('test', mockFactory);
@@ -189,7 +190,7 @@ describe('Service Factories', () => {
     it('should check if factory is registered', () => {
       expect(registry.has('nonexistent')).toBe(false);
 
-      registry.register('exists', { create: jest.fn() });
+      registry.register('exists', { create: vi.fn() });
       expect(registry.has('exists')).toBe(true);
     });
 
@@ -202,8 +203,8 @@ describe('Service Factories', () => {
     });
 
     it('should get list of registered factory names', () => {
-      registry.register('factory1', { create: jest.fn() });
-      registry.register('factory2', { create: jest.fn() });
+      registry.register('factory1', { create: vi.fn() });
+      registry.register('factory2', { create: vi.fn() });
 
       const names = registry.getRegisteredFactories();
       expect(names).toContain('factory1');
@@ -212,8 +213,8 @@ describe('Service Factories', () => {
     });
 
     it('should support method chaining for registration', () => {
-      const factory1 = { create: jest.fn() };
-      const factory2 = { create: jest.fn() };
+      const factory1 = { create: vi.fn() };
+      const factory2 = { create: vi.fn() };
 
       const result = registry.register('factory1', factory1).register('factory2', factory2);
 

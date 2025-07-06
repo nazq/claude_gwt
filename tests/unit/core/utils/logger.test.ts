@@ -1,40 +1,43 @@
+import { vi } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
 
 // Mock pino BEFORE importing logger
 const mockPinoLogger = {
-  info: jest.fn(),
-  error: jest.fn(),
-  debug: jest.fn(),
-  warn: jest.fn(),
-  fatal: jest.fn(),
-  trace: jest.fn(),
-  isLevelEnabled: jest.fn().mockImplementation((_level) => {
+  info: vi.fn(),
+  error: vi.fn(),
+  debug: vi.fn(),
+  warn: vi.fn(),
+  fatal: vi.fn(),
+  trace: vi.fn(),
+  isLevelEnabled: vi.fn().mockImplementation((_level) => {
     // In test environment, should be silent (no levels enabled)
     return false;
   }),
-  flush: jest.fn(),
-  child: jest.fn().mockImplementation(() => ({ ...mockPinoLogger })),
-  bindings: jest.fn().mockReturnValue({ name: 'claude-gwt' }),
+  flush: vi.fn(),
+  child: vi.fn().mockImplementation(() => ({ ...mockPinoLogger })),
+  bindings: vi.fn().mockReturnValue({ name: 'claude-gwt' }),
   level: 'info',
 };
 
-const mockPino = jest.fn().mockReturnValue(mockPinoLogger);
+const mockPino = vi.fn().mockReturnValue(mockPinoLogger);
 // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
-(mockPino as any).destination = jest.fn().mockReturnValue({});
+(mockPino as any).destination = vi.fn().mockReturnValue({});
 
-jest.mock('pino', () => mockPino);
+vi.mock('pino', () => ({
+  default: mockPino,
+}));
 
 // Mock fs
-jest.mock('fs');
-const mockFs = fs as jest.Mocked<typeof fs>;
+vi.mock('fs');
+const mockFs = fs as vi.Mocked<typeof fs>;
 
 // Import logger AFTER mocking dependencies
 import { StructuredLogger, createLogger, logger, Logger } from '../../../../src/core/utils/logger';
 
 describe('StructuredLogger (Pino)', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     // Mock fs operations
     mockFs.existsSync.mockReturnValue(false);

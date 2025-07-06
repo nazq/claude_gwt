@@ -1,38 +1,39 @@
+import { vi } from 'vitest';
 import { showBanner } from '../../../../src/cli/ui/banner';
 import figlet from 'figlet';
 import boxen from 'boxen';
 import { theme } from '../../../../src/cli/ui/theme';
 
-jest.mock('figlet');
-jest.mock('boxen');
+vi.mock('figlet');
+vi.mock('boxen');
 // Mock chalk comprehensively
-jest.mock('chalk', () => ({
-  hex: jest.fn(() => jest.fn((text: string) => text)),
-  green: jest.fn((text: string) => text),
-  red: jest.fn((text: string) => text),
-  yellow: jest.fn((text: string) => text),
-  blue: jest.fn((text: string) => text),
-  gray: jest.fn((text: string) => text),
-  bold: jest.fn((text: string) => text),
-  dim: jest.fn((text: string) => text),
+vi.mock('chalk', () => ({
+  hex: vi.fn(() => vi.fn((text: string) => text)),
+  green: vi.fn((text: string) => text),
+  red: vi.fn((text: string) => text),
+  yellow: vi.fn((text: string) => text),
+  blue: vi.fn((text: string) => text),
+  gray: vi.fn((text: string) => text),
+  bold: vi.fn((text: string) => text),
+  dim: vi.fn((text: string) => text),
 }));
 
-jest.mock('../../../../src/cli/ui/theme', () => ({
+vi.mock('../../../../src/cli/ui/theme', () => ({
   theme: {
-    primary: jest.fn((text) => `primary:${text}`),
-    muted: jest.fn((text) => `muted:${text}`),
-    dim: jest.fn((text) => `dim:${text}`),
+    primary: vi.fn((text) => `primary:${text}`),
+    muted: vi.fn((text) => `muted:${text}`),
+    dim: vi.fn((text) => `dim:${text}`),
   },
 }));
 
 describe('banner', () => {
-  const mockFiglet = figlet as jest.Mocked<typeof figlet>;
-  const mockBoxen = boxen as jest.MockedFunction<typeof boxen>;
-  const mockTheme = theme as jest.Mocked<typeof theme>;
-  const mockConsoleLog = jest.spyOn(console, 'log').mockImplementation();
+  const mockFiglet = figlet as vi.Mocked<typeof figlet>;
+  const mockBoxen = boxen as vi.MockedFunction<typeof boxen>;
+  const mockTheme = theme as vi.Mocked<typeof theme>;
+  const mockConsoleLog = vi.spyOn(console, 'log').mockImplementation();
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('showBanner', () => {
@@ -103,9 +104,9 @@ describe('banner', () => {
 
     it('should apply correct boxen styling options', () => {
       mockFiglet.textSync.mockReturnValue('ASCII');
-      (mockTheme.primary as unknown as jest.Mock).mockReturnValue('THEMED');
-      (mockTheme.muted as unknown as jest.Mock).mockReturnValue('THEMED');
-      (mockTheme.dim as unknown as jest.Mock).mockReturnValue('THEMED');
+      (mockTheme.primary as unknown as vi.Mock).mockReturnValue('THEMED');
+      (mockTheme.muted as unknown as vi.Mock).mockReturnValue('THEMED');
+      (mockTheme.dim as unknown as vi.Mock).mockReturnValue('THEMED');
       mockBoxen.mockReturnValue('BOXED');
 
       showBanner();
@@ -121,9 +122,9 @@ describe('banner', () => {
 
     it('should call console.log exactly once', () => {
       mockFiglet.textSync.mockReturnValue('ASCII');
-      (mockTheme.primary as unknown as jest.Mock).mockReturnValue('THEMED');
-      (mockTheme.muted as unknown as jest.Mock).mockReturnValue('THEMED');
-      (mockTheme.dim as unknown as jest.Mock).mockReturnValue('THEMED');
+      (mockTheme.primary as unknown as vi.Mock).mockReturnValue('THEMED');
+      (mockTheme.muted as unknown as vi.Mock).mockReturnValue('THEMED');
+      (mockTheme.dim as unknown as vi.Mock).mockReturnValue('THEMED');
       const expectedOutput = 'FINAL BOXED BANNER';
       mockBoxen.mockReturnValue(expectedOutput);
 
