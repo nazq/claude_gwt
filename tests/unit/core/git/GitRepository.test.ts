@@ -178,6 +178,12 @@ describe('GitRepository', () => {
       // Verify bare repo was created
       const bareDir = path.join(testDir, '.bare');
       expect(await fs.stat(bareDir)).toBeTruthy();
+
+      // Verify no temp directories were left behind in parent directory
+      const parentDir = path.dirname(testDir);
+      const entries = await fs.readdir(parentDir);
+      const tempDirs = entries.filter((entry) => entry.startsWith('.claude-gwt-convert-'));
+      expect(tempDirs).toHaveLength(0);
     });
 
     it('should handle errors during conversion', async () => {
@@ -204,6 +210,19 @@ describe('GitRepository', () => {
       await expect(repo.convertToWorktreeSetup()).rejects.toThrow(
         /Failed to convert repository:.*Network error/,
       );
+
+      // Verify temp directories were cleaned up even on error
+      const parentDir = path.dirname(testDir);
+      const entries = await fs.readdir(parentDir);
+      const tempDirs = entries.filter((entry) => entry.startsWith('.claude-gwt-convert-'));
+      expect(tempDirs).toHaveLength(0);
+
+      // Verify .git directory was restored
+      const gitDirExists = await fs
+        .access(gitDir)
+        .then(() => true)
+        .catch(() => false);
+      expect(gitDirExists).toBe(true);
     });
   });
 
