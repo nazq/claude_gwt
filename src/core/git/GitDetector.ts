@@ -1,6 +1,6 @@
 import { promises as fs } from 'fs';
 import path from 'path';
-import type { DirectoryState } from '../../types';
+import type { DirectoryState } from '../../types/index.js';
 import { simpleGit, type SimpleGit } from 'simple-git';
 
 export class GitDetector {

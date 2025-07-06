@@ -1,7 +1,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import { simpleGit, type SimpleGit } from 'simple-git';
-import { GitOperationError } from '../errors/CustomErrors';
+import { GitOperationError } from '../errors/CustomErrors.js';
 
 export class GitRepository {
   private git: SimpleGit;

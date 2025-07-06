@@ -41,5 +41,5 @@ class Ora {
   }
 }
 
-module.exports = (options) => new Ora(options);
-module.exports.default = module.exports;
+const ora = (options) => new Ora(options);
+export default ora;

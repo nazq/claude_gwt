@@ -1,6 +1,6 @@
 import figlet from 'figlet';
 import boxen from 'boxen';
-import { theme } from './theme';
+import { theme } from './theme.js';
 
 export function showBanner(): void {
   const banner = figlet.textSync('Claude GWT', {

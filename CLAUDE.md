@@ -25,6 +25,10 @@ npm run lint:fix       # Fix ESLint issues
 npm run format         # Format code with Prettier
 npm run typecheck      # TypeScript type checking
 
+# IMPORTANT: Before committing
+# Always run full test suite locally to ensure CI will pass:
+npm run lint && npm run typecheck && npm test
+
 # Run the CLI
 node dist/src/cli/index.js [options]
 ```
@@ -34,12 +38,19 @@ node dist/src/cli/index.js [options]
 ### Project Structure
 - **`src/core/`** - Core business logic
   - `git/` - Git operations (detector, repository, worktree manager)
-  - `claude/` - Claude instance management (pending implementation)
-  - `messaging/` - Inter-instance communication (pending implementation)
   - `errors/` - Custom error types
+  - `services/` - Service layer with adapters and factories
+  - `utils/` - Utility functions (async, logger, security)
+  - `di/` - Dependency injection container
+  - `drivers/` - External tool drivers (tmux)
 - **`src/cli/`** - CLI application
   - `ui/` - Terminal UI components (prompts, spinner, theme)
-  - Main app orchestration
+  - `index.ts` - Main CLI entry point (claude-gwt)
+  - `cgwt.ts` - Quick session switcher
+  - `ClaudeGWTApp.ts` - Main app orchestration
+- **`src/sessions/`** - Session management
+  - `TmuxManager.ts` - Tmux session orchestration
+  - `TmuxEnhancer.ts` - Advanced tmux features
 - **`src/types/`** - TypeScript type definitions
 
 ### Key Design Patterns
@@ -209,6 +220,8 @@ You are an elite TypeScript developer with deep expertise in Node.js ecosystem, 
 - Implement circuit breaker patterns for external services
 - Use proper retry strategies with exponential backoff
 - Handle network failures gracefully
+- Make well thought out determinations of best of breed packages to use, this changes over time
+- Propose migrations to new best of breed 3rd party packages
 
 ### Git Operations
 - Use proper Git hooks and validation
@@ -230,6 +243,87 @@ Write code that you'd be proud to show in a code review. Every line should have 
 When creating git commits:
 - Write clear, concise commit messages that explain the "why" not just the "what"
 - Follow conventional commit format (feat:, fix:, refactor:, etc.)
-- Include the robot emoji and "Generated with Claude Code" link: 🤖 Generated with [Claude Code](https://claude.ai/code)
 - **IMPORTANT**: Do NOT use "Co-Authored-By: Claude <noreply@anthropic.com>" - this project does not use co-authorship attribution for AI-generated commits
 - **IMPORTANT**: Never add the coauthored and built by claude git comment
+
+# Testing Best Practices
+
+## Type Safety in Tests
+- Use `vi.mocked()` instead of `as any` for mocked modules
+- Create typed mock factories for commonly mocked modules
+- Use `as unknown` when type casting is necessary, avoid `as any`
+- For testing private methods, use `// @ts-expect-error Testing private method`
+
+## ESLint Rules for Tests
+Tests have slightly relaxed ESLint rules:
+- `@typescript-eslint/no-explicit-any`: warn (not error)
+- `@typescript-eslint/no-unsafe-*`: warn (not error)
+- `@typescript-eslint/unbound-method`: Configured to ignore static methods
+
+## Common Test Patterns
+```typescript
+// Mocking modules with proper types
+vi.mock('simple-git');
+const mockSimpleGit = vi.mocked(simpleGit);
+
+// Testing private methods (use sparingly)
+// @ts-expect-error Testing private method
+vi.spyOn(app, 'handlePrivateMethod').mockResolvedValue(undefined);
+
+// Mock file system
+vi.mock('fs', () => ({
+  promises: {
+    readdir: vi.fn(),
+    stat: vi.fn(),
+  },
+}));
+```
+
+# Code Quality Standards
+
+## ESLint and Type Safety
+- **Zero tolerance for type issues in production code** - No ESLint disables in src/
+- Prefer nullish coalescing (`??`) over logical OR (`||`) for null/undefined checks
+- Keep `||` for actual boolean operations
+- All functions must have explicit return types
+- Avoid `any` type - use `unknown` or proper interfaces
+
+## When ESLint Disables Are Acceptable
+Only in test files and with documentation:
+```typescript
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// Reason: Mock needs flexibility for testing various scenarios
+let mockGit: any;
+```
+
+# CI/CD Best Practices
+
+## Pre-commit Verification
+**CRITICAL**: We should ALWAYS know if CI will pass before pushing code. Run the complete verification suite locally:
+
+```bash
+# Full CI simulation - run this before EVERY commit
+npm run lint && npm run typecheck && npm test
+
+# If any of these fail, fix the issues before committing
+```
+
+This ensures:
+- No ESLint errors or warnings
+- TypeScript compilation succeeds
+- All tests pass
+- 100% code coverage is maintained
+
+## Commit Hooks
+The project uses husky for pre-commit hooks that automatically run:
+- Prettier formatting
+- ESLint checks
+- Tests for changed files
+
+If the pre-commit hook fails, the commit will be aborted. Fix all issues before retrying.
+
+# important-instruction-reminders
+Do what has been asked; nothing more, nothing less.
+NEVER create files unless they're absolutely necessary for achieving your goal.
+ALWAYS prefer editing an existing file to creating a new one.
+NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.

@@ -1,15 +1,16 @@
+import { vi } from 'vitest';
 import { execSync } from 'child_process';
 import { TmuxEnhancer } from '../../../src/sessions/TmuxEnhancer';
 
 // Mock child_process
-jest.mock('child_process');
-jest.mock('../../../src/core/utils/logger');
+vi.mock('child_process');
+vi.mock('../../../src/core/utils/logger');
 
 describe('Tmux bind-key command validation', () => {
-  const mockExecSync = execSync as jest.MockedFunction<typeof execSync>;
+  const mockExecSync = execSync as vi.MockedFunction<typeof execSync>;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockExecSync.mockReturnValue(Buffer.from(''));
   });
 

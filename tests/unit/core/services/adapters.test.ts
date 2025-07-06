@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/unbound-method */
+import { vi } from 'vitest';
 import {
   GitServiceAdapter,
   TmuxServiceAdapter,
@@ -17,39 +18,39 @@ import type { GitWorktreeInfo } from '../../../../src/types';
 
 describe('Service Adapters', () => {
   describe('GitServiceAdapter', () => {
-    let mockGitRepo: jest.Mocked<IGitRepository>;
-    let mockWorktreeManager: jest.Mocked<IWorktreeManager>;
-    let mockErrorBoundary: jest.Mocked<IErrorBoundary>;
-    let mockLogger: jest.Mocked<ILogger>;
+    let mockGitRepo: vi.Mocked<IGitRepository>;
+    let mockWorktreeManager: vi.Mocked<IWorktreeManager>;
+    let mockErrorBoundary: vi.Mocked<IErrorBoundary>;
+    let mockLogger: vi.Mocked<ILogger>;
     let adapter: GitServiceAdapter;
 
     beforeEach(() => {
       mockGitRepo = {
-        getCurrentBranch: jest.fn(),
-        getDefaultBranch: jest.fn(),
-        initializeBareRepository: jest.fn(),
-        convertToWorktreeSetup: jest.fn(),
-        canConvertToWorktree: jest.fn(),
-        fetch: jest.fn(),
+        getCurrentBranch: vi.fn(),
+        getDefaultBranch: vi.fn(),
+        initializeBareRepository: vi.fn(),
+        convertToWorktreeSetup: vi.fn(),
+        canConvertToWorktree: vi.fn(),
+        fetch: vi.fn(),
       };
 
       mockWorktreeManager = {
-        listWorktrees: jest.fn(),
-        addWorktree: jest.fn(),
-        removeWorktree: jest.fn(),
+        listWorktrees: vi.fn(),
+        addWorktree: vi.fn(),
+        removeWorktree: vi.fn(),
       };
 
       mockErrorBoundary = {
-        handle: jest.fn(),
-        handleSync: jest.fn(),
+        handle: vi.fn(),
+        handleSync: vi.fn(),
       };
 
       mockLogger = {
-        info: jest.fn(),
-        error: jest.fn(),
-        warn: jest.fn(),
-        debug: jest.fn(),
-        verbose: jest.fn(),
+        info: vi.fn(),
+        error: vi.fn(),
+        warn: vi.fn(),
+        debug: vi.fn(),
+        verbose: vi.fn(),
       };
 
       adapter = new GitServiceAdapter(
@@ -147,35 +148,35 @@ describe('Service Adapters', () => {
   });
 
   describe('TmuxServiceAdapter', () => {
-    let mockTmuxManager: jest.Mocked<ITmuxManager>;
-    let mockErrorBoundary: jest.Mocked<IErrorBoundary>;
-    let mockLogger: jest.Mocked<ILogger>;
+    let mockTmuxManager: vi.Mocked<ITmuxManager>;
+    let mockErrorBoundary: vi.Mocked<IErrorBoundary>;
+    let mockLogger: vi.Mocked<ILogger>;
     let adapter: TmuxServiceAdapter;
 
     beforeEach(() => {
       mockTmuxManager = {
-        isTmuxAvailable: jest.fn(),
-        isInsideTmux: jest.fn(),
-        getSessionInfo: jest.fn(),
-        listSessions: jest.fn(),
-        launchSession: jest.fn(),
-        createDetachedSession: jest.fn(),
-        attachToSession: jest.fn(),
-        killSession: jest.fn(),
-        shutdownAll: jest.fn(),
+        isTmuxAvailable: vi.fn(),
+        isInsideTmux: vi.fn(),
+        getSessionInfo: vi.fn(),
+        listSessions: vi.fn(),
+        launchSession: vi.fn(),
+        createDetachedSession: vi.fn(),
+        attachToSession: vi.fn(),
+        killSession: vi.fn(),
+        shutdownAll: vi.fn(),
       };
 
       mockErrorBoundary = {
-        handle: jest.fn(),
-        handleSync: jest.fn(),
+        handle: vi.fn(),
+        handleSync: vi.fn(),
       };
 
       mockLogger = {
-        info: jest.fn(),
-        error: jest.fn(),
-        warn: jest.fn(),
-        debug: jest.fn(),
-        verbose: jest.fn(),
+        info: vi.fn(),
+        error: vi.fn(),
+        warn: vi.fn(),
+        debug: vi.fn(),
+        verbose: vi.fn(),
       };
 
       adapter = new TmuxServiceAdapter(mockTmuxManager, mockErrorBoundary, mockLogger);
@@ -252,13 +253,13 @@ describe('Service Adapters', () => {
   });
 
   describe('CachingAdapter', () => {
-    let mockService: { getData: jest.Mock; getDataWithArgs: jest.Mock };
+    let mockService: { getData: vi.Mock; getDataWithArgs: vi.Mock };
     let cachingAdapter: CachingAdapter<typeof mockService>;
 
     beforeEach(() => {
       mockService = {
-        getData: jest.fn(),
-        getDataWithArgs: jest.fn(),
+        getData: vi.fn(),
+        getDataWithArgs: vi.fn(),
       };
       cachingAdapter = new CachingAdapter(mockService, 1000); // 1 second TTL
     });
@@ -343,12 +344,12 @@ describe('Service Adapters', () => {
   });
 
   describe('RetryAdapter', () => {
-    let mockService: { unreliableMethod: jest.Mock };
+    let mockService: { unreliableMethod: vi.Mock };
     let retryAdapter: RetryAdapter<typeof mockService>;
 
     beforeEach(() => {
       mockService = {
-        unreliableMethod: jest.fn(),
+        unreliableMethod: vi.fn(),
       };
       retryAdapter = new RetryAdapter(mockService, 2, 10); // 2 retries, 10ms delay
     });
@@ -427,7 +428,7 @@ describe('Service Adapters', () => {
 
   describe('Adapter composition', () => {
     it('should compose caching and retry adapters', async () => {
-      const mockService = { getData: jest.fn() };
+      const mockService = { getData: vi.fn() };
 
       // Wrap with retry first, then caching
       const retryAdapter = new RetryAdapter(mockService, 2, 10);

@@ -1,31 +1,40 @@
+import { vi } from 'vitest';
 import { TmuxEnhancer } from '../../../src/sessions/TmuxEnhancer';
 import type { StatusBarConfig } from '../../../src/sessions/TmuxEnhancer';
 import { TmuxDriver } from '../../../src/core/drivers/TmuxDriver';
-import { Logger } from '../../../src/core/utils/logger';
 
-jest.mock('../../../src/core/drivers/TmuxDriver');
-jest.mock('../../../src/core/utils/logger');
+vi.mock('../../../src/core/drivers/TmuxDriver');
+
+// Mock logger
+const mockLogger = {
+  info: vi.fn(),
+  error: vi.fn(),
+  debug: vi.fn(),
+  warn: vi.fn(),
+};
+
+vi.mock('../../../src/core/utils/logger', () => ({
+  Logger: mockLogger,
+}));
 
 describe('TmuxEnhancer', () => {
-  const mockLogger = Logger as jest.Mocked<typeof Logger>;
-
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     // Mock all TmuxDriver methods to return successful results
-    (TmuxDriver.setOption as jest.Mock).mockResolvedValue({ code: 0, stdout: '', stderr: '' });
-    (TmuxDriver.setWindowOption as jest.Mock).mockResolvedValue({
+    (TmuxDriver.setOption as vi.Mock).mockResolvedValue({ code: 0, stdout: '', stderr: '' });
+    (TmuxDriver.setWindowOption as vi.Mock).mockResolvedValue({
       code: 0,
       stdout: '',
       stderr: '',
     });
-    (TmuxDriver.bindKey as jest.Mock).mockResolvedValue({ code: 0, stdout: '', stderr: '' });
-    (TmuxDriver.unbindKey as jest.Mock).mockResolvedValue({ code: 0, stdout: '', stderr: '' });
-    (TmuxDriver.setHook as jest.Mock).mockResolvedValue({ code: 0, stdout: '', stderr: '' });
-    (TmuxDriver.createWindow as jest.Mock).mockResolvedValue({ code: 0, stdout: '', stderr: '' });
-    (TmuxDriver.killPane as jest.Mock).mockResolvedValue({ code: 0, stdout: '', stderr: '' });
-    (TmuxDriver.splitPane as jest.Mock).mockResolvedValue({ code: 0, stdout: '', stderr: '' });
-    (TmuxDriver.setPaneTitle as jest.Mock).mockResolvedValue({ code: 0, stdout: '', stderr: '' });
-    (TmuxDriver.sendKeys as jest.Mock).mockResolvedValue({ code: 0, stdout: '', stderr: '' });
+    (TmuxDriver.bindKey as vi.Mock).mockResolvedValue({ code: 0, stdout: '', stderr: '' });
+    (TmuxDriver.unbindKey as vi.Mock).mockResolvedValue({ code: 0, stdout: '', stderr: '' });
+    (TmuxDriver.setHook as vi.Mock).mockResolvedValue({ code: 0, stdout: '', stderr: '' });
+    (TmuxDriver.createWindow as vi.Mock).mockResolvedValue({ code: 0, stdout: '', stderr: '' });
+    (TmuxDriver.killPane as vi.Mock).mockResolvedValue({ code: 0, stdout: '', stderr: '' });
+    (TmuxDriver.splitPane as vi.Mock).mockResolvedValue({ code: 0, stdout: '', stderr: '' });
+    (TmuxDriver.setPaneTitle as vi.Mock).mockResolvedValue({ code: 0, stdout: '', stderr: '' });
+    (TmuxDriver.sendKeys as vi.Mock).mockResolvedValue({ code: 0, stdout: '', stderr: '' });
   });
 
   describe('configureSession', () => {
@@ -56,7 +65,7 @@ describe('TmuxEnhancer', () => {
     it.skip('should handle configuration errors gracefully', async () => {
       // TODO: Fix this test - mock setup is causing immediate errors
       // Reset the mock to throw an error for this specific test
-      (TmuxDriver.setOption as jest.Mock)
+      (TmuxDriver.setOption as vi.Mock)
         .mockReset()
         .mockRejectedValue(new Error('tmux command failed'));
 
@@ -132,7 +141,7 @@ describe('TmuxEnhancer', () => {
 
     it.skip('should handle comparison layout errors', () => {
       // TODO: Fix this test - mock setup is causing immediate errors
-      (TmuxDriver.createWindow as jest.Mock).mockRejectedValue(new Error('tmux error'));
+      (TmuxDriver.createWindow as vi.Mock).mockRejectedValue(new Error('tmux error'));
 
       expect(() => {
         TmuxEnhancer.createComparisonLayout('cgwt-test', ['main', 'feature'], 'test');
@@ -154,7 +163,7 @@ describe('TmuxEnhancer', () => {
 
     it.skip('should handle toggle errors', () => {
       // TODO: Fix this test - mock setup is causing immediate errors
-      (TmuxDriver.setWindowOption as jest.Mock).mockRejectedValue(new Error('tmux error'));
+      (TmuxDriver.setWindowOption as vi.Mock).mockRejectedValue(new Error('tmux error'));
 
       const result = TmuxEnhancer.toggleSynchronizedPanes('cgwt-test');
 
@@ -198,7 +207,7 @@ describe('TmuxEnhancer', () => {
 
     it.skip('should handle dashboard errors', () => {
       // TODO: Fix this test - mock setup is causing immediate errors
-      (TmuxDriver.createWindow as jest.Mock).mockRejectedValue(new Error('tmux error'));
+      (TmuxDriver.createWindow as vi.Mock).mockRejectedValue(new Error('tmux error'));
 
       expect(() => {
         TmuxEnhancer.createDashboardWindow('cgwt-test', ['main'], '/path/to/worktrees');

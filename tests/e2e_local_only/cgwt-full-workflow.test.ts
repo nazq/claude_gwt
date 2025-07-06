@@ -1,6 +1,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
+import { vi } from 'vitest';
 import { ClaudeGWTApp } from '../../src/cli/ClaudeGWTApp';
 import { GitRepository } from '../../src/core/git/GitRepository';
 import { WorktreeManager } from '../../src/core/git/WorktreeManager';
@@ -9,15 +10,15 @@ import { execCommandSafe } from '../../src/core/utils/async';
 import { Logger } from '../../src/core/utils/logger';
 
 // For these e2e tests, we only mock process.exit to prevent test runner from exiting
-jest.spyOn(process, 'exit').mockImplementation((() => {
+vi.spyOn(process, 'exit').mockImplementation((() => {
   throw new Error('process.exit called');
 }) as never);
 
 // Silence logs during tests unless debugging
 if (!process.env['DEBUG']) {
-  jest.spyOn(Logger, 'info').mockImplementation();
-  jest.spyOn(Logger, 'debug').mockImplementation();
-  jest.spyOn(Logger, 'warn').mockImplementation();
+  vi.spyOn(Logger, 'info').mockImplementation();
+  vi.spyOn(Logger, 'debug').mockImplementation();
+  vi.spyOn(Logger, 'warn').mockImplementation();
 }
 
 /**
@@ -43,6 +44,12 @@ describe('Claude GWT Full E2E Workflow', () => {
     tmuxAvailable = await TmuxManager.isTmuxAvailable();
     if (!tmuxAvailable) {
       console.log('⚠️  Tmux not available - some tests will be skipped');
+    }
+
+    // Skip tmux tests if requested via env var
+    if (process.env['SKIP_TMUX_TESTS'] === 'true') {
+      console.log('⚠️  SKIP_TMUX_TESTS=true - tmux tests will be skipped');
+      tmuxAvailable = false;
     }
 
     // Set up git config for tests

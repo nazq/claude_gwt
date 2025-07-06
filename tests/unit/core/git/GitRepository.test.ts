@@ -1,10 +1,11 @@
+import { vi } from 'vitest';
 import { GitRepository } from '../../../../src/core/git/GitRepository';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { simpleGit } from 'simple-git';
 import os from 'os';
 
-jest.mock('simple-git');
+vi.mock('simple-git');
 
 describe('GitRepository', () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -19,29 +20,29 @@ describe('GitRepository', () => {
 
     // Setup mock git
     mockGit = {
-      init: jest.fn().mockResolvedValue(undefined),
-      clone: jest.fn().mockResolvedValue(undefined),
-      raw: jest.fn().mockResolvedValue('refs/heads/main'),
-      branch: jest.fn().mockResolvedValue({ all: ['main', 'master'] }),
-      fetch: jest.fn().mockResolvedValue(undefined),
-      status: jest.fn().mockResolvedValue({
+      init: vi.fn().mockResolvedValue(undefined),
+      clone: vi.fn().mockResolvedValue(undefined),
+      raw: vi.fn().mockResolvedValue('refs/heads/main'),
+      branch: vi.fn().mockResolvedValue({ all: ['main', 'master'] }),
+      fetch: vi.fn().mockResolvedValue(undefined),
+      status: vi.fn().mockResolvedValue({
         current: 'main',
         // eslint-disable-next-line @typescript-eslint/no-unsafe-return
         isClean: () => true,
       }),
-      addRemote: jest.fn().mockResolvedValue(undefined),
-      subModule: jest.fn().mockRejectedValue(new Error('No submodules')),
-      getRemotes: jest.fn().mockResolvedValue([]),
+      addRemote: vi.fn().mockResolvedValue(undefined),
+      subModule: vi.fn().mockRejectedValue(new Error('No submodules')),
+      getRemotes: vi.fn().mockResolvedValue([]),
     };
 
-    (simpleGit as jest.Mock).mockReturnValue(mockGit);
+    (simpleGit as vi.Mock).mockReturnValue(mockGit);
     repo = new GitRepository(testDir);
   });
 
   afterEach(async () => {
     // Clean up test directory
     await fs.rm(testDir, { recursive: true, force: true });
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('canConvertToWorktree', () => {
@@ -141,14 +142,14 @@ describe('GitRepository', () => {
 
       // Mock the worktree git instance
       const mockWorktreeGit = {
-        init: jest.fn().mockResolvedValue(undefined),
-        addRemote: jest.fn().mockResolvedValue(undefined),
-        fetch: jest.fn().mockResolvedValue(undefined),
-        raw: jest.fn().mockResolvedValue(undefined),
+        init: vi.fn().mockResolvedValue(undefined),
+        addRemote: vi.fn().mockResolvedValue(undefined),
+        fetch: vi.fn().mockResolvedValue(undefined),
+        raw: vi.fn().mockResolvedValue(undefined),
       };
 
       // Return different git instances based on path
-      (simpleGit as jest.Mock).mockImplementation((path) => {
+      (simpleGit as vi.Mock).mockImplementation((path) => {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
         if (path.includes('.bare')) {
           return mockWorktreeGit;
@@ -179,12 +180,12 @@ describe('GitRepository', () => {
 
       // Mock fetch to fail
       const mockWorktreeGit = {
-        init: jest.fn().mockResolvedValue(undefined),
-        addRemote: jest.fn().mockResolvedValue(undefined),
-        fetch: jest.fn().mockRejectedValue(new Error('Network error')),
+        init: vi.fn().mockResolvedValue(undefined),
+        addRemote: vi.fn().mockResolvedValue(undefined),
+        fetch: vi.fn().mockRejectedValue(new Error('Network error')),
       };
 
-      (simpleGit as jest.Mock).mockImplementation((path) => {
+      (simpleGit as vi.Mock).mockImplementation((path) => {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
         if (path.includes('.bare')) {
           return mockWorktreeGit;

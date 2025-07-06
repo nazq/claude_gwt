@@ -1,4 +1,4 @@
 // Mock for figlet
-module.exports = {
+export default {
   textSync: (text) => text,
 };

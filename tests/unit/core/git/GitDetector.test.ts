@@ -1,31 +1,32 @@
+import { vi } from 'vitest';
 import { GitDetector } from '../../../../src/core/git/GitDetector';
 import { promises as fs } from 'fs';
 import { simpleGit } from 'simple-git';
 import type { DirectoryState } from '../../../../src/types';
 
-jest.mock('fs', () => ({
+vi.mock('fs', () => ({
   promises: {
-    readdir: jest.fn(),
-    stat: jest.fn(),
-    readFile: jest.fn(),
-    access: jest.fn(),
-    mkdir: jest.fn(),
+    readdir: vi.fn(),
+    stat: vi.fn(),
+    readFile: vi.fn(),
+    access: vi.fn(),
+    mkdir: vi.fn(),
   },
 }));
 
-jest.mock('simple-git');
+vi.mock('simple-git');
 
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument */
 describe('GitDetector', () => {
-  const mockFs = fs as jest.Mocked<typeof fs>;
+  const mockFs = fs as vi.Mocked<typeof fs>;
   const mockGit = {
-    status: jest.fn(),
-    getRemotes: jest.fn(),
+    status: vi.fn(),
+    getRemotes: vi.fn(),
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
-    (simpleGit as jest.Mock).mockReturnValue(mockGit);
+    vi.clearAllMocks();
+    (simpleGit as vi.Mock).mockReturnValue(mockGit);
   });
 
   describe('detectState', () => {

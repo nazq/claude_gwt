@@ -1,7 +1,7 @@
 import inquirer from 'inquirer';
 import path from 'path';
-import { theme } from './theme';
-import type { GitWorktreeInfo } from '../../types';
+import { theme } from './theme.js';
+import type { GitWorktreeInfo } from '../../types/index.js';
 
 export async function promptForRepoUrl(): Promise<string> {
   const { repoUrl } = await inquirer.prompt<{ repoUrl: string }>([

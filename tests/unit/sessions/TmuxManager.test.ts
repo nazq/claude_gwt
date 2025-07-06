@@ -1,11 +1,12 @@
+import { vi } from 'vitest';
 import * as fs from 'fs';
 import { TmuxManager } from '../../../src/sessions/TmuxManager';
 import { TmuxEnhancer } from '../../../src/sessions/TmuxEnhancer';
 import type { SessionConfig } from '../../../src/sessions/TmuxManager';
 
 // Mock child_process
-jest.mock('child_process', () => ({
-  spawnSync: jest.fn().mockReturnValue({
+vi.mock('child_process', () => ({
+  spawnSync: vi.fn().mockReturnValue({
     status: 0,
     signal: null,
     pid: 1234,
@@ -16,55 +17,55 @@ jest.mock('child_process', () => ({
 }));
 
 // Mock fs
-jest.mock('fs', () => ({
+vi.mock('fs', () => ({
   promises: {
-    writeFile: jest.fn().mockResolvedValue(undefined),
+    writeFile: vi.fn().mockResolvedValue(undefined),
   },
-  existsSync: jest.fn().mockReturnValue(true),
-  writeFileSync: jest.fn(),
+  existsSync: vi.fn().mockReturnValue(true),
+  writeFileSync: vi.fn(),
 }));
 
 // Mock logger
-jest.mock('../../../src/core/utils/logger');
+vi.mock('../../../src/core/utils/logger');
 
 // Mock TmuxEnhancer
-jest.mock('../../../src/sessions/TmuxEnhancer');
+vi.mock('../../../src/sessions/TmuxEnhancer');
 
 // Mock TmuxDriver
-jest.mock('../../../src/core/drivers/TmuxDriver', () => ({
+vi.mock('../../../src/core/drivers/TmuxDriver', () => ({
   TmuxDriver: {
-    isAvailable: jest.fn().mockResolvedValue(true),
-    isInsideTmux: jest.fn().mockReturnValue(false),
-    getSession: jest.fn().mockResolvedValue(null),
-    isPaneRunningCommand: jest.fn().mockResolvedValue(false),
-    createSession: jest.fn().mockResolvedValue(undefined),
-    createWindow: jest.fn().mockResolvedValue(undefined),
-    killSession: jest.fn().mockResolvedValue(undefined),
-    listSessions: jest.fn().mockResolvedValue([]),
-    setOption: jest.fn().mockResolvedValue(undefined),
-    getOption: jest.fn().mockResolvedValue(null),
-    sendKeys: jest.fn().mockResolvedValue(undefined),
-    switchClient: jest.fn().mockResolvedValue(undefined),
+    isAvailable: vi.fn().mockResolvedValue(true),
+    isInsideTmux: vi.fn().mockReturnValue(false),
+    getSession: vi.fn().mockResolvedValue(null),
+    isPaneRunningCommand: vi.fn().mockResolvedValue(false),
+    createSession: vi.fn().mockResolvedValue(undefined),
+    createWindow: vi.fn().mockResolvedValue(undefined),
+    killSession: vi.fn().mockResolvedValue(undefined),
+    listSessions: vi.fn().mockResolvedValue([]),
+    setOption: vi.fn().mockResolvedValue(undefined),
+    getOption: vi.fn().mockResolvedValue(null),
+    sendKeys: vi.fn().mockResolvedValue(undefined),
+    switchClient: vi.fn().mockResolvedValue(undefined),
   },
 }));
 
 // Mock ConfigManager
-jest.mock('../../../src/core/ConfigManager', () => ({
+vi.mock('../../../src/core/ConfigManager', () => ({
   ConfigManager: {
-    getInstance: jest.fn(() => ({
-      getContext: jest.fn().mockReturnValue('test context'),
-      get: jest.fn(),
-      set: jest.fn(),
+    getInstance: vi.fn(() => ({
+      getContext: vi.fn().mockReturnValue('test context'),
+      get: vi.fn(),
+      set: vi.fn(),
     })),
   },
 }));
 
 describe('TmuxManager', () => {
-  const mockFs = fs as jest.Mocked<typeof fs>;
-  const mockProcessExit = jest.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+  const mockFs = fs as vi.Mocked<typeof fs>;
+  const mockProcessExit = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     delete process.env['TMUX'];
   });
 
@@ -443,7 +444,7 @@ describe('TmuxManager', () => {
 
   describe('toggleSynchronizedPanes', () => {
     it('should toggle pane synchronization', () => {
-      (TmuxEnhancer.toggleSynchronizedPanes as jest.Mock).mockReturnValue(true);
+      (TmuxEnhancer.toggleSynchronizedPanes as vi.Mock).mockReturnValue(true);
 
       const result = TmuxManager.toggleSynchronizedPanes('cgwt-repo-main');
 
@@ -457,7 +458,7 @@ describe('TmuxManager', () => {
       const mockLayouts = [
         { name: 'test', description: 'test layout', branches: [], layout: 'tiled' as const },
       ];
-      (TmuxEnhancer.getPredefinedLayouts as jest.Mock).mockReturnValue(mockLayouts);
+      (TmuxEnhancer.getPredefinedLayouts as vi.Mock).mockReturnValue(mockLayouts);
 
       const layouts = TmuxManager.getPredefinedLayouts();
 

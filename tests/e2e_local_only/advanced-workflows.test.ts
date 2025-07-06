@@ -1,6 +1,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
+import { vi } from 'vitest';
 import { GitRepository } from '../../src/core/git/GitRepository';
 import { WorktreeManager } from '../../src/core/git/WorktreeManager';
 import { TmuxManager } from '../../src/sessions/TmuxManager';
@@ -8,15 +9,15 @@ import { execCommandSafe } from '../../src/core/utils/async';
 import { Logger } from '../../src/core/utils/logger';
 
 // Only mock process.exit
-jest.spyOn(process, 'exit').mockImplementation((() => {
+vi.spyOn(process, 'exit').mockImplementation((() => {
   throw new Error('process.exit called');
 }) as never);
 
 // Silence logs
 if (!process.env['DEBUG']) {
-  jest.spyOn(Logger, 'info').mockImplementation();
-  jest.spyOn(Logger, 'debug').mockImplementation();
-  jest.spyOn(Logger, 'warn').mockImplementation();
+  vi.spyOn(Logger, 'info').mockImplementation();
+  vi.spyOn(Logger, 'debug').mockImplementation();
+  vi.spyOn(Logger, 'warn').mockImplementation();
 }
 
 /**
@@ -30,6 +31,12 @@ describe('Advanced Workflows E2E', () => {
 
   beforeAll(async () => {
     tmuxAvailable = await TmuxManager.isTmuxAvailable();
+
+    // Skip tmux tests if requested via env var
+    if (process.env['SKIP_TMUX_TESTS'] === 'true') {
+      console.log('⚠️  SKIP_TMUX_TESTS=true - tmux tests will be skipped');
+      tmuxAvailable = false;
+    }
 
     // Set up git config for tests
     await execCommandSafe('git', ['config', '--global', 'user.email', 'test@example.com']);
