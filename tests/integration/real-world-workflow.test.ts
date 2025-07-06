@@ -1,11 +1,11 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
-import { GitRepository } from '../../src/core/git/GitRepository';
-import { WorktreeManager } from '../../src/core/git/WorktreeManager';
-import { GitDetector } from '../../src/core/git/GitDetector';
-import { TmuxManager } from '../../src/sessions/TmuxManager';
-import { itSkipCI } from '../helpers/ci-helper';
+import { GitRepository } from '../../src/core/git/GitRepository.js';
+import { WorktreeManager } from '../../src/core/git/WorktreeManager.js';
+import { GitDetector } from '../../src/core/git/GitDetector.js';
+import { TmuxManager } from '../../src/sessions/TmuxManager.js';
+import { itSkipCI } from '../helpers/ci-helper.js';
 
 describe('Real-World Workflow Integration', () => {
   let testDir: string;

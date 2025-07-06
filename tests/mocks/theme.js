@@ -29,5 +29,4 @@ const theme = {
   },
 };
 
-module.exports = { theme };
-module.exports.theme = theme;
+export { theme };

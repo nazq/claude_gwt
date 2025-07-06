@@ -1,47 +1,49 @@
+import { vi } from 'vitest';
 import { ClaudeGWTApp } from '../../../src/cli/ClaudeGWTApp';
 import * as prompts from '../../../src/cli/ui/prompts';
 import { GitDetector } from '../../../src/core/git/GitDetector';
 import { GitRepository } from '../../../src/core/git/GitRepository';
+import { WorktreeManager } from '../../../src/core/git/WorktreeManager';
 import { TmuxManager } from '../../../src/sessions/TmuxManager';
 import type { DirectoryState } from '../../../src/types';
 import simpleGit from 'simple-git';
 
 // Mock all dependencies
-jest.mock('../../../src/cli/ui/banner');
-jest.mock('../../../src/cli/ui/prompts');
-jest.mock('../../../src/cli/ui/spinner');
-jest.mock('../../../src/core/git/GitDetector');
-jest.mock('../../../src/core/git/GitRepository');
-jest.mock('../../../src/core/git/WorktreeManager');
-jest.mock('../../../src/sessions/TmuxManager');
-jest.mock('../../../src/core/utils/logger');
-jest.mock('simple-git');
+vi.mock('../../../src/cli/ui/banner');
+vi.mock('../../../src/cli/ui/prompts');
+vi.mock('../../../src/cli/ui/spinner');
+vi.mock('../../../src/core/git/GitDetector');
+vi.mock('../../../src/core/git/GitRepository');
+vi.mock('../../../src/core/git/WorktreeManager');
+vi.mock('../../../src/sessions/TmuxManager');
+vi.mock('../../../src/core/utils/logger');
+vi.mock('simple-git');
 
 describe('ClaudeGWTApp - Regular Git Mode', () => {
-  const mockGitDetector = GitDetector as jest.MockedClass<typeof GitDetector>;
-  const mockGitRepository = GitRepository as jest.MockedClass<typeof GitRepository>;
-  const mockSimpleGit = simpleGit as jest.MockedFunction<typeof simpleGit>;
-  const mockConsoleLog = jest.spyOn(console, 'log').mockImplementation();
-  const mockConsoleError = jest.spyOn(console, 'error').mockImplementation();
-  jest.spyOn(process, 'exit').mockImplementation((() => {
+  const mockGitDetector = GitDetector as vi.MockedClass<typeof GitDetector>;
+  const mockGitRepository = GitRepository as vi.MockedClass<typeof GitRepository>;
+  const mockSimpleGit = simpleGit as vi.MockedFunction<typeof simpleGit>;
+  const mockConsoleLog = vi.spyOn(console, 'log').mockImplementation();
+  const mockConsoleError = vi.spyOn(console, 'error').mockImplementation();
+  vi.spyOn(process, 'exit').mockImplementation((() => {
     throw new Error('process.exit called');
   }) as never);
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     // Mock console methods
     mockConsoleLog.mockImplementation();
     mockConsoleError.mockImplementation();
 
     // Mock TmuxManager static methods
-    jest.spyOn(TmuxManager, 'launchSession').mockResolvedValue(undefined);
-    jest.spyOn(TmuxManager, 'getSessionName').mockReturnValue('cgwt-test-main');
+    vi.spyOn(TmuxManager, 'launchSession').mockResolvedValue(undefined);
+    vi.spyOn(TmuxManager, 'getSessionName').mockReturnValue('cgwt-test-main');
   });
 
   describe('handleRegularGitMode', () => {
     it('should handle regular git mode with switch branch action', async () => {
-      const mockDetectState = jest.fn().mockResolvedValue({
+      const mockDetectState = vi.fn().mockResolvedValue({
         type: 'git-repo',
         path: '/test/repo',
         gitInfo: {
@@ -60,29 +62,29 @@ describe('ClaudeGWTApp - Regular Git Mode', () => {
       });
 
       // Mock user declining conversion
-      jest.spyOn(prompts, 'confirmAction').mockResolvedValueOnce(false);
+      vi.spyOn(prompts, 'confirmAction').mockResolvedValueOnce(false);
 
       // Mock getCurrentBranch
       mockGitRepository.prototype.getCurrentBranch.mockResolvedValue('main');
 
       // Mock simple-git branch info
       const mockGit = {
-        branch: jest.fn().mockResolvedValue({
+        branch: vi.fn().mockResolvedValue({
           all: ['main', 'feature', 'remotes/origin/main'],
           current: 'main',
         }),
-        checkout: jest.fn().mockResolvedValue(undefined),
-        checkoutLocalBranch: jest.fn().mockResolvedValue(undefined),
+        checkout: vi.fn().mockResolvedValue(undefined),
+        checkoutLocalBranch: vi.fn().mockResolvedValue(undefined),
       };
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any
       mockSimpleGit.mockReturnValue(mockGit as any);
 
       // Mock switch branch action
-      jest.spyOn(prompts, 'selectAction').mockResolvedValue('switch');
-      jest.spyOn(prompts, 'selectBranch').mockResolvedValue('feature');
+      vi.spyOn(prompts, 'selectAction').mockResolvedValue('switch');
+      vi.spyOn(prompts, 'selectBranch').mockResolvedValue('feature');
 
       // Mock decline launching supervisor
-      jest.spyOn(prompts, 'confirmAction').mockResolvedValueOnce(false);
+      vi.spyOn(prompts, 'confirmAction').mockResolvedValueOnce(false);
 
       const app = new ClaudeGWTApp('/test/repo', { interactive: true });
       await app.run();
@@ -92,7 +94,7 @@ describe('ClaudeGWTApp - Regular Git Mode', () => {
     });
 
     it('should handle regular git mode with create branch action', async () => {
-      const mockDetectState = jest.fn().mockResolvedValue({
+      const mockDetectState = vi.fn().mockResolvedValue({
         type: 'git-repo',
         path: '/test/repo',
         gitInfo: {
@@ -111,8 +113,7 @@ describe('ClaudeGWTApp - Regular Git Mode', () => {
       });
 
       // Mock user declining conversion first, then confirming supervisor launch
-      jest
-        .spyOn(prompts, 'confirmAction')
+      vi.spyOn(prompts, 'confirmAction')
         .mockResolvedValueOnce(false) // decline conversion
         .mockResolvedValueOnce(true); // confirm launching supervisor
 
@@ -121,19 +122,19 @@ describe('ClaudeGWTApp - Regular Git Mode', () => {
 
       // Mock simple-git branch info
       const mockGit = {
-        branch: jest.fn().mockResolvedValue({
+        branch: vi.fn().mockResolvedValue({
           all: ['main', 'remotes/origin/main'],
           current: 'main',
         }),
-        checkout: jest.fn().mockResolvedValue(undefined),
-        checkoutLocalBranch: jest.fn().mockResolvedValue(undefined),
+        checkout: vi.fn().mockResolvedValue(undefined),
+        checkoutLocalBranch: vi.fn().mockResolvedValue(undefined),
       };
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any
       mockSimpleGit.mockReturnValue(mockGit as any);
 
       // Mock create branch action
-      jest.spyOn(prompts, 'selectAction').mockResolvedValue('create');
-      jest.spyOn(prompts, 'promptForBranchName').mockResolvedValue('new-feature');
+      vi.spyOn(prompts, 'selectAction').mockResolvedValue('create');
+      vi.spyOn(prompts, 'promptForBranchName').mockResolvedValue('new-feature');
 
       const app = new ClaudeGWTApp('/test/repo', { interactive: true });
 
@@ -148,7 +149,7 @@ describe('ClaudeGWTApp - Regular Git Mode', () => {
     });
 
     it('should handle regular git mode with supervisor action', async () => {
-      const mockDetectState = jest.fn().mockResolvedValue({
+      const mockDetectState = vi.fn().mockResolvedValue({
         type: 'git-repo',
         path: '/test/repo',
         gitInfo: {
@@ -167,14 +168,14 @@ describe('ClaudeGWTApp - Regular Git Mode', () => {
       });
 
       // Mock user declining conversion
-      jest.spyOn(prompts, 'confirmAction').mockResolvedValueOnce(false);
+      vi.spyOn(prompts, 'confirmAction').mockResolvedValueOnce(false);
 
       // Mock getCurrentBranch
       mockGitRepository.prototype.getCurrentBranch.mockResolvedValue('main');
 
       // Mock simple-git branch info
       const mockGit = {
-        branch: jest.fn().mockResolvedValue({
+        branch: vi.fn().mockResolvedValue({
           all: ['main', 'remotes/origin/main'],
           current: 'main',
         }),
@@ -183,10 +184,10 @@ describe('ClaudeGWTApp - Regular Git Mode', () => {
       mockSimpleGit.mockReturnValue(mockGit as any);
 
       // Mock supervisor action
-      jest.spyOn(prompts, 'selectAction').mockResolvedValue('supervisor');
+      vi.spyOn(prompts, 'selectAction').mockResolvedValue('supervisor');
 
       // Override the default mock to simulate real behavior - tmux launches and exits
-      jest.spyOn(TmuxManager, 'launchSession').mockImplementation(async () => {
+      vi.spyOn(TmuxManager, 'launchSession').mockImplementation(async () => {
         process.exit(0);
       });
 
@@ -206,7 +207,7 @@ describe('ClaudeGWTApp - Regular Git Mode', () => {
     });
 
     it('should handle regular git mode with convert action', async () => {
-      const mockDetectState = jest.fn().mockResolvedValue({
+      const mockDetectState = vi.fn().mockResolvedValue({
         type: 'git-repo',
         path: '/test/repo',
         gitInfo: {
@@ -225,8 +226,7 @@ describe('ClaudeGWTApp - Regular Git Mode', () => {
       });
 
       // Mock user declining conversion first time, then accepting second time
-      jest
-        .spyOn(prompts, 'confirmAction')
+      vi.spyOn(prompts, 'confirmAction')
         .mockResolvedValueOnce(false) // decline conversion first time
         .mockResolvedValueOnce(true); // accept conversion second time
 
@@ -235,7 +235,7 @@ describe('ClaudeGWTApp - Regular Git Mode', () => {
 
       // Mock simple-git branch info
       const mockGit = {
-        branch: jest.fn().mockResolvedValue({
+        branch: vi.fn().mockResolvedValue({
           all: ['main', 'remotes/origin/main'],
           current: 'main',
         }),
@@ -244,7 +244,7 @@ describe('ClaudeGWTApp - Regular Git Mode', () => {
       mockSimpleGit.mockReturnValue(mockGit as any);
 
       // Mock convert action
-      jest.spyOn(prompts, 'selectAction').mockResolvedValue('convert');
+      vi.spyOn(prompts, 'selectAction').mockResolvedValue('convert');
 
       // Mock successful conversion
       mockGitRepository.prototype.convertToWorktreeSetup.mockResolvedValue({
@@ -253,10 +253,7 @@ describe('ClaudeGWTApp - Regular Git Mode', () => {
       });
 
       // Mock WorktreeManager for handleGitWorktree
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-var-requires, @typescript-eslint/no-unsafe-member-access
-      const WorktreeManager = require('../../../src/core/git/WorktreeManager').WorktreeManager;
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      WorktreeManager.prototype.listWorktrees = jest.fn().mockResolvedValue([
+      vi.mocked(WorktreeManager).prototype.listWorktrees = vi.fn().mockResolvedValue([
         {
           path: '/test/repo/main',
           branch: 'main',
@@ -267,7 +264,7 @@ describe('ClaudeGWTApp - Regular Git Mode', () => {
       ]);
 
       // Mock worktree action prompt to exit
-      jest.spyOn(prompts, 'promptForWorktreeAction').mockResolvedValue('exit');
+      vi.spyOn(prompts, 'promptForWorktreeAction').mockResolvedValue('exit');
 
       const app = new ClaudeGWTApp('/test/repo', { interactive: true });
 
@@ -280,7 +277,7 @@ describe('ClaudeGWTApp - Regular Git Mode', () => {
     });
 
     it('should handle branch switch error', async () => {
-      const mockDetectState = jest.fn().mockResolvedValue({
+      const mockDetectState = vi.fn().mockResolvedValue({
         type: 'git-repo',
         path: '/test/repo',
         gitInfo: {
@@ -299,25 +296,25 @@ describe('ClaudeGWTApp - Regular Git Mode', () => {
       });
 
       // Mock user declining conversion
-      jest.spyOn(prompts, 'confirmAction').mockResolvedValueOnce(false);
+      vi.spyOn(prompts, 'confirmAction').mockResolvedValueOnce(false);
 
       // Mock getCurrentBranch
       mockGitRepository.prototype.getCurrentBranch.mockResolvedValue('main');
 
       // Mock simple-git branch info
       const mockGit = {
-        branch: jest.fn().mockResolvedValue({
+        branch: vi.fn().mockResolvedValue({
           all: ['main', 'feature', 'remotes/origin/main'],
           current: 'main',
         }),
-        checkout: jest.fn().mockRejectedValue(new Error('Branch checkout failed')),
+        checkout: vi.fn().mockRejectedValue(new Error('Branch checkout failed')),
       };
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any
       mockSimpleGit.mockReturnValue(mockGit as any);
 
       // Mock switch branch action
-      jest.spyOn(prompts, 'selectAction').mockResolvedValue('switch');
-      jest.spyOn(prompts, 'selectBranch').mockResolvedValue('feature');
+      vi.spyOn(prompts, 'selectAction').mockResolvedValue('switch');
+      vi.spyOn(prompts, 'selectBranch').mockResolvedValue('feature');
 
       const app = new ClaudeGWTApp('/test/repo', { interactive: true });
       await app.run();
@@ -329,7 +326,7 @@ describe('ClaudeGWTApp - Regular Git Mode', () => {
     });
 
     it('should handle create branch error', async () => {
-      const mockDetectState = jest.fn().mockResolvedValue({
+      const mockDetectState = vi.fn().mockResolvedValue({
         type: 'git-repo',
         path: '/test/repo',
         gitInfo: {
@@ -348,25 +345,25 @@ describe('ClaudeGWTApp - Regular Git Mode', () => {
       });
 
       // Mock user declining conversion
-      jest.spyOn(prompts, 'confirmAction').mockResolvedValueOnce(false);
+      vi.spyOn(prompts, 'confirmAction').mockResolvedValueOnce(false);
 
       // Mock getCurrentBranch
       mockGitRepository.prototype.getCurrentBranch.mockResolvedValue('main');
 
       // Mock simple-git branch info
       const mockGit = {
-        branch: jest.fn().mockResolvedValue({
+        branch: vi.fn().mockResolvedValue({
           all: ['main', 'remotes/origin/main'],
           current: 'main',
         }),
-        checkoutLocalBranch: jest.fn().mockRejectedValue(new Error('Branch already exists')),
+        checkoutLocalBranch: vi.fn().mockRejectedValue(new Error('Branch already exists')),
       };
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any
       mockSimpleGit.mockReturnValue(mockGit as any);
 
       // Mock create branch action
-      jest.spyOn(prompts, 'selectAction').mockResolvedValue('create');
-      jest.spyOn(prompts, 'promptForBranchName').mockResolvedValue('existing-branch');
+      vi.spyOn(prompts, 'selectAction').mockResolvedValue('create');
+      vi.spyOn(prompts, 'promptForBranchName').mockResolvedValue('existing-branch');
 
       const app = new ClaudeGWTApp('/test/repo', { interactive: true });
       await app.run();
@@ -378,7 +375,7 @@ describe('ClaudeGWTApp - Regular Git Mode', () => {
     });
 
     it('should handle empty branch name in create action', async () => {
-      const mockDetectState = jest.fn().mockResolvedValue({
+      const mockDetectState = vi.fn().mockResolvedValue({
         type: 'git-repo',
         path: '/test/repo',
         gitInfo: {
@@ -397,25 +394,25 @@ describe('ClaudeGWTApp - Regular Git Mode', () => {
       });
 
       // Mock user declining conversion
-      jest.spyOn(prompts, 'confirmAction').mockResolvedValueOnce(false);
+      vi.spyOn(prompts, 'confirmAction').mockResolvedValueOnce(false);
 
       // Mock getCurrentBranch
       mockGitRepository.prototype.getCurrentBranch.mockResolvedValue('main');
 
       // Mock simple-git branch info
       const mockGit = {
-        branch: jest.fn().mockResolvedValue({
+        branch: vi.fn().mockResolvedValue({
           all: ['main', 'remotes/origin/main'],
           current: 'main',
         }),
-        checkoutLocalBranch: jest.fn(),
+        checkoutLocalBranch: vi.fn(),
       };
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any
       mockSimpleGit.mockReturnValue(mockGit as any);
 
       // Mock create branch action with empty name
-      jest.spyOn(prompts, 'selectAction').mockResolvedValue('create');
-      jest.spyOn(prompts, 'promptForBranchName').mockResolvedValue('');
+      vi.spyOn(prompts, 'selectAction').mockResolvedValue('create');
+      vi.spyOn(prompts, 'promptForBranchName').mockResolvedValue('');
 
       const app = new ClaudeGWTApp('/test/repo', { interactive: true });
       await app.run();
@@ -425,7 +422,7 @@ describe('ClaudeGWTApp - Regular Git Mode', () => {
     });
 
     it('should handle cancel in branch switch', async () => {
-      const mockDetectState = jest.fn().mockResolvedValue({
+      const mockDetectState = vi.fn().mockResolvedValue({
         type: 'git-repo',
         path: '/test/repo',
         gitInfo: {
@@ -444,25 +441,25 @@ describe('ClaudeGWTApp - Regular Git Mode', () => {
       });
 
       // Mock user declining conversion
-      jest.spyOn(prompts, 'confirmAction').mockResolvedValueOnce(false);
+      vi.spyOn(prompts, 'confirmAction').mockResolvedValueOnce(false);
 
       // Mock getCurrentBranch
       mockGitRepository.prototype.getCurrentBranch.mockResolvedValue('main');
 
       // Mock simple-git branch info
       const mockGit = {
-        branch: jest.fn().mockResolvedValue({
+        branch: vi.fn().mockResolvedValue({
           all: ['main', 'feature', 'remotes/origin/main'],
           current: 'main',
         }),
-        checkout: jest.fn(),
+        checkout: vi.fn(),
       };
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any
       mockSimpleGit.mockReturnValue(mockGit as any);
 
       // Mock switch branch action with cancel
-      jest.spyOn(prompts, 'selectAction').mockResolvedValue('switch');
-      jest.spyOn(prompts, 'selectBranch').mockResolvedValue('cancel');
+      vi.spyOn(prompts, 'selectAction').mockResolvedValue('switch');
+      vi.spyOn(prompts, 'selectBranch').mockResolvedValue('cancel');
 
       const app = new ClaudeGWTApp('/test/repo', { interactive: true });
       await app.run();
@@ -474,7 +471,7 @@ describe('ClaudeGWTApp - Regular Git Mode', () => {
 
   describe('error handling', () => {
     it('should handle launchTmuxSession error', async () => {
-      const mockDetectState = jest.fn().mockResolvedValue({
+      const mockDetectState = vi.fn().mockResolvedValue({
         type: 'git-repo',
         path: '/test/repo',
         gitInfo: {
@@ -493,14 +490,14 @@ describe('ClaudeGWTApp - Regular Git Mode', () => {
       });
 
       // Mock user declining conversion
-      jest.spyOn(prompts, 'confirmAction').mockResolvedValueOnce(false);
+      vi.spyOn(prompts, 'confirmAction').mockResolvedValueOnce(false);
 
       // Mock getCurrentBranch
       mockGitRepository.prototype.getCurrentBranch.mockResolvedValue('main');
 
       // Mock simple-git branch info
       const mockGit = {
-        branch: jest.fn().mockResolvedValue({
+        branch: vi.fn().mockResolvedValue({
           all: ['main', 'remotes/origin/main'],
           current: 'main',
         }),
@@ -509,12 +506,12 @@ describe('ClaudeGWTApp - Regular Git Mode', () => {
       mockSimpleGit.mockReturnValue(mockGit as any);
 
       // Mock supervisor action
-      jest.spyOn(prompts, 'selectAction').mockResolvedValue('supervisor');
+      vi.spyOn(prompts, 'selectAction').mockResolvedValue('supervisor');
 
       // Override the default mock to reject with an error
-      jest
-        .spyOn(TmuxManager, 'launchSession')
-        .mockImplementation(() => Promise.reject(new Error('Failed to launch tmux session')));
+      vi.spyOn(TmuxManager, 'launchSession').mockImplementation(() =>
+        Promise.reject(new Error('Failed to launch tmux session')),
+      );
 
       const app = new ClaudeGWTApp('/test/repo', { interactive: true });
 
@@ -531,7 +528,7 @@ describe('ClaudeGWTApp - Regular Git Mode', () => {
 
   describe('shutdownAllSessions error handling', () => {
     it('should handle shutdown error gracefully', async () => {
-      const mockDetectState = jest.fn().mockResolvedValue({
+      const mockDetectState = vi.fn().mockResolvedValue({
         type: 'git-worktree',
         path: '/test/worktree',
         gitInfo: {
@@ -544,7 +541,7 @@ describe('ClaudeGWTApp - Regular Git Mode', () => {
       mockGitDetector.prototype.detectState = mockDetectState;
 
       // Mock WorktreeManager
-      const mockListWorktrees = jest.fn().mockResolvedValue([
+      const mockListWorktrees = vi.fn().mockResolvedValue([
         {
           path: '/test/parent/main',
           branch: 'main',
@@ -554,19 +551,15 @@ describe('ClaudeGWTApp - Regular Git Mode', () => {
         },
       ]);
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-var-requires, @typescript-eslint/no-unsafe-member-access
-      const WorktreeManager = require('../../../src/core/git/WorktreeManager').WorktreeManager;
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      WorktreeManager.prototype.listWorktrees = mockListWorktrees;
+      vi.mocked(WorktreeManager).prototype.listWorktrees = mockListWorktrees;
 
       // Mock shutdown action selection
-      jest
-        .spyOn(prompts, 'promptForWorktreeAction')
+      vi.spyOn(prompts, 'promptForWorktreeAction')
         .mockResolvedValueOnce('shutdown')
         .mockResolvedValueOnce('exit');
 
       // Mock sessions exist
-      (TmuxManager.listSessions as jest.Mock) = jest.fn().mockReturnValue([
+      (TmuxManager.listSessions as vi.Mock) = vi.fn().mockReturnValue([
         {
           name: 'cgwt-test-main',
           windows: 1,
@@ -577,7 +570,7 @@ describe('ClaudeGWTApp - Regular Git Mode', () => {
       ]);
 
       // Mock shutdown failure
-      (TmuxManager.shutdownAll as jest.Mock) = jest.fn().mockImplementation(() => {
+      (TmuxManager.shutdownAll as vi.Mock) = vi.fn().mockImplementation(() => {
         throw new Error('Failed to shutdown');
       });
 

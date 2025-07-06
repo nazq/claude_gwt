@@ -1,15 +1,16 @@
-import { TmuxDriver } from '../../../../src/core/drivers/TmuxDriver';
-import * as asyncUtils from '../../../../src/core/utils/async';
+import { vi } from 'vitest';
+import { TmuxDriver } from '../../../src/sessions/TmuxDriver';
+import * as asyncUtils from '../../../src/core/utils/async';
 
-jest.mock('../../../../src/core/utils/async');
+vi.mock('../../../src/core/utils/async');
 
 describe('TmuxDriver', () => {
-  const mockExecCommandSafe = asyncUtils.execCommandSafe as jest.MockedFunction<
+  const mockExecCommandSafe = asyncUtils.execCommandSafe as vi.MockedFunction<
     typeof asyncUtils.execCommandSafe
   >;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('isAvailable', () => {

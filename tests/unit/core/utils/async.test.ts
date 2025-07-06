@@ -1,3 +1,4 @@
+import { vi } from 'vitest';
 import {
   execCommand,
   execCommandSafe,
@@ -122,7 +123,7 @@ describe('Async Utilities', () => {
   describe('retryWithBackoff', () => {
     it('should succeed on first try', async () => {
       let attempts = 0;
-      const fn = jest.fn(() => {
+      const fn = vi.fn(() => {
         attempts++;
         return Promise.resolve('success');
       });
@@ -134,7 +135,7 @@ describe('Async Utilities', () => {
 
     it('should retry on failure', async () => {
       let attempts = 0;
-      const fn = jest.fn(() => {
+      const fn = vi.fn(() => {
         attempts++;
         if (attempts < 3) {
           return Promise.reject(new Error('fail'));
@@ -148,7 +149,7 @@ describe('Async Utilities', () => {
     });
 
     it('should fail after max retries', async () => {
-      const fn = jest.fn(() => Promise.reject(new Error('always fails')));
+      const fn = vi.fn(() => Promise.reject(new Error('always fails')));
 
       await expect(retryWithBackoff(fn, 2, 10)).rejects.toThrow('always fails');
       expect(fn).toHaveBeenCalledTimes(3); // Initial + 2 retries
@@ -158,7 +159,7 @@ describe('Async Utilities', () => {
       let attempts = 0;
       const timestamps: number[] = [];
 
-      const fn = jest.fn(() => {
+      const fn = vi.fn(() => {
         timestamps.push(Date.now());
         attempts++;
         if (attempts < 3) {
@@ -180,15 +181,15 @@ describe('Async Utilities', () => {
 
   describe('debounceAsync', () => {
     beforeEach(() => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
     });
 
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('should debounce multiple calls', async () => {
-      const fn = jest.fn(() => Promise.resolve('result'));
+      const fn = vi.fn(() => Promise.resolve('result'));
       const debounced = debounceAsync(fn, 100);
 
       // Call multiple times quickly
@@ -197,7 +198,7 @@ describe('Async Utilities', () => {
       const promise3 = debounced();
 
       // Fast forward time
-      jest.advanceTimersByTime(100);
+      vi.advanceTimersByTime(100);
 
       // Wait for the promise to resolve
       const result = await promise3;
@@ -206,14 +207,14 @@ describe('Async Utilities', () => {
     });
 
     it('should handle different arguments', async () => {
-      const fn = jest.fn((x: number) => Promise.resolve(x * 2));
+      const fn = vi.fn((x: number) => Promise.resolve(x * 2));
       const debounced = debounceAsync(fn, 100);
 
       debounced(1);
       debounced(2);
       const promise = debounced(3);
 
-      jest.advanceTimersByTime(100);
+      vi.advanceTimersByTime(100);
 
       const result = await promise;
       expect(result).toBe(6); // 3 * 2
@@ -222,24 +223,24 @@ describe('Async Utilities', () => {
     });
 
     it('should cancel pending calls', async () => {
-      const fn = jest.fn(() => Promise.resolve('result'));
+      const fn = vi.fn(() => Promise.resolve('result'));
       const debounced = debounceAsync(fn, 100);
 
       debounced();
       debounced.cancel();
 
-      jest.advanceTimersByTime(100);
+      vi.advanceTimersByTime(100);
 
       expect(fn).not.toHaveBeenCalled();
     });
 
     it('should handle errors', async () => {
-      const fn = jest.fn(() => Promise.reject(new Error('test error')));
+      const fn = vi.fn(() => Promise.reject(new Error('test error')));
       const debounced = debounceAsync(fn, 100);
 
       const promise = debounced();
 
-      jest.advanceTimersByTime(100);
+      vi.advanceTimersByTime(100);
 
       await expect(promise).rejects.toThrow('test error');
     });

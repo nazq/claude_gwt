@@ -1,3 +1,4 @@
+import { vi } from 'vitest';
 import { promises as fs } from 'fs';
 import { ClaudeGWTApp } from '../../../src/cli/ClaudeGWTApp';
 import { GitDetector } from '../../../src/core/git/GitDetector';
@@ -9,14 +10,14 @@ import * as prompts from '../../../src/cli/ui/prompts';
 import type { DirectoryState } from '../../../src/types';
 
 // Mock all dependencies
-jest.mock('../../../src/core/git/GitDetector');
-jest.mock('../../../src/core/git/GitRepository');
-jest.mock('../../../src/core/git/WorktreeManager');
-jest.mock('../../../src/sessions/TmuxManager');
-jest.mock('../../../src/cli/ui/banner');
-jest.mock('../../../src/cli/ui/prompts');
-jest.mock('../../../src/core/utils/logger');
-jest.mock('../../../src/cli/ui/theme', () => {
+vi.mock('../../../src/core/git/GitDetector');
+vi.mock('../../../src/core/git/GitRepository');
+vi.mock('../../../src/core/git/WorktreeManager');
+vi.mock('../../../src/sessions/TmuxManager');
+vi.mock('../../../src/cli/ui/banner');
+vi.mock('../../../src/cli/ui/prompts');
+vi.mock('../../../src/core/utils/logger');
+vi.mock('../../../src/cli/ui/theme', () => {
   const mockTheme = (text: string): string => text;
   return {
     theme: {
@@ -48,89 +49,89 @@ jest.mock('../../../src/cli/ui/theme', () => {
     },
   };
 });
-jest.mock('fs', () => ({
+vi.mock('fs', () => ({
   promises: {
-    readdir: jest.fn(),
-    stat: jest.fn(),
-    access: jest.fn(),
-    readFile: jest.fn(),
-    mkdir: jest.fn(),
+    readdir: vi.fn(),
+    stat: vi.fn(),
+    access: vi.fn(),
+    readFile: vi.fn(),
+    mkdir: vi.fn(),
   },
 }));
-jest.mock('simple-git', () => ({
-  simpleGit: jest.fn(() => ({
-    branch: jest.fn().mockResolvedValue({ all: ['main', 'feature-1'], current: 'main' }),
-    checkout: jest.fn().mockResolvedValue(undefined),
-    checkoutLocalBranch: jest.fn().mockResolvedValue(undefined),
+vi.mock('simple-git', () => ({
+  simpleGit: vi.fn(() => ({
+    branch: vi.fn().mockResolvedValue({ all: ['main', 'feature-1'], current: 'main' }),
+    checkout: vi.fn().mockResolvedValue(undefined),
+    checkoutLocalBranch: vi.fn().mockResolvedValue(undefined),
   })),
 }));
 
 // Mock console methods
-const mockConsoleLog = jest.spyOn(console, 'log').mockImplementation();
-const mockConsoleError = jest.spyOn(console, 'error').mockImplementation();
-const mockProcessExit = jest.spyOn(process, 'exit').mockImplementation((() => {
+const mockConsoleLog = vi.spyOn(console, 'log').mockImplementation();
+const mockConsoleError = vi.spyOn(console, 'error').mockImplementation();
+const mockProcessExit = vi.spyOn(process, 'exit').mockImplementation((() => {
   throw new Error('process.exit called');
 }) as never);
 
 describe('ClaudeGWTApp', () => {
-  const mockGitDetector = GitDetector as jest.MockedClass<typeof GitDetector>;
-  const mockGitRepository = GitRepository as jest.MockedClass<typeof GitRepository>;
-  const mockWorktreeManager = WorktreeManager as jest.MockedClass<typeof WorktreeManager>;
-  const mockTmuxManager = TmuxManager as jest.MockedClass<typeof TmuxManager>;
-  const mockShowBanner = showBanner as jest.Mock;
+  const mockGitDetector = GitDetector as vi.MockedClass<typeof GitDetector>;
+  const mockGitRepository = GitRepository as vi.MockedClass<typeof GitRepository>;
+  const mockWorktreeManager = WorktreeManager as vi.MockedClass<typeof WorktreeManager>;
+  const mockTmuxManager = TmuxManager as vi.MockedClass<typeof TmuxManager>;
+  const mockShowBanner = showBanner as vi.Mock;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     // Mock filesystem operations
-    (fs.readdir as jest.Mock).mockResolvedValue([]);
-    (fs.stat as jest.Mock).mockResolvedValue({ isDirectory: () => false });
-    (fs.access as jest.Mock).mockRejectedValue(new Error('ENOENT'));
-    (fs.readFile as jest.Mock).mockResolvedValue('');
-    (fs.mkdir as jest.Mock).mockResolvedValue(undefined);
+    (fs.readdir as vi.Mock).mockResolvedValue([]);
+    (fs.stat as vi.Mock).mockResolvedValue({ isDirectory: () => false });
+    (fs.access as vi.Mock).mockRejectedValue(new Error('ENOENT'));
+    (fs.readFile as vi.Mock).mockResolvedValue('');
+    (fs.mkdir as vi.Mock).mockResolvedValue(undefined);
 
     // Mock TmuxManager static methods
-    mockTmuxManager.listSessions = jest.fn().mockReturnValue([]);
-    mockTmuxManager.isTmuxAvailable = jest.fn().mockReturnValue(true);
-    mockTmuxManager.isInsideTmux = jest.fn().mockReturnValue(false);
-    mockTmuxManager.getSessionName = jest.fn().mockReturnValue('test-session');
-    mockTmuxManager.createDetachedSession = jest.fn();
-    mockTmuxManager.launchSession = jest.fn();
-    mockTmuxManager.attachToSession = jest.fn();
-    mockTmuxManager.shutdownAll = jest.fn();
+    mockTmuxManager.listSessions = vi.fn().mockReturnValue([]);
+    mockTmuxManager.isTmuxAvailable = vi.fn().mockReturnValue(true);
+    mockTmuxManager.isInsideTmux = vi.fn().mockReturnValue(false);
+    mockTmuxManager.getSessionName = vi.fn().mockReturnValue('test-session');
+    mockTmuxManager.createDetachedSession = vi.fn();
+    mockTmuxManager.launchSession = vi.fn();
+    mockTmuxManager.attachToSession = vi.fn();
+    mockTmuxManager.shutdownAll = vi.fn();
   });
 
   describe('startup scenarios', () => {
     beforeEach(() => {
       // Set up default mocks for prompts that might be called
-      jest.spyOn(prompts, 'selectAction').mockResolvedValue('exit');
+      vi.spyOn(prompts, 'selectAction').mockResolvedValue('exit');
     });
 
     it('should handle empty directory and prompt for URL', async () => {
-      const mockDetectState = jest.fn().mockResolvedValue({
+      const mockDetectState = vi.fn().mockResolvedValue({
         type: 'empty',
         path: '/test/empty',
       } as DirectoryState);
 
       mockGitDetector.prototype.detectState = mockDetectState;
 
-      const mockPromptForRepoUrl = jest
+      const mockPromptForRepoUrl = vi
         .spyOn(prompts, 'promptForRepoUrl')
         .mockResolvedValue('https://github.com/test/repo.git');
 
-      const mockInitializeBareRepository = jest.fn().mockResolvedValue({ defaultBranch: 'main' });
-      const mockFetch = jest.fn().mockResolvedValue(undefined);
-      const mockGetDefaultBranch = jest.fn().mockResolvedValue('main');
+      const mockInitializeBareRepository = vi.fn().mockResolvedValue({ defaultBranch: 'main' });
+      const mockFetch = vi.fn().mockResolvedValue(undefined);
+      const mockGetDefaultBranch = vi.fn().mockResolvedValue('main');
       mockGitRepository.prototype.initializeBareRepository = mockInitializeBareRepository;
       mockGitRepository.prototype.fetch = mockFetch;
       mockGitRepository.prototype.getDefaultBranch = mockGetDefaultBranch;
 
       // Mock worktree creation for default branch
-      const mockAddWorktree = jest.fn().mockResolvedValue('/test/empty/main');
+      const mockAddWorktree = vi.fn().mockResolvedValue('/test/empty/main');
       mockWorktreeManager.prototype.addWorktree = mockAddWorktree;
 
       // Mock worktree detection after init
-      const mockListWorktrees = jest.fn().mockResolvedValue([
+      const mockListWorktrees = vi.fn().mockResolvedValue([
         {
           path: '/test/empty',
           branch: 'main',
@@ -141,7 +142,7 @@ describe('ClaudeGWTApp', () => {
       ]);
       mockWorktreeManager.prototype.listWorktrees = mockListWorktrees;
 
-      jest.spyOn(prompts, 'promptForWorktreeAction').mockResolvedValue('exit');
+      vi.spyOn(prompts, 'promptForWorktreeAction').mockResolvedValue('exit');
 
       const app = new ClaudeGWTApp('/test/empty', { interactive: true });
       await app.run();
@@ -156,25 +157,25 @@ describe('ClaudeGWTApp', () => {
     });
 
     it('should handle empty directory with local init', async () => {
-      const mockDetectState = jest.fn().mockResolvedValue({
+      const mockDetectState = vi.fn().mockResolvedValue({
         type: 'empty',
         path: '/test/empty',
       } as DirectoryState);
 
       mockGitDetector.prototype.detectState = mockDetectState;
 
-      jest.spyOn(prompts, 'promptForRepoUrl').mockResolvedValue(''); // Empty string = local init
+      vi.spyOn(prompts, 'promptForRepoUrl').mockResolvedValue(''); // Empty string = local init
 
-      const mockInitializeBareRepository = jest.fn().mockResolvedValue({ defaultBranch: 'main' });
-      const mockGetDefaultBranch = jest.fn().mockResolvedValue('main');
+      const mockInitializeBareRepository = vi.fn().mockResolvedValue({ defaultBranch: 'main' });
+      const mockGetDefaultBranch = vi.fn().mockResolvedValue('main');
       mockGitRepository.prototype.initializeBareRepository = mockInitializeBareRepository;
       mockGitRepository.prototype.getDefaultBranch = mockGetDefaultBranch;
 
       // Mock worktree creation for default branch
-      const mockAddWorktree = jest.fn().mockResolvedValue('/test/empty/main');
+      const mockAddWorktree = vi.fn().mockResolvedValue('/test/empty/main');
       mockWorktreeManager.prototype.addWorktree = mockAddWorktree;
 
-      const mockListWorktrees = jest.fn().mockResolvedValue([
+      const mockListWorktrees = vi.fn().mockResolvedValue([
         {
           path: '/test/empty',
           branch: 'main',
@@ -185,7 +186,7 @@ describe('ClaudeGWTApp', () => {
       ]);
       mockWorktreeManager.prototype.listWorktrees = mockListWorktrees;
 
-      jest.spyOn(prompts, 'promptForWorktreeAction').mockResolvedValue('exit');
+      vi.spyOn(prompts, 'promptForWorktreeAction').mockResolvedValue('exit');
 
       const app = new ClaudeGWTApp('/test/empty', { interactive: true });
       await app.run();
@@ -197,7 +198,7 @@ describe('ClaudeGWTApp', () => {
     });
 
     it('should handle existing git worktree', async () => {
-      const mockDetectState = jest.fn().mockResolvedValue({
+      const mockDetectState = vi.fn().mockResolvedValue({
         type: 'git-worktree',
         path: '/test/worktree',
         gitInfo: {
@@ -209,7 +210,7 @@ describe('ClaudeGWTApp', () => {
 
       mockGitDetector.prototype.detectState = mockDetectState;
 
-      const mockListWorktrees = jest.fn().mockResolvedValue([
+      const mockListWorktrees = vi.fn().mockResolvedValue([
         {
           path: '/test/worktree',
           branch: 'feature-x',
@@ -227,7 +228,7 @@ describe('ClaudeGWTApp', () => {
       ]);
       mockWorktreeManager.prototype.listWorktrees = mockListWorktrees;
 
-      jest.spyOn(prompts, 'promptForWorktreeAction').mockResolvedValue('exit');
+      vi.spyOn(prompts, 'promptForWorktreeAction').mockResolvedValue('exit');
 
       const app = new ClaudeGWTApp('/test/worktree', { interactive: true });
       await app.run();
@@ -242,7 +243,7 @@ describe('ClaudeGWTApp', () => {
     });
 
     it('should handle non-empty non-git directory with subdirectory creation', async () => {
-      const mockDetectState = jest.fn().mockResolvedValue({
+      const mockDetectState = vi.fn().mockResolvedValue({
         type: 'non-git',
         path: '/test/nonempty',
       } as DirectoryState);
@@ -250,25 +251,23 @@ describe('ClaudeGWTApp', () => {
       mockGitDetector.prototype.detectState = mockDetectState;
 
       // Mock user choosing to create subdirectory
-      jest.spyOn(prompts, 'confirmAction').mockResolvedValue(true);
-      jest.spyOn(prompts, 'promptForRepoUrl').mockResolvedValue('https://github.com/user/repo.git');
-      jest.spyOn(prompts, 'promptForSubdirectoryName').mockResolvedValue('my-project');
+      vi.spyOn(prompts, 'confirmAction').mockResolvedValue(true);
+      vi.spyOn(prompts, 'promptForRepoUrl').mockResolvedValue('https://github.com/user/repo.git');
+      vi.spyOn(prompts, 'promptForSubdirectoryName').mockResolvedValue('my-project');
 
       // Mock fs operations
-      jest.spyOn(fs, 'access').mockRejectedValue(new Error('ENOENT'));
-      const mockMkdir = jest.spyOn(fs, 'mkdir').mockResolvedValue(undefined);
+      vi.spyOn(fs, 'access').mockRejectedValue(new Error('ENOENT'));
+      const mockMkdir = vi.spyOn(fs, 'mkdir').mockResolvedValue(undefined);
 
       // Mock the subdirectory app run method
-      const mockSubAppRun = jest.fn().mockResolvedValue(undefined);
+      const mockSubAppRun = vi.fn().mockResolvedValue(undefined);
 
       // Store original run method
       // eslint-disable-next-line @typescript-eslint/unbound-method
       const originalRun = ClaudeGWTApp.prototype.run;
 
       // Replace run method to check if it's the subdirectory instance
-      ClaudeGWTApp.prototype.run = jest.fn().mockImplementation(async function (
-        this: ClaudeGWTApp,
-      ) {
+      ClaudeGWTApp.prototype.run = vi.fn().mockImplementation(async function (this: ClaudeGWTApp) {
         // @ts-expect-error Accessing private property for testing
         if (this.basePath === '/test/nonempty/my-project') {
           // This is the subdirectory app, just resolve
@@ -296,7 +295,7 @@ describe('ClaudeGWTApp', () => {
     });
 
     it('should handle non-empty non-git directory without subdirectory', async () => {
-      const mockDetectState = jest.fn().mockResolvedValue({
+      const mockDetectState = vi.fn().mockResolvedValue({
         type: 'non-git',
         path: '/test/nonempty',
       } as DirectoryState);
@@ -304,7 +303,7 @@ describe('ClaudeGWTApp', () => {
       mockGitDetector.prototype.detectState = mockDetectState;
 
       // Mock user choosing NOT to create subdirectory
-      jest.spyOn(prompts, 'confirmAction').mockResolvedValue(false);
+      vi.spyOn(prompts, 'confirmAction').mockResolvedValue(false);
 
       const app = new ClaudeGWTApp('/test/nonempty', { interactive: true });
 
@@ -320,7 +319,7 @@ describe('ClaudeGWTApp', () => {
     });
 
     it('should handle regular git repository', async () => {
-      const mockDetectState = jest.fn().mockResolvedValue({
+      const mockDetectState = vi.fn().mockResolvedValue({
         type: 'git-repo',
         path: '/test/repo',
         gitInfo: {
@@ -333,18 +332,17 @@ describe('ClaudeGWTApp', () => {
       mockGitDetector.prototype.detectState = mockDetectState;
 
       // Mock repository can be converted
-      const mockCanConvert = jest.fn().mockResolvedValue({ canConvert: true });
-      const mockGetCurrentBranch = jest.fn().mockResolvedValue('main');
+      const mockCanConvert = vi.fn().mockResolvedValue({ canConvert: true });
+      const mockGetCurrentBranch = vi.fn().mockResolvedValue('main');
       mockGitRepository.prototype.canConvertToWorktree = mockCanConvert;
       mockGitRepository.prototype.getCurrentBranch = mockGetCurrentBranch;
 
-      jest
-        .spyOn(prompts, 'confirmAction')
+      vi.spyOn(prompts, 'confirmAction')
         .mockResolvedValueOnce(false) // Don't convert
         .mockResolvedValueOnce(false); // Don't proceed with limited mode
 
       // Mock selectAction for regular git mode menu
-      jest.spyOn(prompts, 'selectAction').mockResolvedValue('exit');
+      vi.spyOn(prompts, 'selectAction').mockResolvedValue('exit');
 
       const app = new ClaudeGWTApp('/test/repo', { interactive: true });
       await app.run();
@@ -361,7 +359,7 @@ describe('ClaudeGWTApp', () => {
     });
 
     it('should respect quiet mode', async () => {
-      const mockDetectState = jest.fn().mockResolvedValue({
+      const mockDetectState = vi.fn().mockResolvedValue({
         type: 'empty',
         path: '/test/empty',
       } as DirectoryState);
@@ -373,7 +371,7 @@ describe('ClaudeGWTApp', () => {
       // Mock to prevent further execution
       // @ts-expect-error Testing private method
       // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-      jest.spyOn(app, 'handleEmptyDirectory').mockResolvedValue(undefined);
+      vi.spyOn(app, 'handleEmptyDirectory').mockResolvedValue(undefined);
 
       await app.run();
 
@@ -381,7 +379,7 @@ describe('ClaudeGWTApp', () => {
     });
 
     it('should handle errors gracefully', async () => {
-      const mockDetectState = jest.fn().mockRejectedValue(new Error('Detection failed'));
+      const mockDetectState = vi.fn().mockRejectedValue(new Error('Detection failed'));
       mockGitDetector.prototype.detectState = mockDetectState;
 
       const app = new ClaudeGWTApp('/test/path', { interactive: false });
@@ -398,24 +396,24 @@ describe('ClaudeGWTApp', () => {
 
   describe('main branch auto-creation', () => {
     it('should automatically create main branch worktree after cloning', async () => {
-      const mockDetectState = jest.fn().mockResolvedValue({
+      const mockDetectState = vi.fn().mockResolvedValue({
         type: 'empty',
         path: '/test/empty',
       } as DirectoryState);
 
       mockGitDetector.prototype.detectState = mockDetectState;
 
-      jest.spyOn(prompts, 'promptForRepoUrl').mockResolvedValue('https://github.com/test/repo.git');
+      vi.spyOn(prompts, 'promptForRepoUrl').mockResolvedValue('https://github.com/test/repo.git');
 
-      const mockInitializeBareRepository = jest.fn().mockResolvedValue({ defaultBranch: 'main' });
-      const mockFetch = jest.fn().mockResolvedValue(undefined);
+      const mockInitializeBareRepository = vi.fn().mockResolvedValue({ defaultBranch: 'main' });
+      const mockFetch = vi.fn().mockResolvedValue(undefined);
       mockGitRepository.prototype.initializeBareRepository = mockInitializeBareRepository;
       mockGitRepository.prototype.fetch = mockFetch;
 
-      const mockAddWorktree = jest.fn().mockResolvedValue('/test/empty/main');
+      const mockAddWorktree = vi.fn().mockResolvedValue('/test/empty/main');
       mockWorktreeManager.prototype.addWorktree = mockAddWorktree;
 
-      const mockListWorktrees = jest.fn().mockResolvedValue([
+      const mockListWorktrees = vi.fn().mockResolvedValue([
         {
           path: '/test/empty/main',
           branch: 'main',
@@ -426,7 +424,7 @@ describe('ClaudeGWTApp', () => {
       ]);
       mockWorktreeManager.prototype.listWorktrees = mockListWorktrees;
 
-      jest.spyOn(prompts, 'promptForWorktreeAction').mockResolvedValue('exit');
+      vi.spyOn(prompts, 'promptForWorktreeAction').mockResolvedValue('exit');
 
       const app = new ClaudeGWTApp('/test/empty', { interactive: true });
       await app.run();
@@ -454,7 +452,7 @@ describe('ClaudeGWTApp', () => {
 
       // Test that valid URLs are accepted
       for (const url of validUrls) {
-        const mockDetectState = jest.fn().mockResolvedValue({
+        const mockDetectState = vi.fn().mockResolvedValue({
           type: 'empty',
           path: '/test/empty',
         } as DirectoryState);
@@ -462,17 +460,17 @@ describe('ClaudeGWTApp', () => {
         mockGitDetector.prototype.detectState = mockDetectState;
 
         // Mock inquirer to return the URL
-        const mockPrompt = prompts.promptForRepoUrl as jest.Mock;
+        const mockPrompt = prompts.promptForRepoUrl as vi.Mock;
         mockPrompt.mockResolvedValue(url);
 
-        const mockInitializeBareRepository = jest.fn().mockResolvedValue({ defaultBranch: 'main' });
+        const mockInitializeBareRepository = vi.fn().mockResolvedValue({ defaultBranch: 'main' });
         mockGitRepository.prototype.initializeBareRepository = mockInitializeBareRepository;
-        mockGitRepository.prototype.fetch = jest.fn().mockResolvedValue(undefined);
-        mockGitRepository.prototype.getDefaultBranch = jest.fn().mockResolvedValue('main');
+        mockGitRepository.prototype.fetch = vi.fn().mockResolvedValue(undefined);
+        mockGitRepository.prototype.getDefaultBranch = vi.fn().mockResolvedValue('main');
 
         // Mock worktree creation for default branch
-        mockWorktreeManager.prototype.addWorktree = jest.fn().mockResolvedValue('/test/empty/main');
-        mockWorktreeManager.prototype.listWorktrees = jest.fn().mockResolvedValue([
+        mockWorktreeManager.prototype.addWorktree = vi.fn().mockResolvedValue('/test/empty/main');
+        mockWorktreeManager.prototype.listWorktrees = vi.fn().mockResolvedValue([
           {
             path: '/test/empty/main',
             branch: 'main',
@@ -481,7 +479,7 @@ describe('ClaudeGWTApp', () => {
             HEAD: 'abc123',
           },
         ]);
-        jest.spyOn(prompts, 'promptForWorktreeAction').mockResolvedValue('exit');
+        vi.spyOn(prompts, 'promptForWorktreeAction').mockResolvedValue('exit');
 
         const app = new ClaudeGWTApp('/test/empty', { interactive: true });
         await app.run();
@@ -493,22 +491,22 @@ describe('ClaudeGWTApp', () => {
 
   describe('error handling scenarios', () => {
     it('should handle worktree creation failure in empty directory', async () => {
-      const mockDetectState = jest.fn().mockResolvedValue({
+      const mockDetectState = vi.fn().mockResolvedValue({
         type: 'empty',
         path: '/test/empty',
       } as DirectoryState);
 
       mockGitDetector.prototype.detectState = mockDetectState;
 
-      jest.spyOn(prompts, 'promptForRepoUrl').mockResolvedValue('https://github.com/test/repo.git');
+      vi.spyOn(prompts, 'promptForRepoUrl').mockResolvedValue('https://github.com/test/repo.git');
 
-      const mockInitializeBareRepository = jest.fn().mockResolvedValue({ defaultBranch: 'main' });
-      const mockFetch = jest.fn().mockResolvedValue(undefined);
+      const mockInitializeBareRepository = vi.fn().mockResolvedValue({ defaultBranch: 'main' });
+      const mockFetch = vi.fn().mockResolvedValue(undefined);
       mockGitRepository.prototype.initializeBareRepository = mockInitializeBareRepository;
       mockGitRepository.prototype.fetch = mockFetch;
 
       // Mock worktree creation failure
-      const mockAddWorktree = jest.fn().mockRejectedValue(new Error('Worktree creation failed'));
+      const mockAddWorktree = vi.fn().mockRejectedValue(new Error('Worktree creation failed'));
       mockWorktreeManager.prototype.addWorktree = mockAddWorktree;
 
       const app = new ClaudeGWTApp('/test/empty', { interactive: true });
@@ -521,17 +519,17 @@ describe('ClaudeGWTApp', () => {
     });
 
     it('should handle fetch failure during initialization', async () => {
-      const mockDetectState = jest.fn().mockResolvedValue({
+      const mockDetectState = vi.fn().mockResolvedValue({
         type: 'empty',
         path: '/test/empty',
       } as DirectoryState);
 
       mockGitDetector.prototype.detectState = mockDetectState;
 
-      jest.spyOn(prompts, 'promptForRepoUrl').mockResolvedValue('https://github.com/test/repo.git');
+      vi.spyOn(prompts, 'promptForRepoUrl').mockResolvedValue('https://github.com/test/repo.git');
 
-      const mockInitializeBareRepository = jest.fn().mockResolvedValue({ defaultBranch: 'main' });
-      const mockFetch = jest.fn().mockRejectedValue(new Error('Fetch failed'));
+      const mockInitializeBareRepository = vi.fn().mockResolvedValue({ defaultBranch: 'main' });
+      const mockFetch = vi.fn().mockRejectedValue(new Error('Fetch failed'));
       mockGitRepository.prototype.initializeBareRepository = mockInitializeBareRepository;
       mockGitRepository.prototype.fetch = mockFetch;
 
@@ -547,7 +545,7 @@ describe('ClaudeGWTApp', () => {
 
   describe('git repository handling', () => {
     it('should handle git repository that cannot be converted', async () => {
-      const mockDetectState = jest.fn().mockResolvedValue({
+      const mockDetectState = vi.fn().mockResolvedValue({
         type: 'git-repo',
         path: '/test/repo',
         gitInfo: {
@@ -560,13 +558,13 @@ describe('ClaudeGWTApp', () => {
       mockGitDetector.prototype.detectState = mockDetectState;
 
       // Mock repository cannot be converted
-      const mockCanConvert = jest.fn().mockResolvedValue({
+      const mockCanConvert = vi.fn().mockResolvedValue({
         canConvert: false,
         reason: 'Repository has uncommitted changes',
       });
       mockGitRepository.prototype.canConvertToWorktree = mockCanConvert;
 
-      jest.spyOn(prompts, 'confirmAction').mockResolvedValue(false);
+      vi.spyOn(prompts, 'confirmAction').mockResolvedValue(false);
 
       const app = new ClaudeGWTApp('/test/repo', { interactive: true });
       await app.run();
@@ -580,7 +578,7 @@ describe('ClaudeGWTApp', () => {
     });
 
     it('should handle git repository conversion with user proceeding in limited mode', async () => {
-      const mockDetectState = jest.fn().mockResolvedValue({
+      const mockDetectState = vi.fn().mockResolvedValue({
         type: 'git-repo',
         path: '/test/repo',
         gitInfo: {
@@ -592,14 +590,14 @@ describe('ClaudeGWTApp', () => {
 
       mockGitDetector.prototype.detectState = mockDetectState;
 
-      const mockCanConvert = jest.fn().mockResolvedValue({
+      const mockCanConvert = vi.fn().mockResolvedValue({
         canConvert: false,
         reason: 'Repository has uncommitted changes',
       });
       mockGitRepository.prototype.canConvertToWorktree = mockCanConvert;
 
-      jest.spyOn(prompts, 'confirmAction').mockResolvedValue(true);
-      const mockSelectAction = jest.spyOn(prompts, 'selectAction').mockResolvedValue('exit');
+      vi.spyOn(prompts, 'confirmAction').mockResolvedValue(true);
+      const mockSelectAction = vi.spyOn(prompts, 'selectAction').mockResolvedValue('exit');
 
       const app = new ClaudeGWTApp('/test/repo', { interactive: true });
       await app.run();
@@ -611,7 +609,7 @@ describe('ClaudeGWTApp', () => {
     });
 
     it('should handle successful git repository conversion', async () => {
-      const mockDetectState = jest.fn().mockResolvedValue({
+      const mockDetectState = vi.fn().mockResolvedValue({
         type: 'git-repo',
         path: '/test/repo',
         gitInfo: {
@@ -623,15 +621,15 @@ describe('ClaudeGWTApp', () => {
 
       mockGitDetector.prototype.detectState = mockDetectState;
 
-      const mockCanConvert = jest.fn().mockResolvedValue({ canConvert: true });
-      const mockConvertToWorktreeSetup = jest.fn().mockResolvedValue({ defaultBranch: 'main' });
+      const mockCanConvert = vi.fn().mockResolvedValue({ canConvert: true });
+      const mockConvertToWorktreeSetup = vi.fn().mockResolvedValue({ defaultBranch: 'main' });
       mockGitRepository.prototype.canConvertToWorktree = mockCanConvert;
       mockGitRepository.prototype.convertToWorktreeSetup = mockConvertToWorktreeSetup;
 
-      jest.spyOn(prompts, 'confirmAction').mockResolvedValue(true);
+      vi.spyOn(prompts, 'confirmAction').mockResolvedValue(true);
 
       // Mock the subsequent worktree handling
-      const mockListWorktrees = jest.fn().mockResolvedValue([
+      const mockListWorktrees = vi.fn().mockResolvedValue([
         {
           path: '/test/repo',
           branch: 'main',
@@ -641,9 +639,9 @@ describe('ClaudeGWTApp', () => {
         },
       ]);
       mockWorktreeManager.prototype.listWorktrees = mockListWorktrees;
-      mockTmuxManager.listSessions = jest.fn().mockReturnValue([]);
+      mockTmuxManager.listSessions = vi.fn().mockReturnValue([]);
 
-      jest.spyOn(prompts, 'promptForWorktreeAction').mockResolvedValue('exit');
+      vi.spyOn(prompts, 'promptForWorktreeAction').mockResolvedValue('exit');
 
       const app = new ClaudeGWTApp('/test/repo', { interactive: true });
       await app.run();
@@ -655,7 +653,7 @@ describe('ClaudeGWTApp', () => {
     });
 
     it('should handle git repository conversion failure', async () => {
-      const mockDetectState = jest.fn().mockResolvedValue({
+      const mockDetectState = vi.fn().mockResolvedValue({
         type: 'git-repo',
         path: '/test/repo',
         gitInfo: {
@@ -667,14 +665,12 @@ describe('ClaudeGWTApp', () => {
 
       mockGitDetector.prototype.detectState = mockDetectState;
 
-      const mockCanConvert = jest.fn().mockResolvedValue({ canConvert: true });
-      const mockConvertToWorktreeSetup = jest
-        .fn()
-        .mockRejectedValue(new Error('Conversion failed'));
+      const mockCanConvert = vi.fn().mockResolvedValue({ canConvert: true });
+      const mockConvertToWorktreeSetup = vi.fn().mockRejectedValue(new Error('Conversion failed'));
       mockGitRepository.prototype.canConvertToWorktree = mockCanConvert;
       mockGitRepository.prototype.convertToWorktreeSetup = mockConvertToWorktreeSetup;
 
-      jest.spyOn(prompts, 'confirmAction').mockResolvedValue(true);
+      vi.spyOn(prompts, 'confirmAction').mockResolvedValue(true);
 
       const app = new ClaudeGWTApp('/test/repo', { interactive: true });
       await app.run();
@@ -683,7 +679,7 @@ describe('ClaudeGWTApp', () => {
     });
 
     it('should handle user declining conversion and entering limited mode', async () => {
-      const mockDetectState = jest.fn().mockResolvedValue({
+      const mockDetectState = vi.fn().mockResolvedValue({
         type: 'git-repo',
         path: '/test/repo',
         gitInfo: {
@@ -695,11 +691,11 @@ describe('ClaudeGWTApp', () => {
 
       mockGitDetector.prototype.detectState = mockDetectState;
 
-      const mockCanConvert = jest.fn().mockResolvedValue({ canConvert: true });
+      const mockCanConvert = vi.fn().mockResolvedValue({ canConvert: true });
       mockGitRepository.prototype.canConvertToWorktree = mockCanConvert;
 
-      jest.spyOn(prompts, 'confirmAction').mockResolvedValue(false);
-      const mockSelectAction = jest.spyOn(prompts, 'selectAction').mockResolvedValue('exit');
+      vi.spyOn(prompts, 'confirmAction').mockResolvedValue(false);
+      const mockSelectAction = vi.spyOn(prompts, 'selectAction').mockResolvedValue('exit');
 
       const app = new ClaudeGWTApp('/test/repo', { interactive: true });
       await app.run();
@@ -714,13 +710,13 @@ describe('ClaudeGWTApp', () => {
   describe('non-git directory handling', () => {
     it('should handle subdirectory creation flow', async () => {
       // Mock user choosing to create subdirectory
-      jest.spyOn(prompts, 'confirmAction').mockResolvedValue(true);
-      jest.spyOn(prompts, 'promptForRepoUrl').mockResolvedValue('https://github.com/test/repo.git');
-      jest.spyOn(prompts, 'promptForSubdirectoryName').mockResolvedValue('my-project');
+      vi.spyOn(prompts, 'confirmAction').mockResolvedValue(true);
+      vi.spyOn(prompts, 'promptForRepoUrl').mockResolvedValue('https://github.com/test/repo.git');
+      vi.spyOn(prompts, 'promptForSubdirectoryName').mockResolvedValue('my-project');
 
       // Mock fs operations for subdirectory creation
-      (fs.access as jest.Mock).mockRejectedValue(new Error('ENOENT')); // subdirectory doesn't exist
-      const mockMkdir = jest.spyOn(fs, 'mkdir').mockResolvedValue(undefined);
+      (fs.access as vi.Mock).mockRejectedValue(new Error('ENOENT')); // subdirectory doesn't exist
+      const mockMkdir = vi.spyOn(fs, 'mkdir').mockResolvedValue(undefined);
 
       const app = new ClaudeGWTApp('/test/nonempty', { interactive: true });
 
@@ -728,7 +724,7 @@ describe('ClaudeGWTApp', () => {
       // without the subapp creation
       // @ts-expect-error Testing private method
       // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-      jest.spyOn(app, 'handleNonGitDirectory').mockImplementation(async () => {
+      vi.spyOn(app, 'handleNonGitDirectory').mockImplementation(async () => {
         // Call original method logic up to the subapp creation
         console.log('\n❌ Directory is not empty and not a Git repository');
         const createSubdir = await prompts.confirmAction(
@@ -778,19 +774,19 @@ describe('ClaudeGWTApp', () => {
     });
 
     it('should handle subdirectory already exists error', async () => {
-      jest.spyOn(prompts, 'confirmAction').mockResolvedValue(true);
-      jest.spyOn(prompts, 'promptForRepoUrl').mockResolvedValue('https://github.com/test/repo.git');
-      jest.spyOn(prompts, 'promptForSubdirectoryName').mockResolvedValue('existing-project');
+      vi.spyOn(prompts, 'confirmAction').mockResolvedValue(true);
+      vi.spyOn(prompts, 'promptForRepoUrl').mockResolvedValue('https://github.com/test/repo.git');
+      vi.spyOn(prompts, 'promptForSubdirectoryName').mockResolvedValue('existing-project');
 
       // Mock fs.access to succeed (directory exists)
-      (fs.access as jest.Mock).mockResolvedValue(undefined);
+      (fs.access as vi.Mock).mockResolvedValue(undefined);
 
       const app = new ClaudeGWTApp('/test/nonempty', { interactive: true });
 
       // Mock handleNonGitDirectory to test the specific flow
       // @ts-expect-error Testing private method
       // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-      jest.spyOn(app, 'handleNonGitDirectory').mockImplementation(async () => {
+      vi.spyOn(app, 'handleNonGitDirectory').mockImplementation(async () => {
         console.log('\n❌ Directory is not empty and not a Git repository');
         const createSubdir = await prompts.confirmAction(
           'Would you like to clone a Git repository into a subdirectory?',
@@ -825,15 +821,15 @@ describe('ClaudeGWTApp', () => {
     });
 
     it('should handle empty repo URL in subdirectory flow', async () => {
-      jest.spyOn(prompts, 'confirmAction').mockResolvedValue(true);
-      jest.spyOn(prompts, 'promptForRepoUrl').mockResolvedValue('');
+      vi.spyOn(prompts, 'confirmAction').mockResolvedValue(true);
+      vi.spyOn(prompts, 'promptForRepoUrl').mockResolvedValue('');
 
       const app = new ClaudeGWTApp('/test/nonempty', { interactive: true });
 
       // Mock handleNonGitDirectory to test the specific flow
       // @ts-expect-error Testing private method
       // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-      jest.spyOn(app, 'handleNonGitDirectory').mockImplementation(async () => {
+      vi.spyOn(app, 'handleNonGitDirectory').mockImplementation(async () => {
         console.log('\n❌ Directory is not empty and not a Git repository');
         const createSubdir = await prompts.confirmAction(
           'Would you like to clone a Git repository into a subdirectory?',
@@ -861,7 +857,7 @@ describe('ClaudeGWTApp', () => {
 
   describe('worktree scenarios', () => {
     it('should handle empty worktree list and create first branch', async () => {
-      const mockDetectState = jest.fn().mockResolvedValue({
+      const mockDetectState = vi.fn().mockResolvedValue({
         type: 'git-worktree',
         path: '/test/worktree',
         gitInfo: {
@@ -874,7 +870,7 @@ describe('ClaudeGWTApp', () => {
       mockGitDetector.prototype.detectState = mockDetectState;
 
       // First call returns empty, second call returns created worktree
-      const mockListWorktrees = jest
+      const mockListWorktrees = vi
         .fn()
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([
@@ -888,15 +884,15 @@ describe('ClaudeGWTApp', () => {
         ]);
       mockWorktreeManager.prototype.listWorktrees = mockListWorktrees;
 
-      const mockGetDefaultBranch = jest.fn().mockResolvedValue('main');
+      const mockGetDefaultBranch = vi.fn().mockResolvedValue('main');
       mockGitRepository.prototype.getDefaultBranch = mockGetDefaultBranch;
 
-      jest.spyOn(prompts, 'promptForBranchName').mockResolvedValue('main');
-      const mockAddWorktree = jest.fn().mockResolvedValue('/test/worktree/main');
+      vi.spyOn(prompts, 'promptForBranchName').mockResolvedValue('main');
+      const mockAddWorktree = vi.fn().mockResolvedValue('/test/worktree/main');
       mockWorktreeManager.prototype.addWorktree = mockAddWorktree;
 
-      mockTmuxManager.listSessions = jest.fn().mockReturnValue([]);
-      jest.spyOn(prompts, 'promptForWorktreeAction').mockResolvedValue('exit');
+      mockTmuxManager.listSessions = vi.fn().mockReturnValue([]);
+      vi.spyOn(prompts, 'promptForWorktreeAction').mockResolvedValue('exit');
 
       const app = new ClaudeGWTApp('/test/worktree', { interactive: true });
       await app.run();
@@ -909,7 +905,7 @@ describe('ClaudeGWTApp', () => {
     });
 
     it('should handle worktree creation failure for first branch', async () => {
-      const mockDetectState = jest.fn().mockResolvedValue({
+      const mockDetectState = vi.fn().mockResolvedValue({
         type: 'git-worktree',
         path: '/test/worktree',
         gitInfo: {
@@ -921,14 +917,14 @@ describe('ClaudeGWTApp', () => {
 
       mockGitDetector.prototype.detectState = mockDetectState;
 
-      const mockListWorktrees = jest.fn().mockResolvedValue([]);
+      const mockListWorktrees = vi.fn().mockResolvedValue([]);
       mockWorktreeManager.prototype.listWorktrees = mockListWorktrees;
 
-      const mockGetDefaultBranch = jest.fn().mockResolvedValue('main');
+      const mockGetDefaultBranch = vi.fn().mockResolvedValue('main');
       mockGitRepository.prototype.getDefaultBranch = mockGetDefaultBranch;
 
-      jest.spyOn(prompts, 'promptForBranchName').mockResolvedValue('main');
-      const mockAddWorktree = jest.fn().mockRejectedValue(new Error('Failed to create branch'));
+      vi.spyOn(prompts, 'promptForBranchName').mockResolvedValue('main');
+      const mockAddWorktree = vi.fn().mockRejectedValue(new Error('Failed to create branch'));
       mockWorktreeManager.prototype.addWorktree = mockAddWorktree;
 
       const app = new ClaudeGWTApp('/test/worktree', { interactive: true });
@@ -939,7 +935,7 @@ describe('ClaudeGWTApp', () => {
 
   describe('claude-gwt-parent directory type', () => {
     it('should handle claude-gwt-parent same as git-worktree', async () => {
-      const mockDetectState = jest.fn().mockResolvedValue({
+      const mockDetectState = vi.fn().mockResolvedValue({
         type: 'claude-gwt-parent',
         path: '/test/parent',
         gitInfo: {
@@ -951,7 +947,7 @@ describe('ClaudeGWTApp', () => {
 
       mockGitDetector.prototype.detectState = mockDetectState;
 
-      const mockListWorktrees = jest.fn().mockResolvedValue([
+      const mockListWorktrees = vi.fn().mockResolvedValue([
         {
           path: '/test/parent/main',
           branch: 'main',
@@ -962,8 +958,8 @@ describe('ClaudeGWTApp', () => {
       ]);
       mockWorktreeManager.prototype.listWorktrees = mockListWorktrees;
 
-      mockTmuxManager.listSessions = jest.fn().mockReturnValue([]);
-      jest.spyOn(prompts, 'promptForWorktreeAction').mockResolvedValue('exit');
+      mockTmuxManager.listSessions = vi.fn().mockReturnValue([]);
+      vi.spyOn(prompts, 'promptForWorktreeAction').mockResolvedValue('exit');
 
       const app = new ClaudeGWTApp('/test/parent', { interactive: true });
       await app.run();
@@ -1008,11 +1004,11 @@ describe('ClaudeGWTApp', () => {
 
   describe('interactive worktree menu', () => {
     beforeEach(() => {
-      mockTmuxManager.listSessions = jest.fn().mockReturnValue([]);
+      mockTmuxManager.listSessions = vi.fn().mockReturnValue([]);
     });
 
     it('should handle listBranches action', async () => {
-      const mockDetectState = jest.fn().mockResolvedValue({
+      const mockDetectState = vi.fn().mockResolvedValue({
         type: 'git-worktree',
         path: '/test/worktree',
         gitInfo: {
@@ -1041,11 +1037,10 @@ describe('ClaudeGWTApp', () => {
         },
       ];
 
-      const mockListWorktrees = jest.fn().mockResolvedValue(worktrees);
+      const mockListWorktrees = vi.fn().mockResolvedValue(worktrees);
       mockWorktreeManager.prototype.listWorktrees = mockListWorktrees;
 
-      jest
-        .spyOn(prompts, 'promptForWorktreeAction')
+      vi.spyOn(prompts, 'promptForWorktreeAction')
         .mockResolvedValueOnce('list')
         .mockResolvedValueOnce('exit');
 
@@ -1056,7 +1051,7 @@ describe('ClaudeGWTApp', () => {
     });
 
     it('should handle createNewWorktree action', async () => {
-      const mockDetectState = jest.fn().mockResolvedValue({
+      const mockDetectState = vi.fn().mockResolvedValue({
         type: 'git-worktree',
         path: '/test/worktree',
         gitInfo: {
@@ -1078,7 +1073,7 @@ describe('ClaudeGWTApp', () => {
         },
       ];
 
-      const mockListWorktrees = jest
+      const mockListWorktrees = vi
         .fn()
         .mockResolvedValueOnce(worktrees)
         .mockResolvedValueOnce([
@@ -1093,14 +1088,13 @@ describe('ClaudeGWTApp', () => {
         ]);
       mockWorktreeManager.prototype.listWorktrees = mockListWorktrees;
 
-      const mockAddWorktree = jest.fn().mockResolvedValue('/test/worktree-feature');
+      const mockAddWorktree = vi.fn().mockResolvedValue('/test/worktree-feature');
       mockWorktreeManager.prototype.addWorktree = mockAddWorktree;
 
-      jest
-        .spyOn(prompts, 'promptForWorktreeAction')
+      vi.spyOn(prompts, 'promptForWorktreeAction')
         .mockResolvedValueOnce('new')
         .mockResolvedValueOnce('exit');
-      jest.spyOn(prompts, 'promptForBranchName').mockResolvedValue('feature');
+      vi.spyOn(prompts, 'promptForBranchName').mockResolvedValue('feature');
 
       const app = new ClaudeGWTApp('/test/worktree', { interactive: true });
       await app.run();
@@ -1112,7 +1106,7 @@ describe('ClaudeGWTApp', () => {
     });
 
     it('should handle createNewWorktree action with failure', async () => {
-      const mockDetectState = jest.fn().mockResolvedValue({
+      const mockDetectState = vi.fn().mockResolvedValue({
         type: 'git-worktree',
         path: '/test/worktree',
         gitInfo: {
@@ -1134,14 +1128,14 @@ describe('ClaudeGWTApp', () => {
         },
       ];
 
-      const mockListWorktrees = jest.fn().mockResolvedValue(worktrees);
+      const mockListWorktrees = vi.fn().mockResolvedValue(worktrees);
       mockWorktreeManager.prototype.listWorktrees = mockListWorktrees;
 
-      const mockAddWorktree = jest.fn().mockRejectedValue(new Error('Creation failed'));
+      const mockAddWorktree = vi.fn().mockRejectedValue(new Error('Creation failed'));
       mockWorktreeManager.prototype.addWorktree = mockAddWorktree;
 
-      jest.spyOn(prompts, 'promptForWorktreeAction').mockResolvedValue('new');
-      jest.spyOn(prompts, 'promptForBranchName').mockResolvedValue('feature');
+      vi.spyOn(prompts, 'promptForWorktreeAction').mockResolvedValue('new');
+      vi.spyOn(prompts, 'promptForBranchName').mockResolvedValue('feature');
 
       const app = new ClaudeGWTApp('/test/worktree', { interactive: true });
 
@@ -1149,7 +1143,7 @@ describe('ClaudeGWTApp', () => {
     });
 
     it('should handle removeWorktree action', async () => {
-      const mockDetectState = jest.fn().mockResolvedValue({
+      const mockDetectState = vi.fn().mockResolvedValue({
         type: 'git-worktree',
         path: '/test/worktree',
         gitInfo: {
@@ -1178,21 +1172,20 @@ describe('ClaudeGWTApp', () => {
         },
       ];
 
-      const mockListWorktrees = jest
+      const mockListWorktrees = vi
         .fn()
         .mockResolvedValueOnce(worktrees)
         .mockResolvedValueOnce([worktrees[0]]); // After removal
       mockWorktreeManager.prototype.listWorktrees = mockListWorktrees;
 
-      const mockRemoveWorktree = jest.fn().mockResolvedValue(undefined);
+      const mockRemoveWorktree = vi.fn().mockResolvedValue(undefined);
       mockWorktreeManager.prototype.removeWorktree = mockRemoveWorktree;
 
-      jest
-        .spyOn(prompts, 'promptForWorktreeAction')
+      vi.spyOn(prompts, 'promptForWorktreeAction')
         .mockResolvedValueOnce('remove')
         .mockResolvedValueOnce('exit');
-      jest.spyOn(prompts, 'selectWorktree').mockResolvedValue('feature');
-      jest.spyOn(prompts, 'confirmAction').mockResolvedValue(true);
+      vi.spyOn(prompts, 'selectWorktree').mockResolvedValue('feature');
+      vi.spyOn(prompts, 'confirmAction').mockResolvedValue(true);
 
       const app = new ClaudeGWTApp('/test/worktree', { interactive: true });
       await app.run();
@@ -1201,7 +1194,7 @@ describe('ClaudeGWTApp', () => {
     });
 
     it('should handle removeWorktree action with user declining', async () => {
-      const mockDetectState = jest.fn().mockResolvedValue({
+      const mockDetectState = vi.fn().mockResolvedValue({
         type: 'git-worktree',
         path: '/test/worktree',
         gitInfo: {
@@ -1230,18 +1223,17 @@ describe('ClaudeGWTApp', () => {
         },
       ];
 
-      const mockListWorktrees = jest.fn().mockResolvedValue(worktrees);
+      const mockListWorktrees = vi.fn().mockResolvedValue(worktrees);
       mockWorktreeManager.prototype.listWorktrees = mockListWorktrees;
 
-      const mockRemoveWorktree = jest.fn();
+      const mockRemoveWorktree = vi.fn();
       mockWorktreeManager.prototype.removeWorktree = mockRemoveWorktree;
 
-      jest
-        .spyOn(prompts, 'promptForWorktreeAction')
+      vi.spyOn(prompts, 'promptForWorktreeAction')
         .mockResolvedValueOnce('remove')
         .mockResolvedValueOnce('exit');
-      jest.spyOn(prompts, 'selectWorktree').mockResolvedValue('feature');
-      jest.spyOn(prompts, 'confirmAction').mockResolvedValue(false);
+      vi.spyOn(prompts, 'selectWorktree').mockResolvedValue('feature');
+      vi.spyOn(prompts, 'confirmAction').mockResolvedValue(false);
 
       const app = new ClaudeGWTApp('/test/worktree', { interactive: true });
       await app.run();
@@ -1250,7 +1242,7 @@ describe('ClaudeGWTApp', () => {
     });
 
     it('should handle removeWorktree action with failure', async () => {
-      const mockDetectState = jest.fn().mockResolvedValue({
+      const mockDetectState = vi.fn().mockResolvedValue({
         type: 'git-worktree',
         path: '/test/worktree',
         gitInfo: {
@@ -1279,15 +1271,15 @@ describe('ClaudeGWTApp', () => {
         },
       ];
 
-      const mockListWorktrees = jest.fn().mockResolvedValue(worktrees);
+      const mockListWorktrees = vi.fn().mockResolvedValue(worktrees);
       mockWorktreeManager.prototype.listWorktrees = mockListWorktrees;
 
-      const mockRemoveWorktree = jest.fn().mockRejectedValue(new Error('Removal failed'));
+      const mockRemoveWorktree = vi.fn().mockRejectedValue(new Error('Removal failed'));
       mockWorktreeManager.prototype.removeWorktree = mockRemoveWorktree;
 
-      jest.spyOn(prompts, 'promptForWorktreeAction').mockResolvedValue('remove');
-      jest.spyOn(prompts, 'selectWorktree').mockResolvedValue('feature');
-      jest.spyOn(prompts, 'confirmAction').mockResolvedValue(true);
+      vi.spyOn(prompts, 'promptForWorktreeAction').mockResolvedValue('remove');
+      vi.spyOn(prompts, 'selectWorktree').mockResolvedValue('feature');
+      vi.spyOn(prompts, 'confirmAction').mockResolvedValue(true);
 
       const app = new ClaudeGWTApp('/test/worktree', { interactive: true });
 
@@ -1295,7 +1287,7 @@ describe('ClaudeGWTApp', () => {
     });
 
     it('should handle supervisor mode action', async () => {
-      const mockDetectState = jest.fn().mockResolvedValue({
+      const mockDetectState = vi.fn().mockResolvedValue({
         type: 'git-worktree',
         path: '/test/worktree/feature',
         gitInfo: {
@@ -1317,25 +1309,23 @@ describe('ClaudeGWTApp', () => {
         },
       ];
 
-      const mockListWorktrees = jest.fn().mockResolvedValue(worktrees);
+      const mockListWorktrees = vi.fn().mockResolvedValue(worktrees);
       mockWorktreeManager.prototype.listWorktrees = mockListWorktrees;
 
       // Mock TmuxManager methods for supervisor mode
-      mockTmuxManager.getSessionName = jest.fn().mockReturnValue('cgwt-test-supervisor');
-      mockTmuxManager.launchSession = jest.fn();
-      mockTmuxManager.createDetachedSession = jest.fn();
-      mockTmuxManager.isInsideTmux = jest.fn().mockReturnValue(true); // Force the launchTmuxSession path
+      mockTmuxManager.getSessionName = vi.fn().mockReturnValue('cgwt-test-supervisor');
+      mockTmuxManager.launchSession = vi.fn();
+      mockTmuxManager.createDetachedSession = vi.fn();
+      mockTmuxManager.isInsideTmux = vi.fn().mockReturnValue(true); // Force the launchTmuxSession path
 
-      jest
-        .spyOn(prompts, 'promptForWorktreeAction')
+      vi.spyOn(prompts, 'promptForWorktreeAction')
         .mockResolvedValueOnce('supervisor')
         .mockResolvedValueOnce('exit');
 
       const app = new ClaudeGWTApp('/test/worktree/feature', { interactive: true });
 
       // Mock the additional GitDetector calls for supervisor mode
-      jest
-        .spyOn(GitDetector.prototype, 'detectState')
+      vi.spyOn(GitDetector.prototype, 'detectState')
         .mockResolvedValueOnce({
           type: 'git-worktree',
           path: '/test/worktree/feature',
@@ -1371,7 +1361,7 @@ describe('ClaudeGWTApp', () => {
     });
 
     it('should handle shutdown action', async () => {
-      const mockDetectState = jest.fn().mockResolvedValue({
+      const mockDetectState = vi.fn().mockResolvedValue({
         type: 'git-worktree',
         path: '/test/worktree',
         gitInfo: {
@@ -1393,10 +1383,10 @@ describe('ClaudeGWTApp', () => {
         },
       ];
 
-      const mockListWorktrees = jest.fn().mockResolvedValue(worktrees);
+      const mockListWorktrees = vi.fn().mockResolvedValue(worktrees);
       mockWorktreeManager.prototype.listWorktrees = mockListWorktrees;
 
-      mockTmuxManager.listSessions = jest.fn().mockReturnValue([
+      mockTmuxManager.listSessions = vi.fn().mockReturnValue([
         {
           name: 'cgwt-test-main',
           windows: 1,
@@ -1405,10 +1395,9 @@ describe('ClaudeGWTApp', () => {
           hasClaudeRunning: true,
         },
       ]);
-      mockTmuxManager.shutdownAll = jest.fn();
+      mockTmuxManager.shutdownAll = vi.fn();
 
-      jest
-        .spyOn(prompts, 'promptForWorktreeAction')
+      vi.spyOn(prompts, 'promptForWorktreeAction')
         .mockResolvedValueOnce('shutdown')
         .mockResolvedValueOnce('exit');
 

@@ -28,9 +28,8 @@ export class StructuredLogger {
     // For testing: Use pino-test for proper test logging
     const isTest =
       process.env['NODE_ENV'] === 'test' ||
-      process.env['JEST_WORKER_ID'] !== undefined ||
-      process.env['NODE_ENV'] === 'testing' ||
-      typeof jest !== 'undefined';
+      process.env['VITEST'] !== undefined ||
+      process.env['NODE_ENV'] === 'testing';
 
     const pinoOptions: pino.LoggerOptions = {
       name: options?.name ?? 'claude-gwt',

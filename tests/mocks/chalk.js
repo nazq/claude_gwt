@@ -12,5 +12,4 @@ const chalk = {
   dim: mockStyle,
 };
 
-module.exports = chalk;
-module.exports.default = chalk;
+export default chalk;

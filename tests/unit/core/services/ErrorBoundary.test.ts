@@ -1,25 +1,26 @@
+import { vi } from 'vitest';
 import { ErrorBoundary } from '../../../../src/core/services/ErrorBoundary';
 
 // Mock logger
 const mockLogger = {
-  info: jest.fn(),
-  error: jest.fn(),
-  warn: jest.fn(),
-  debug: jest.fn(),
-  verbose: jest.fn(),
+  info: vi.fn(),
+  error: vi.fn(),
+  warn: vi.fn(),
+  debug: vi.fn(),
+  verbose: vi.fn(),
 };
 
 describe('ErrorBoundary', () => {
   let errorBoundary: ErrorBoundary;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     errorBoundary = new ErrorBoundary(mockLogger);
   });
 
   describe('async error handling', () => {
     it('should handle successful async operations', async () => {
-      const operation = jest.fn().mockResolvedValue('success');
+      const operation = vi.fn().mockResolvedValue('success');
 
       const result = await errorBoundary.handle(operation, 'test-context');
 
@@ -30,7 +31,7 @@ describe('ErrorBoundary', () => {
 
     it('should handle async operation errors', async () => {
       const error = new Error('Async operation failed');
-      const operation = jest.fn().mockRejectedValue(error);
+      const operation = vi.fn().mockRejectedValue(error);
 
       await expect(errorBoundary.handle(operation, 'test-context')).rejects.toThrow(
         'Async operation failed',
@@ -40,7 +41,7 @@ describe('ErrorBoundary', () => {
     });
 
     it('should handle non-Error objects in async operations', async () => {
-      const operation = jest.fn().mockRejectedValue('string error');
+      const operation = vi.fn().mockRejectedValue('string error');
 
       await expect(errorBoundary.handle(operation, 'test-context')).rejects.toBe('string error');
 
@@ -49,7 +50,7 @@ describe('ErrorBoundary', () => {
 
     it('should handle async operations without context', async () => {
       const error = new Error('No context error');
-      const operation = jest.fn().mockRejectedValue(error);
+      const operation = vi.fn().mockRejectedValue(error);
 
       await expect(errorBoundary.handle(operation)).rejects.toThrow('No context error');
 
@@ -59,7 +60,7 @@ describe('ErrorBoundary', () => {
 
   describe('sync error handling', () => {
     it('should handle successful sync operations', () => {
-      const operation = jest.fn().mockReturnValue('sync success');
+      const operation = vi.fn().mockReturnValue('sync success');
 
       const result: unknown = errorBoundary.handleSync(operation, 'sync-context');
 
@@ -70,7 +71,7 @@ describe('ErrorBoundary', () => {
 
     it('should handle sync operation errors', () => {
       const error = new Error('Sync operation failed');
-      const operation = jest.fn<string, []>().mockImplementation(() => {
+      const operation = vi.fn<string, []>().mockImplementation(() => {
         throw error;
       });
 
@@ -84,7 +85,7 @@ describe('ErrorBoundary', () => {
 
   describe('function wrapping', () => {
     it('should wrap async functions with error boundary', async () => {
-      const originalFn = jest.fn().mockResolvedValue('wrapped result');
+      const originalFn = vi.fn().mockResolvedValue('wrapped result');
       const wrappedFn = errorBoundary.wrap(originalFn, 'wrap-context');
 
       const result = await wrappedFn('arg1', 'arg2');
@@ -95,7 +96,7 @@ describe('ErrorBoundary', () => {
     });
 
     it('should wrap sync functions with error boundary', () => {
-      const originalFn = jest.fn<string, [string, string]>().mockReturnValue('sync wrapped result');
+      const originalFn = vi.fn<string, [string, string]>().mockReturnValue('sync wrapped result');
       const wrappedFn = errorBoundary.wrapSync(originalFn, 'sync-wrap-context');
 
       const result = wrappedFn('arg1', 'arg2');
@@ -107,7 +108,7 @@ describe('ErrorBoundary', () => {
 
     it('should handle errors in wrapped async functions', async () => {
       const error = new Error('Wrapped function error');
-      const originalFn = jest.fn().mockRejectedValue(error);
+      const originalFn = vi.fn().mockRejectedValue(error);
       const wrappedFn = errorBoundary.wrap(originalFn, 'wrap-error-context');
 
       await expect(wrappedFn()).rejects.toThrow('Wrapped function error');
@@ -120,7 +121,7 @@ describe('ErrorBoundary', () => {
 
     it('should handle errors in wrapped sync functions', () => {
       const error = new Error('Wrapped sync function error');
-      const originalFn = jest.fn<string, []>().mockImplementation(() => {
+      const originalFn = vi.fn<string, []>().mockImplementation(() => {
         throw error;
       });
       const wrappedFn = errorBoundary.wrapSync(originalFn, 'sync-wrap-error-context');
@@ -138,7 +139,7 @@ describe('ErrorBoundary', () => {
     it('should create context-specific error boundary', async () => {
       const contextBoundary = errorBoundary.forContext('specific-context');
 
-      const operation = jest.fn().mockResolvedValue('context result');
+      const operation = vi.fn().mockResolvedValue('context result');
       const result = await contextBoundary.handle(operation);
 
       expect(result).toBe('context result');
@@ -148,7 +149,7 @@ describe('ErrorBoundary', () => {
     it('should use context in context-specific error boundary', async () => {
       const contextBoundary = errorBoundary.forContext('specific-context');
       const error = new Error('Context-specific error');
-      const operation = jest.fn().mockRejectedValue(error);
+      const operation = vi.fn().mockRejectedValue(error);
 
       await expect(contextBoundary.handle(operation)).rejects.toThrow('Context-specific error');
 
@@ -160,7 +161,7 @@ describe('ErrorBoundary', () => {
 
     it('should handle sync operations in context-specific boundary', () => {
       const contextBoundary = errorBoundary.forContext('sync-specific-context');
-      const operation = jest.fn<string, []>().mockReturnValue('sync context result');
+      const operation = vi.fn<string, []>().mockReturnValue('sync context result');
 
       const result = contextBoundary.handleSync(operation);
 
@@ -172,7 +173,7 @@ describe('ErrorBoundary', () => {
   describe('error message extraction', () => {
     it('should extract message from Error objects', async () => {
       const error = new Error('Standard error message');
-      const operation = jest.fn().mockRejectedValue(error);
+      const operation = vi.fn().mockRejectedValue(error);
 
       await expect(errorBoundary.handle(operation, 'error-test')).rejects.toThrow();
 
@@ -180,7 +181,7 @@ describe('ErrorBoundary', () => {
     });
 
     it('should extract message from string errors', async () => {
-      const operation = jest.fn().mockRejectedValue('String error message');
+      const operation = vi.fn().mockRejectedValue('String error message');
 
       await expect(errorBoundary.handle(operation, 'string-test')).rejects.toBe(
         'String error message',
@@ -194,7 +195,7 @@ describe('ErrorBoundary', () => {
 
     it('should extract message from objects with message property', async () => {
       const errorObj = { message: 'Object error message', code: 'ERR001' };
-      const operation = jest.fn().mockRejectedValue(errorObj);
+      const operation = vi.fn().mockRejectedValue(errorObj);
 
       await expect(errorBoundary.handle(operation, 'object-test')).rejects.toBe(errorObj);
 
@@ -202,7 +203,7 @@ describe('ErrorBoundary', () => {
     });
 
     it('should handle unknown error types', async () => {
-      const operation = jest.fn().mockRejectedValue(null);
+      const operation = vi.fn().mockRejectedValue(null);
 
       await expect(errorBoundary.handle(operation, 'unknown-test')).rejects.toBe(null);
 
@@ -212,7 +213,7 @@ describe('ErrorBoundary', () => {
 
   describe('edge cases', () => {
     it('should handle operations that return undefined', async () => {
-      const operation = jest.fn().mockResolvedValue(undefined);
+      const operation = vi.fn().mockResolvedValue(undefined);
 
       const result = await errorBoundary.handle(operation, 'undefined-test');
 
@@ -221,7 +222,7 @@ describe('ErrorBoundary', () => {
     });
 
     it('should handle operations that return null', () => {
-      const operation = jest.fn<null, []>().mockReturnValue(null);
+      const operation = vi.fn<null, []>().mockReturnValue(null);
 
       const result = errorBoundary.handleSync(operation, 'null-test');
 
@@ -230,7 +231,7 @@ describe('ErrorBoundary', () => {
     });
 
     it('should handle operations with multiple arguments', async () => {
-      const operation = jest
+      const operation = vi
         .fn()
         .mockImplementation((a: number, b: string, c: boolean) => `${a}-${b}-${c}`);
 

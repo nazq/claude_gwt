@@ -1,7 +1,7 @@
-import type { ExecResult } from '../utils/async';
-import { execCommandSafe } from '../utils/async';
-import { sanitizePath, sanitizeSessionName } from '../utils/security';
-import { Logger } from '../utils/logger';
+import type { ExecResult } from '../core/utils/async.js';
+import { execCommandSafe } from '../core/utils/async.js';
+import { sanitizePath, sanitizeSessionName } from '../core/utils/security.js';
+import { Logger } from '../core/utils/logger.js';
 
 /**
  * Tmux session information
