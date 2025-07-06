@@ -161,6 +161,63 @@ Connect to **Claude GWT** from anywhere
 
 ---
 
+## 📊 Code Quality & Test Coverage
+
+<div align="center">
+
+[![Coverage (Master)](https://codecov.io/gh/nazq/claude_gwt/graph/badge.svg?branch=master)](https://codecov.io/gh/nazq/claude_gwt/tree/master)
+[![Coverage (All Branches)](https://codecov.io/gh/nazq/claude_gwt/graph/badge.svg)](https://codecov.io/gh/nazq/claude_gwt)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/nazq/claude_gwt/ci.yml?branch=master&style=flat-square&label=build)](https://github.com/nazq/claude_gwt/actions/workflows/ci.yml)
+
+**Comprehensive test coverage across all Node.js versions (18-24) on Ubuntu and macOS**
+
+</div>
+
+### 📈 Coverage Visualization
+
+<details>
+<summary><b>📊 Coverage by Module (Sunburst Chart)</b></summary>
+
+<div align="center">
+  <a href="https://codecov.io/gh/nazq/claude_gwt">
+    <img src="https://codecov.io/gh/nazq/claude_gwt/graph/sunburst.svg" alt="Coverage Sunburst Chart" />
+  </a>
+</div>
+
+</details>
+
+<details>
+<summary><b>🌳 Coverage Tree Map</b></summary>
+
+<div align="center">
+  <a href="https://codecov.io/gh/nazq/claude_gwt">
+    <img src="https://codecov.io/gh/nazq/claude_gwt/graph/tree.svg" alt="Coverage Tree Map" />
+  </a>
+</div>
+
+</details>
+
+<details>
+<summary><b>📋 Coverage Hierarchy (Icicle Chart)</b></summary>
+
+<div align="center">
+  <a href="https://codecov.io/gh/nazq/claude_gwt">
+    <img src="https://codecov.io/gh/nazq/claude_gwt/graph/icicle.svg" alt="Coverage Icicle Chart" />
+  </a>
+</div>
+
+</details>
+
+### 🧪 Test Structure
+
+- **468+ tests** across comprehensive test suite
+- **Unit tests**: Core business logic and utilities
+- **Integration tests**: Full workflow and system integration
+- **CI Coverage**: All Node.js versions (18.x - 24.x) on Ubuntu + macOS
+- **Zero skipping**: All tests run on all environments
+
+---
+
 ## 📦 Installation
 
 ### Prerequisites
