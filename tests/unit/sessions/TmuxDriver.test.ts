@@ -1,8 +1,8 @@
 import { vi } from 'vitest';
-import { TmuxDriver } from '../../../../src/core/drivers/TmuxDriver';
-import * as asyncUtils from '../../../../src/core/utils/async';
+import { TmuxDriver } from '../../../src/sessions/TmuxDriver';
+import * as asyncUtils from '../../../src/core/utils/async';
 
-vi.mock('../../../../src/core/utils/async');
+vi.mock('../../../src/core/utils/async');
 
 describe('TmuxDriver', () => {
   const mockExecCommandSafe = asyncUtils.execCommandSafe as vi.MockedFunction<

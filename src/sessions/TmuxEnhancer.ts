@@ -1,7 +1,7 @@
 import * as path from 'path';
 import { Logger } from '../core/utils/logger.js';
 import type { GitRepository } from '../core/git/GitRepository.js';
-import { TmuxDriver } from '../core/drivers/TmuxDriver.js';
+import { TmuxDriver } from './TmuxDriver.js';
 
 export interface StatusBarConfig {
   sessionName: string;

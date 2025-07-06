@@ -25,6 +25,10 @@ npm run lint:fix       # Fix ESLint issues
 npm run format         # Format code with Prettier
 npm run typecheck      # TypeScript type checking
 
+# IMPORTANT: Before committing
+# Always run full test suite locally to ensure CI will pass:
+npm run lint && npm run typecheck && npm test
+
 # Run the CLI
 node dist/src/cli/index.js [options]
 ```
@@ -291,6 +295,41 @@ Only in test files and with documentation:
 // Reason: Mock needs flexibility for testing various scenarios
 let mockGit: any;
 ```
+
+# CI/CD Best Practices
+
+## Pre-commit Verification
+**CRITICAL**: We should ALWAYS know if CI will pass before pushing code. Run the complete verification suite locally:
+
+```bash
+# Full CI simulation - run this before EVERY commit
+npm run lint && npm run typecheck && npm test
+
+# If any of these fail, fix the issues before committing
+```
+
+**MANDATORY**: The entire test suite MUST pass locally with 100% success before pushing ANY code to remote. No exceptions unless explicitly overridden by the user. This includes:
+- All unit tests passing
+- All integration tests passing
+- All e2e tests passing
+- Zero test failures
+- Zero unhandled errors
+- Lint passing
+- Type checking passing
+
+This ensures:
+- No ESLint errors or warnings
+- TypeScript compilation succeeds
+- All tests pass
+- 100% code coverage is maintained
+
+## Commit Hooks
+The project uses husky for pre-commit hooks that automatically run:
+- Prettier formatting
+- ESLint checks
+- Tests for changed files
+
+If the pre-commit hook fails, the commit will be aborted. Fix all issues before retrying.
 
 # important-instruction-reminders
 Do what has been asked; nothing more, nothing less.

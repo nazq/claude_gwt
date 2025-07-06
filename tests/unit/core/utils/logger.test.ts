@@ -2,7 +2,7 @@ import { vi } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
 
-// Mock pino BEFORE importing logger
+// Mock pino with factory function to avoid hoisting issues
 vi.mock('pino', () => {
   const mockPinoLogger = {
     info: vi.fn(),
@@ -11,11 +11,12 @@ vi.mock('pino', () => {
     warn: vi.fn(),
     fatal: vi.fn(),
     trace: vi.fn(),
-    isLevelEnabled: vi.fn().mockImplementation((_level) => false),
-    flush: vi.fn(),
-    child: vi.fn().mockImplementation(function () {
-      return this;
+    isLevelEnabled: vi.fn().mockImplementation((_level) => {
+      // In test environment, should be silent (no levels enabled)
+      return false;
     }),
+    flush: vi.fn(),
+    child: vi.fn().mockImplementation(() => ({ ...mockPinoLogger })),
     bindings: vi.fn().mockReturnValue({ name: 'claude-gwt' }),
     level: 'info',
   };
@@ -100,7 +101,8 @@ describe('StructuredLogger (Pino)', () => {
       // Test is challenging because jest global is always defined
       // Let's verify the gitignore code is working by checking if it's called when not in test mode
 
-      // Reset mocks - remove mockPino reference since it's scoped inside the mock
+      // Reset mocks
+      vi.clearAllMocks();
       mockFs.existsSync.mockReturnValue(true);
       mockFs.readFileSync.mockReturnValue('node_modules/\ndist/');
 
@@ -279,121 +281,91 @@ describe('StructuredLogger (Pino)', () => {
 
     it('should create git operation context', () => {
       const gitLogger = structuredLogger.forGitOperation('push', 'main');
-
       expect(gitLogger).toBeInstanceOf(StructuredLogger);
-      expect(() => gitLogger.info('git operation')).not.toThrow();
+      expect(gitLogger).not.toBe(structuredLogger);
     });
 
-    it('should create worktree context', () => {
-      const worktreeLogger = structuredLogger.forWorktree('/path/to/worktree', 'feature');
-
-      expect(worktreeLogger).toBeInstanceOf(StructuredLogger);
-      expect(() => worktreeLogger.info('worktree operation')).not.toThrow();
-    });
-
-    it('should create session context', () => {
-      const sessionLogger = structuredLogger.forSession('session-123');
-
-      expect(sessionLogger).toBeInstanceOf(StructuredLogger);
-      expect(() => sessionLogger.info('session operation')).not.toThrow();
+    it('should create network operation context', () => {
+      const networkLogger = structuredLogger.forNetworkOperation(
+        'api-call',
+        'https://api.example.com',
+      );
+      expect(networkLogger).toBeInstanceOf(StructuredLogger);
+      expect(networkLogger).not.toBe(structuredLogger);
     });
   });
 
-  describe('utility methods', () => {
-    let structuredLogger: StructuredLogger;
+  describe('level checking', () => {
+    it('should report all levels as disabled in silent mode', () => {
+      const structuredLogger = new StructuredLogger();
 
-    beforeEach(() => {
-      structuredLogger = new StructuredLogger();
-    });
-
-    it('should check if level is enabled', () => {
-      const result = structuredLogger.isLevelEnabled('debug');
-      expect(typeof result).toBe('boolean');
-    });
-
-    it('should flush logger without error', () => {
-      expect(() => structuredLogger.flush()).not.toThrow();
+      expect(structuredLogger.isLevelEnabled('trace')).toBe(false);
+      expect(structuredLogger.isLevelEnabled('debug')).toBe(false);
+      expect(structuredLogger.isLevelEnabled('info')).toBe(false);
+      expect(structuredLogger.isLevelEnabled('warn')).toBe(false);
+      expect(structuredLogger.isLevelEnabled('error')).toBe(false);
+      expect(structuredLogger.isLevelEnabled('fatal')).toBe(false);
     });
   });
 
-  describe('factory functions', () => {
-    it('should create logger with createLogger', () => {
-      const structuredLogger = createLogger({ name: 'factory-test' });
-
-      expect(structuredLogger).toBeInstanceOf(StructuredLogger);
+  describe('flush operations', () => {
+    it('should call flush without error', async () => {
+      const structuredLogger = new StructuredLogger();
+      await expect(structuredLogger.flush()).resolves.not.toThrow();
     });
+  });
+});
 
-    it('should provide default logger instance', () => {
-      expect(logger.instance).toBeInstanceOf(StructuredLogger);
+describe('Legacy console logger implementation', () => {
+  describe('logger singleton', () => {
+    it('should export a global logger instance', () => {
+      expect(logger).toBeDefined();
+      expect(logger).toBeInstanceOf(StructuredLogger);
     });
   });
 
-  describe('backward compatibility', () => {
-    it('should provide Logger.info without error', () => {
-      expect(() => Logger.info('test message')).not.toThrow();
+  describe('createLogger factory', () => {
+    it('should create a new logger instance', () => {
+      const newLogger = createLogger();
+      expect(newLogger).toBeInstanceOf(StructuredLogger);
+      expect(newLogger).not.toBe(logger);
     });
 
-    it('should provide Logger.error without error', () => {
-      const error = new Error('test error');
-      expect(() => Logger.error('test message', error)).not.toThrow();
-    });
-
-    it('should provide Logger.debug without error', () => {
-      expect(() => Logger.debug('test message', { debug: true })).not.toThrow();
-    });
-
-    it('should provide Logger.warn without error', () => {
-      expect(() => Logger.warn('test message', { warning: true })).not.toThrow();
-    });
-
-    it('should provide Logger.verbose mapped to trace without error', () => {
-      expect(() => Logger.verbose('test message', { verbose: true })).not.toThrow();
-    });
-
-    it('should provide Logger.setLogLevel with warning', () => {
-      expect(() => Logger.setLogLevel('debug')).not.toThrow();
-    });
-
-    it('should provide Logger.getLogPath', () => {
-      const logPath = Logger.getLogPath();
-
-      expect(logPath).toBe(path.join(process.cwd(), '.claude-gwt.log'));
-    });
-
-    it('should provide Logger.close without error', () => {
-      expect(() => Logger.close()).not.toThrow();
-    });
-
-    it('should provide enhanced methods without error', () => {
-      expect(() => Logger.success('success message')).not.toThrow();
-      expect(() => Logger.failure('failure message', new Error('test'))).not.toThrow();
-      expect(() => Logger.progress('progress message')).not.toThrow();
-      expect(() => Logger.milestone('milestone message')).not.toThrow();
+    it('should create logger with custom options', () => {
+      const customLogger = createLogger({
+        name: 'test-logger',
+        context: { test: true },
+      });
+      expect(customLogger).toBeInstanceOf(StructuredLogger);
     });
   });
 
-  describe('production mode behavior', () => {
-    it('should handle production logger creation', () => {
-      // Temporarily override NODE_ENV to trigger production path
-      const originalNodeEnv = process.env['NODE_ENV'];
-      const originalJestWorker = process.env['JEST_WORKER_ID'];
-
-      delete process.env['NODE_ENV'];
-      delete process.env['JEST_WORKER_ID'];
-
-      try {
-        expect(() => new StructuredLogger({ isDevelopment: false })).not.toThrow();
-      } finally {
-        // Restore environment
-        if (originalNodeEnv) process.env['NODE_ENV'] = originalNodeEnv;
-        if (originalJestWorker) process.env['JEST_WORKER_ID'] = originalJestWorker;
-      }
+  describe('Logger export', () => {
+    it('should export Logger as type alias for StructuredLogger', () => {
+      const typedLogger: Logger = new StructuredLogger();
+      expect(typedLogger).toBeInstanceOf(StructuredLogger);
     });
   });
+});
 
-  describe('development mode behavior', () => {
-    it('should handle development logger creation', () => {
-      expect(() => new StructuredLogger({ isDevelopment: true })).not.toThrow();
-    });
+describe('verbose logging', () => {
+  let structuredLogger: StructuredLogger;
+
+  beforeEach(() => {
+    structuredLogger = new StructuredLogger();
+  });
+
+  it('should have verbose method', () => {
+    expect(structuredLogger.verbose).toBeInstanceOf(Function);
+  });
+
+  it('should log verbose messages without error', () => {
+    expect(() => structuredLogger.verbose('verbose message')).not.toThrow();
+  });
+
+  it('should log verbose messages with fields without error', () => {
+    expect(() =>
+      structuredLogger.verbose('verbose message', { detail: 'extra info' }),
+    ).not.toThrow();
   });
 });

@@ -139,6 +139,10 @@ describe('GitRepository', () => {
     });
 
     it('should successfully convert a regular repository', async () => {
+      // Ensure clean slate - remove any existing .bare directory
+      const existingBareDir = path.join(testDir, '.bare');
+      await fs.rm(existingBareDir, { recursive: true, force: true });
+
       // Create a mock .git directory
       const gitDir = path.join(testDir, '.git');
       await fs.mkdir(gitDir);

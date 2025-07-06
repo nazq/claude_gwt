@@ -2,7 +2,7 @@ import { vi } from 'vitest';
 import * as fs from 'fs';
 import { TmuxManager } from '../../../src/sessions/TmuxManager';
 import { TmuxEnhancer } from '../../../src/sessions/TmuxEnhancer';
-import { TmuxDriver } from '../../../src/core/drivers/TmuxDriver';
+import { TmuxDriver } from '../../../src/sessions/TmuxDriver';
 import type { SessionConfig } from '../../../src/sessions/TmuxManager';
 
 // Mock child_process
@@ -30,28 +30,10 @@ vi.mock('fs', () => ({
 vi.mock('../../../src/core/utils/logger');
 
 // Mock TmuxDriver
-vi.mock('../../../src/core/drivers/TmuxDriver');
+vi.mock('../../../src/sessions/TmuxDriver');
 
 // Mock TmuxEnhancer
 vi.mock('../../../src/sessions/TmuxEnhancer');
-
-// Mock TmuxDriver
-vi.mock('../../../src/core/drivers/TmuxDriver', () => ({
-  TmuxDriver: {
-    isAvailable: vi.fn().mockResolvedValue(true),
-    isInsideTmux: vi.fn().mockReturnValue(false),
-    getSession: vi.fn().mockResolvedValue(null),
-    isPaneRunningCommand: vi.fn().mockResolvedValue(false),
-    createSession: vi.fn().mockResolvedValue(undefined),
-    createWindow: vi.fn().mockResolvedValue(undefined),
-    killSession: vi.fn().mockResolvedValue(undefined),
-    listSessions: vi.fn().mockResolvedValue([]),
-    setOption: vi.fn().mockResolvedValue(undefined),
-    getOption: vi.fn().mockResolvedValue(null),
-    sendKeys: vi.fn().mockResolvedValue(undefined),
-    switchClient: vi.fn().mockResolvedValue(undefined),
-  },
-}));
 
 // Mock ConfigManager
 vi.mock('../../../src/core/ConfigManager', () => ({
@@ -71,6 +53,21 @@ describe('TmuxManager', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     delete process.env['TMUX'];
+
+    // Set up default mock implementations
+    vi.mocked(TmuxDriver.isAvailable).mockResolvedValue(true);
+    vi.mocked(TmuxDriver.isInsideTmux).mockReturnValue(false);
+    vi.mocked(TmuxDriver.getSession).mockResolvedValue(null);
+    vi.mocked(TmuxDriver.isPaneRunningCommand).mockResolvedValue(false);
+    vi.mocked(TmuxDriver.createSession).mockResolvedValue({ code: 0, stdout: '', stderr: '' });
+    vi.mocked(TmuxDriver.createWindow).mockResolvedValue({ code: 0, stdout: '', stderr: '' });
+    vi.mocked(TmuxDriver.killSession).mockResolvedValue({ code: 0, stdout: '', stderr: '' });
+    vi.mocked(TmuxDriver.listSessions).mockResolvedValue([]);
+    vi.mocked(TmuxDriver.setOption).mockResolvedValue({ code: 0, stdout: '', stderr: '' });
+    vi.mocked(TmuxDriver.getOption).mockResolvedValue(null);
+    vi.mocked(TmuxDriver.sendKeys).mockResolvedValue({ code: 0, stdout: '', stderr: '' });
+    vi.mocked(TmuxDriver.switchClient).mockResolvedValue({ code: 0, stdout: '', stderr: '' });
+    vi.mocked(TmuxDriver.attachSession).mockResolvedValue({ code: 0, stdout: '', stderr: '' });
   });
 
   afterEach(() => {
@@ -110,13 +107,13 @@ describe('TmuxManager', () => {
 
   describe('isInsideTmux', () => {
     it('should return true when inside tmux', () => {
-      vi.mocked(TmuxDriver).isInsideTmux.mockReturnValue(true);
+      vi.mocked(TmuxDriver.isInsideTmux).mockReturnValue(true);
 
       expect(TmuxManager.isInsideTmux()).toBe(true);
     });
 
     it('should return false when not inside tmux', () => {
-      vi.mocked(TmuxDriver).isInsideTmux.mockReturnValue(false);
+      vi.mocked(TmuxDriver.isInsideTmux).mockReturnValue(false);
 
       expect(TmuxManager.isInsideTmux()).toBe(false);
     });
@@ -124,13 +121,13 @@ describe('TmuxManager', () => {
 
   describe('getSessionInfo', () => {
     it('should return session info when session exists', async () => {
-      vi.mocked(TmuxDriver).getSession.mockResolvedValue({
+      vi.mocked(TmuxDriver.getSession).mockResolvedValue({
         name: 'cgwt-repo-main',
         windows: 2,
         created: 1234567890,
         attached: true,
       });
-      vi.mocked(TmuxDriver).isPaneRunningCommand.mockResolvedValue(true);
+      vi.mocked(TmuxDriver.isPaneRunningCommand).mockResolvedValue(true);
 
       const info = await TmuxManager.getSessionInfo('cgwt-repo-main');
 
@@ -144,7 +141,7 @@ describe('TmuxManager', () => {
     });
 
     it('should return null when session does not exist', async () => {
-      vi.mocked(TmuxDriver).getSession.mockResolvedValue(null);
+      vi.mocked(TmuxDriver.getSession).mockResolvedValue(null);
 
       const info = await TmuxManager.getSessionInfo('non-existent');
 
@@ -152,13 +149,13 @@ describe('TmuxManager', () => {
     });
 
     it('should handle sessions without Claude running', async () => {
-      vi.mocked(TmuxDriver).getSession.mockResolvedValue({
+      vi.mocked(TmuxDriver.getSession).mockResolvedValue({
         name: 'cgwt-repo-main',
         windows: 1,
         created: 1234567890,
         attached: false,
       });
-      vi.mocked(TmuxDriver).isPaneRunningCommand.mockResolvedValue(false);
+      vi.mocked(TmuxDriver.isPaneRunningCommand).mockResolvedValue(false);
 
       const info = await TmuxManager.getSessionInfo('cgwt-repo-main');
 
@@ -172,13 +169,13 @@ describe('TmuxManager', () => {
     });
 
     it('should handle errors when checking for Claude', async () => {
-      vi.mocked(TmuxDriver).getSession.mockResolvedValue({
+      vi.mocked(TmuxDriver.getSession).mockResolvedValue({
         name: 'cgwt-repo-main',
         windows: 1,
         created: 1234567890,
         attached: false,
       });
-      vi.mocked(TmuxDriver).isPaneRunningCommand.mockRejectedValue(new Error('tmux error'));
+      vi.mocked(TmuxDriver.isPaneRunningCommand).mockRejectedValue(new Error('tmux error'));
 
       const info = await TmuxManager.getSessionInfo('cgwt-repo-main');
 
@@ -199,14 +196,14 @@ describe('TmuxManager', () => {
     });
 
     it('should check tmux availability', async () => {
-      vi.mocked(TmuxDriver).isAvailable.mockResolvedValue(false);
+      vi.mocked(TmuxDriver.isAvailable).mockResolvedValue(false);
 
       await expect(TmuxManager.launchSession(mockConfig)).rejects.toThrow('tmux is not installed');
     });
 
     it('should create context file', async () => {
-      vi.mocked(TmuxDriver).isAvailable.mockResolvedValue(true);
-      vi.mocked(TmuxDriver).getSession.mockResolvedValue(null);
+      vi.mocked(TmuxDriver.isAvailable).mockResolvedValue(true);
+      vi.mocked(TmuxDriver.getSession).mockResolvedValue(null);
 
       await TmuxManager.launchSession(mockConfig);
 
@@ -217,9 +214,9 @@ describe('TmuxManager', () => {
     });
 
     it('should create new session when it does not exist', async () => {
-      vi.mocked(TmuxDriver).isAvailable.mockResolvedValue(true);
-      vi.mocked(TmuxDriver).getSession.mockResolvedValue(null);
-      vi.mocked(TmuxDriver).isInsideTmux.mockReturnValue(false);
+      vi.mocked(TmuxDriver.isAvailable).mockResolvedValue(true);
+      vi.mocked(TmuxDriver.getSession).mockResolvedValue(null);
+      vi.mocked(TmuxDriver.isInsideTmux).mockReturnValue(false);
 
       await TmuxManager.launchSession(mockConfig);
 
@@ -228,15 +225,15 @@ describe('TmuxManager', () => {
     });
 
     it('should restart Claude in existing session without Claude', async () => {
-      vi.mocked(TmuxDriver).isAvailable.mockResolvedValue(true);
-      vi.mocked(TmuxDriver).getSession.mockResolvedValue({
+      vi.mocked(TmuxDriver.isAvailable).mockResolvedValue(true);
+      vi.mocked(TmuxDriver.getSession).mockResolvedValue({
         name: 'cgwt-repo-main',
         windows: 1,
         created: 1234567890,
         attached: false,
       });
-      vi.mocked(TmuxDriver).isPaneRunningCommand.mockResolvedValue(false);
-      vi.mocked(TmuxDriver).isInsideTmux.mockReturnValue(false);
+      vi.mocked(TmuxDriver.isPaneRunningCommand).mockResolvedValue(false);
+      vi.mocked(TmuxDriver.isInsideTmux).mockReturnValue(false);
 
       await TmuxManager.launchSession(mockConfig);
 
@@ -244,15 +241,15 @@ describe('TmuxManager', () => {
     });
 
     it('should attach to existing session with Claude running', async () => {
-      vi.mocked(TmuxDriver).isAvailable.mockResolvedValue(true);
-      vi.mocked(TmuxDriver).getSession.mockResolvedValue({
+      vi.mocked(TmuxDriver.isAvailable).mockResolvedValue(true);
+      vi.mocked(TmuxDriver.getSession).mockResolvedValue({
         name: 'cgwt-repo-main',
         windows: 1,
         created: 1234567890,
         attached: false,
       });
-      vi.mocked(TmuxDriver).isPaneRunningCommand.mockResolvedValue(true);
-      vi.mocked(TmuxDriver).isInsideTmux.mockReturnValue(false);
+      vi.mocked(TmuxDriver.isPaneRunningCommand).mockResolvedValue(true);
+      vi.mocked(TmuxDriver.isInsideTmux).mockReturnValue(false);
 
       await TmuxManager.launchSession(mockConfig);
 
@@ -261,9 +258,9 @@ describe('TmuxManager', () => {
     });
 
     it('should handle being inside tmux differently', async () => {
-      vi.mocked(TmuxDriver).isAvailable.mockResolvedValue(true);
-      vi.mocked(TmuxDriver).getSession.mockResolvedValue(null);
-      vi.mocked(TmuxDriver).isInsideTmux.mockReturnValue(true);
+      vi.mocked(TmuxDriver.isAvailable).mockResolvedValue(true);
+      vi.mocked(TmuxDriver.getSession).mockResolvedValue(null);
+      vi.mocked(TmuxDriver.isInsideTmux).mockReturnValue(true);
 
       await TmuxManager.launchSession(mockConfig);
 
@@ -280,8 +277,8 @@ describe('TmuxManager', () => {
     };
 
     it('should create a detached session', async () => {
-      vi.mocked(TmuxDriver).isAvailable.mockResolvedValue(true);
-      vi.mocked(TmuxDriver).getSession.mockResolvedValue(null);
+      vi.mocked(TmuxDriver.isAvailable).mockResolvedValue(true);
+      vi.mocked(TmuxDriver.getSession).mockResolvedValue(null);
 
       await TmuxManager.createDetachedSession(mockConfig);
 
@@ -297,7 +294,7 @@ describe('TmuxManager', () => {
 
   describe('attachToSession', () => {
     it('should use switch-client when inside tmux', async () => {
-      vi.mocked(TmuxDriver).isInsideTmux.mockReturnValue(true);
+      vi.mocked(TmuxDriver.isInsideTmux).mockReturnValue(true);
 
       await TmuxManager.attachToSession('cgwt-repo-main');
 
@@ -305,7 +302,7 @@ describe('TmuxManager', () => {
     });
 
     it('should use attach-session when outside tmux', async () => {
-      vi.mocked(TmuxDriver).isInsideTmux.mockReturnValue(false);
+      vi.mocked(TmuxDriver.isInsideTmux).mockReturnValue(false);
 
       await TmuxManager.attachToSession('cgwt-repo-main');
 
@@ -324,15 +321,15 @@ describe('TmuxManager', () => {
 
   describe('listSessions', () => {
     it('should return list of cgwt sessions', async () => {
-      vi.mocked(TmuxDriver).listSessions.mockResolvedValue([
+      vi.mocked(TmuxDriver.listSessions).mockResolvedValue([
         { name: 'cgwt-repo-main', windows: 2, created: 1234567890, attached: true },
         { name: 'cgwt-repo-feature', windows: 1, created: 1234567891, attached: false },
         { name: 'other-session', windows: 1, created: 1234567892, attached: false },
       ]);
 
       // Mock getSessionInfo for cgwt sessions
-      vi.mocked(TmuxDriver)
-        .getSession.mockResolvedValueOnce({
+      vi.mocked(TmuxDriver.getSession)
+        .mockResolvedValueOnce({
           name: 'cgwt-repo-main',
           windows: 2,
           created: 1234567890,
@@ -345,8 +342,8 @@ describe('TmuxManager', () => {
           attached: false,
         });
 
-      vi.mocked(TmuxDriver)
-        .isPaneRunningCommand.mockResolvedValueOnce(true)
+      vi.mocked(TmuxDriver.isPaneRunningCommand)
+        .mockResolvedValueOnce(true)
         .mockResolvedValueOnce(false);
 
       const sessions = await TmuxManager.listSessions();
@@ -369,7 +366,7 @@ describe('TmuxManager', () => {
     });
 
     it('should return empty array when no sessions exist', async () => {
-      vi.mocked(TmuxDriver).listSessions.mockRejectedValue(new Error('no sessions'));
+      vi.mocked(TmuxDriver.listSessions).mockRejectedValue(new Error('no sessions'));
 
       const sessions = await TmuxManager.listSessions();
 
@@ -379,15 +376,15 @@ describe('TmuxManager', () => {
 
   describe('shutdownAll', () => {
     it('should kill all cgwt sessions', async () => {
-      vi.mocked(TmuxDriver).listSessions.mockResolvedValue([
+      vi.mocked(TmuxDriver.listSessions).mockResolvedValue([
         { name: 'cgwt-repo-main', windows: 2, created: 1234567890, attached: true },
         { name: 'cgwt-repo-feature', windows: 1, created: 1234567891, attached: false },
         { name: 'other-session', windows: 1, created: 1234567892, attached: false },
       ]);
 
       // Mock getSessionInfo for cgwt sessions
-      vi.mocked(TmuxDriver)
-        .getSession.mockResolvedValueOnce({
+      vi.mocked(TmuxDriver.getSession)
+        .mockResolvedValueOnce({
           name: 'cgwt-repo-main',
           windows: 2,
           created: 1234567890,
@@ -400,8 +397,8 @@ describe('TmuxManager', () => {
           attached: false,
         });
 
-      vi.mocked(TmuxDriver)
-        .isPaneRunningCommand.mockResolvedValueOnce(true)
+      vi.mocked(TmuxDriver.isPaneRunningCommand)
+        .mockResolvedValueOnce(true)
         .mockResolvedValueOnce(false);
 
       await TmuxManager.shutdownAll();
@@ -454,7 +451,7 @@ describe('TmuxManager', () => {
 
   describe('getSessionGroup', () => {
     it('should return session group name', async () => {
-      vi.mocked(TmuxDriver).getOption.mockResolvedValue('cgwt-repo');
+      vi.mocked(TmuxDriver.getOption).mockResolvedValue('cgwt-repo');
 
       const group = await TmuxManager.getSessionGroup('cgwt-repo-main');
 
@@ -462,7 +459,7 @@ describe('TmuxManager', () => {
     });
 
     it('should return null when session has no group', async () => {
-      vi.mocked(TmuxDriver).getOption.mockRejectedValue(new Error('no group'));
+      vi.mocked(TmuxDriver.getOption).mockRejectedValue(new Error('no group'));
 
       const group = await TmuxManager.getSessionGroup('cgwt-repo-main');
 
@@ -473,15 +470,15 @@ describe('TmuxManager', () => {
   describe('getSessionsInGroup', () => {
     it('should return sessions in the specified group', async () => {
       // Mock listSessions
-      vi.mocked(TmuxDriver).listSessions.mockResolvedValue([
+      vi.mocked(TmuxDriver.listSessions).mockResolvedValue([
         { name: 'cgwt-repo-main', windows: 2, created: 1234567890, attached: true },
         { name: 'cgwt-repo-feature', windows: 1, created: 1234567891, attached: false },
         { name: 'cgwt-other-main', windows: 1, created: 1234567892, attached: false },
       ]);
 
       // Mock getSessionInfo for all sessions
-      vi.mocked(TmuxDriver)
-        .getSession.mockResolvedValueOnce({
+      vi.mocked(TmuxDriver.getSession)
+        .mockResolvedValueOnce({
           name: 'cgwt-repo-main',
           windows: 2,
           created: 1234567890,
@@ -500,14 +497,14 @@ describe('TmuxManager', () => {
           attached: false,
         });
 
-      vi.mocked(TmuxDriver)
-        .isPaneRunningCommand.mockResolvedValueOnce(true)
+      vi.mocked(TmuxDriver.isPaneRunningCommand)
+        .mockResolvedValueOnce(true)
         .mockResolvedValueOnce(false)
         .mockResolvedValueOnce(false);
 
       // Mock getSessionGroup for each session
-      vi.mocked(TmuxDriver)
-        .getOption.mockResolvedValueOnce('cgwt-repo')
+      vi.mocked(TmuxDriver.getOption)
+        .mockResolvedValueOnce('cgwt-repo')
         .mockResolvedValueOnce('cgwt-repo')
         .mockResolvedValueOnce('cgwt-other');
 
