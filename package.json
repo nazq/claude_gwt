@@ -33,7 +33,7 @@
     "fmt": "npm run format",
     "typecheck": "tsc --noEmit",
     "prepare": "husky install",
-    "postbuild": "chmod +x dist/src/cli/index.js",
+    "postbuild": "chmod +x dist/src/cli/index.js dist/src/cli/cgwt.js",
     "prepare:publish": "node scripts/prepare-publish.js",
     "prepublishOnly": "npm run build:clean && npm test",
     "version": "npm run format && git add -A src",
