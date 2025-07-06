@@ -120,6 +120,10 @@ jobs:
       uses: codecov/codecov-action@v4
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
+        files: ./coverage/lcov.info
+        flags: unittests
+        name: codecov-umbrella
+        slug: nazq/claude_gwt
         fail_ci_if_error: false
 
   security:

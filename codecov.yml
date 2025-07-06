@@ -3,6 +3,7 @@ codecov:
   notify:
     wait_for_ci: true
   bot: "codecov-bot"
+  slug: "nazq/claude_gwt"
 
 coverage:
   precision: 2
