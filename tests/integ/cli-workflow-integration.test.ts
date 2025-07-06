@@ -3,17 +3,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
 
-// Skip e2e tests on Node 18 (ESM compatibility) and Node 24 (CI environment issues)
-// Also skip on CI for Node 20/22 due to intermittent git operation failures
-const nodeVersion = process.version;
-const isCI = process.env['CI'] === 'true';
-const shouldSkip =
-  nodeVersion.startsWith('v18.') ||
-  nodeVersion.startsWith('v24.') ||
-  (isCI && (nodeVersion.startsWith('v20.') || nodeVersion.startsWith('v22.')));
-const describeSkipIncompatible = shouldSkip ? describe.skip : describe;
-
-describeSkipIncompatible('CLI End-to-End Workflow', () => {
+describe('CLI Integration Workflow', () => {
   let testDir: string;
   const cliPath = path.join(__dirname, '../../dist/src/cli/index.js');
 

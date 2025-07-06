@@ -64,11 +64,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        node-version: [18.x, 20.x, 22.x]
-        exclude:
-          # Skip older Node versions on macOS to reduce CI time
-          - os: macos-latest
-            node-version: 18.x
+        node-version: [18.x, 20.x, 22.x, 24.x]
         
     steps:
     - name: Checkout code
@@ -106,10 +102,7 @@ jobs:
       run: npm run test:ci:unit
       
     - name: Run integration tests
-      run: npm run test:ci:integration
-      
-    - name: Run e2e tests
-      run: npm run test:ci:e2e
+      run: npm run test:ci:integ
       
     - name: Generate coverage report
       if: matrix.os == 'ubuntu-latest' && matrix.node-version == '20.x'
@@ -152,30 +145,3 @@ jobs:
       run: npx audit-ci --moderate
       continue-on-error: true
 
-  test-latest-node:
-    name: Test on Node.js Latest
-    runs-on: ubuntu-latest
-    needs: quick-checks
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Setup Node.js 24.x
-      uses: actions/setup-node@v4
-      with:
-        node-version: 24.x
-        cache: 'npm'
-        
-    - name: Install dependencies
-      run: npm ci
-      
-    - name: Install tmux
-      run: sudo apt-get update && sudo apt-get install -y tmux
-      
-    - name: Build project
-      run: npm run build
-      
-    - name: Run unit tests only (skip e2e for Node 24.x)
-      run: npm run test:ci:unit
-      

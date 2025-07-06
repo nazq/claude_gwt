@@ -89,11 +89,8 @@ npm test
 # Unit tests only
 npm run test:unit
 
-# Integration tests only
-npm run test:integration
-
-# E2E tests only
-npm run test:e2e
+# Integration tests only (includes comprehensive workflow tests)
+npm run test:integ
 
 # With coverage
 npm run test:coverage
@@ -102,8 +99,7 @@ npm run test:coverage
 ### Writing Tests
 
 - Place unit tests next to the source files: `src/module.ts` → `src/module.test.ts`
-- Integration tests go in `tests/integration/`
-- E2E tests go in `tests/e2e/`
+- Integration tests go in `tests/integ/` (includes comprehensive workflow testing)
 - Aim for 100% code coverage
 
 ## 📚 Documentation
@@ -157,8 +153,7 @@ claude-gwt/
 │   └── types/          # TypeScript types
 ├── tests/
 │   ├── unit/           # Unit tests
-│   ├── integration/    # Integration tests
-│   └── e2e/            # End-to-end tests
+│   └── integ/          # Integration tests (includes comprehensive workflows)
 └── docs/               # Additional documentation
 ```
 
