@@ -3,8 +3,29 @@ import { execSync } from 'child_process';
 import { TmuxEnhancer } from '../../../src/sessions/TmuxEnhancer';
 
 // Mock child_process
-vi.mock('child_process');
+vi.mock('child_process', () => ({
+  execSync: vi.fn(),
+  spawn: vi.fn().mockReturnValue({
+    stdout: { on: vi.fn() },
+    stderr: { on: vi.fn() },
+    on: vi.fn((event, handler) => {
+      if (event === 'close') {
+        handler(0, null);
+      }
+    }),
+    kill: vi.fn(),
+  }),
+}));
 vi.mock('../../../src/core/utils/logger');
+vi.mock('../../../src/core/drivers/TmuxDriver', () => ({
+  TmuxDriver: {
+    setOption: vi.fn().mockResolvedValue({ code: 0, stdout: '', stderr: '' }),
+    setWindowOption: vi.fn().mockResolvedValue({ code: 0, stdout: '', stderr: '' }),
+    bindKey: vi.fn().mockResolvedValue({ code: 0, stdout: '', stderr: '' }),
+    unbindKey: vi.fn().mockResolvedValue({ code: 0, stdout: '', stderr: '' }),
+    setHook: vi.fn().mockResolvedValue({ code: 0, stdout: '', stderr: '' }),
+  },
+}));
 
 describe('Tmux bind-key command validation', () => {
   const mockExecSync = execSync as vi.MockedFunction<typeof execSync>;
