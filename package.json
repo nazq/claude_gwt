@@ -4,7 +4,10 @@
   "description": "[BETA] A beautiful Git Worktree manager with integrated Claude Code orchestration - Experimental software under active development",
   "main": "dist/index.js",
   "bin": {
-    "claude-gwt": "./dist/src/cli/index.js"
+    "claude-gwt": "./dist/src/cli/index.js",
+    "cgwt": "./dist/src/cli/cgwt.js",
+    "cgwt-tokens": "./dist/src/cli/token-report.js",
+    "claude-gwt-mcp": "./dist/src/mcp/server.js"
   },
   "scripts": {
     "build": "tsc",
