@@ -14,8 +14,11 @@ describe('GitRepository', () => {
   let repo: GitRepository;
 
   beforeEach(async () => {
-    // Create a unique test directory
-    testDir = path.join(os.tmpdir(), `claude-gwt-test-${Date.now()}`);
+    // Create a unique test directory with random suffix
+    testDir = path.join(
+      os.tmpdir(),
+      `claude-gwt-test-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    );
     await fs.mkdir(testDir, { recursive: true });
 
     // Setup mock git

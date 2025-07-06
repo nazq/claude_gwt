@@ -480,6 +480,7 @@ export class ClaudeGWTApp {
     } catch (error) {
       // If detection fails, continue with current path
       console.error(theme.warning('Warning: Could not detect parent directory'));
+      Logger.error('Could not detect parent directory', error);
     }
 
     Logger.info('Launching supervisor session', { supervisorPath });

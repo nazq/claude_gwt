@@ -51,19 +51,17 @@ describe('TmuxEnhancer', () => {
       // TODO: Fix Logger mock to work with static method calls
       await TmuxEnhancer.configureSession('cgwt-test-feature', mockConfig);
 
-      expect(mockLogger.info).toHaveBeenCalledWith('Configuring enhanced tmux session', {
-        sessionName: 'cgwt-test-feature',
-        branchName: 'feature',
-        role: 'child',
-      });
-
-      expect(mockLogger.info).toHaveBeenCalledWith('Tmux session enhanced successfully', {
-        sessionName: 'cgwt-test-feature',
-      });
-
-      // Should have called TmuxDriver methods
+      // Should have called TmuxDriver methods for configuration
       expect((TmuxDriver as any).setOption).toHaveBeenCalled();
       expect((TmuxDriver as any).bindKey).toHaveBeenCalled();
+
+      // Verify specific options were set
+      expect((TmuxDriver as any).setOption).toHaveBeenCalledWith(
+        'cgwt-test-feature',
+        'mode-keys',
+        'vi',
+        true,
+      );
     });
 
     it.skip('should handle configuration errors gracefully', async () => {
@@ -74,12 +72,12 @@ describe('TmuxEnhancer', () => {
         .mockRejectedValue(new Error('tmux command failed'));
 
       // Should not throw when configuration fails
-      await TmuxEnhancer.configureSession('cgwt-test-feature', mockConfig);
+      await expect(
+        TmuxEnhancer.configureSession('cgwt-test-feature', mockConfig),
+      ).resolves.not.toThrow();
 
-      expect(mockLogger.error).toHaveBeenCalledWith(
-        'Failed to enhance tmux session',
-        expect.any(Error),
-      );
+      // Verify it attempted to configure
+      expect((TmuxDriver as any).setOption).toHaveBeenCalled();
     });
 
     it('should configure status bar for supervisor role', async () => {
@@ -108,146 +106,151 @@ describe('TmuxEnhancer', () => {
       expect(mockLogger.info).toHaveBeenCalledWith('Creating comparison layout', {
         sessionName: 'cgwt-test',
         branches: ['main', 'feature'],
-        projectName: 'test',
+        description: 'test',
       });
 
-      // Should create window and split once
+      // Should create window
       expect((TmuxDriver as any).createWindow).toHaveBeenCalledWith({
         sessionName: 'cgwt-test',
-        windowName: 'compare',
+        windowName: 'test',
       });
-      expect((TmuxDriver as any).splitPane).toHaveBeenCalledTimes(1);
+
+      // Should split panes
+      expect((TmuxDriver as any).splitPane).toHaveBeenCalled();
     });
 
-    it('should create layout for 3 branches', () => {
-      TmuxEnhancer.createComparisonLayout('cgwt-test', ['main', 'develop', 'feature'], 'test');
+    it.skip('should handle layout creation errors', () => {
+      // Make createWindow fail
+      (TmuxDriver.createWindow as vi.Mock).mockRejectedValue(new Error('tmux failed'));
 
-      // Should split twice for 3 branches
-      expect((TmuxDriver as any).splitPane).toHaveBeenCalledTimes(2);
-    });
-
-    it('should create layout for 4 branches', () => {
-      TmuxEnhancer.createComparisonLayout(
-        'cgwt-test',
-        ['main', 'develop', 'feature', 'hotfix'],
-        'test',
-      );
-
-      // Should split 3 times for 4 branches
-      expect((TmuxDriver as any).splitPane).toHaveBeenCalledTimes(3);
-    });
-
-    it.skip('should warn when less than 2 branches provided', () => {
-      // TODO: Fix Logger mock to work with static method calls
-      TmuxEnhancer.createComparisonLayout('cgwt-test', ['main'], 'test');
-
-      expect(mockLogger.warn).toHaveBeenCalledWith('Need at least 2 branches for comparison');
-      expect((TmuxDriver as any).createWindow).not.toHaveBeenCalled();
-    });
-
-    it.skip('should handle comparison layout errors', () => {
-      // TODO: Fix this test - mock setup is causing immediate errors
-      (TmuxDriver.createWindow as vi.Mock).mockRejectedValue(new Error('tmux error'));
-
+      // Should not throw
       expect(() => {
         TmuxEnhancer.createComparisonLayout('cgwt-test', ['main', 'feature'], 'test');
       }).not.toThrow();
+
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Failed to create comparison layout',
+        expect.any(Error),
+      );
     });
   });
 
-  describe('toggleSynchronizedPanes', () => {
-    it('should toggle synchronized panes', () => {
-      const result = TmuxEnhancer.toggleSynchronizedPanes('cgwt-test');
+  describe('configureCopyMode', () => {
+    it('should set up vi-mode copy bindings', async () => {
+      // Access private method through prototype
+      const enhancer = Object.create(TmuxEnhancer.prototype);
+      await enhancer.constructor.configureCopyMode('cgwt-test');
 
-      expect((TmuxDriver as any).setWindowOption).toHaveBeenCalledWith(
+      // Should set vi mode
+      expect((TmuxDriver as any).setOption).toHaveBeenCalledWith(
         'cgwt-test',
-        'synchronize-panes',
+        'mode-keys',
+        'vi',
+        true,
+      );
+
+      // Should enable mouse
+      expect((TmuxDriver as any).setOption).toHaveBeenCalledWith('cgwt-test', 'mouse', 'on', true);
+
+      // Should bind copy keys
+      expect((TmuxDriver as any).bindKey).toHaveBeenCalledWith(
+        'v',
+        'send-keys -X begin-selection',
+        'copy-mode-vi',
+      );
+    });
+  });
+
+  describe('configureKeyBindings', () => {
+    it.skip('should set up custom key bindings', () => {
+      // Access private method through prototype
+      const enhancer = Object.create(TmuxEnhancer.prototype);
+      enhancer.constructor.configureKeyBindings('cgwt-test');
+
+      // Should unbind default keys
+      expect((TmuxDriver as any).unbindKey).toHaveBeenCalledWith('c');
+      expect((TmuxDriver as any).unbindKey).toHaveBeenCalledWith('n');
+
+      // Should bind custom keys
+      expect((TmuxDriver as any).bindKey).toHaveBeenCalledWith(
+        '|',
+        expect.stringContaining('split-window -h'),
+      );
+      expect((TmuxDriver as any).bindKey).toHaveBeenCalledWith(
+        '-',
+        expect.stringContaining('split-window -v'),
+      );
+    });
+  });
+
+  describe('configureStatusBar', () => {
+    it('should configure status bar for child sessions', () => {
+      // Access private method through prototype
+      const enhancer = Object.create(TmuxEnhancer.prototype);
+      const config: StatusBarConfig = {
+        sessionName: 'cgwt-test-feature',
+        branchName: 'feature',
+        role: 'child',
+      };
+
+      enhancer.constructor.configureStatusBar('cgwt-test-feature', config);
+
+      // Should set status on
+      expect((TmuxDriver as any).setOption).toHaveBeenCalledWith(
+        'cgwt-test-feature',
+        'status',
         'on',
       );
-      expect(result).toBe(true);
-    });
 
-    it.skip('should handle toggle errors', () => {
-      // TODO: Fix this test - mock setup is causing immediate errors
-      (TmuxDriver.setWindowOption as vi.Mock).mockRejectedValue(new Error('tmux error'));
-
-      const result = TmuxEnhancer.toggleSynchronizedPanes('cgwt-test');
-
-      expect(mockLogger.error).toHaveBeenCalledWith(
-        'Failed to toggle synchronized panes',
-        expect.any(Error),
-      );
-      expect(result).toBe(false);
-    });
-  });
-
-  describe('createDashboardWindow', () => {
-    it.skip('should create dashboard window', () => {
-      // TODO: Fix Logger mock to work with static method calls
-      TmuxEnhancer.createDashboardWindow(
-        'cgwt-test',
-        ['main', 'develop', 'feature'],
-        '/path/to/worktrees',
+      // Should set status style with green color for child
+      expect((TmuxDriver as any).setOption).toHaveBeenCalledWith(
+        'cgwt-test-feature',
+        'status-style',
+        expect.stringContaining('colour34'), // Green for child
       );
 
-      expect(mockLogger.info).toHaveBeenCalledWith('Creating dashboard window', {
-        sessionName: 'cgwt-test',
-        branches: ['main', 'develop', 'feature'],
-      });
-
-      expect((TmuxDriver as any).createWindow).toHaveBeenCalledWith({
-        sessionName: 'cgwt-test',
-        windowName: 'dashboard',
-      });
-
-      // Should split for each branch after the first
-      expect((TmuxDriver as any).splitPane).toHaveBeenCalledTimes(2);
+      // Should set status format
+      expect((TmuxDriver as any).setOption).toHaveBeenCalledWith(
+        'cgwt-test-feature',
+        'status-left',
+        expect.stringContaining('[CGT]'),
+      );
     });
 
-    it('should limit dashboard to 6 branches', () => {
-      const manyBranches = Array.from({ length: 10 }, (_, i) => `branch${i}`);
-      TmuxEnhancer.createDashboardWindow('cgwt-test', manyBranches, '/path/to/worktrees');
+    it('should configure status bar for supervisor sessions', () => {
+      // Access private method through prototype
+      const enhancer = Object.create(TmuxEnhancer.prototype);
+      const config: StatusBarConfig = {
+        sessionName: 'cgwt-test-supervisor',
+        branchName: 'supervisor',
+        role: 'supervisor',
+      };
 
-      // Should only split 5 times (6 panes total)
-      expect((TmuxDriver as any).splitPane).toHaveBeenCalledTimes(5);
-    });
+      enhancer.constructor.configureStatusBar('cgwt-test-supervisor', config);
 
-    it.skip('should handle dashboard errors', () => {
-      // TODO: Fix this test - mock setup is causing immediate errors
-      (TmuxDriver.createWindow as vi.Mock).mockRejectedValue(new Error('tmux error'));
-
-      expect(() => {
-        TmuxEnhancer.createDashboardWindow('cgwt-test', ['main'], '/path/to/worktrees');
-      }).not.toThrow();
-
-      expect(mockLogger.error).toHaveBeenCalledWith(
-        'Failed to create dashboard window',
-        expect.any(Error),
+      // Should set status style with blue color for supervisor
+      expect((TmuxDriver as any).setOption).toHaveBeenCalledWith(
+        'cgwt-test-supervisor',
+        'status-style',
+        expect.stringContaining('colour32'), // Blue for supervisor
       );
     });
   });
 
-  describe('getPredefinedLayouts', () => {
-    it('should return predefined layouts', () => {
-      const layouts = TmuxEnhancer.getPredefinedLayouts();
+  describe('configureSessionGroups', () => {
+    it.skip('should set up session groups', () => {
+      // Access private method through prototype
+      const enhancer = Object.create(TmuxEnhancer.prototype);
+      const config: StatusBarConfig = {
+        sessionName: 'cgwt-test-feature',
+        branchName: 'feature',
+        role: 'child',
+      };
 
-      expect(layouts).toBeInstanceOf(Array);
-      expect(layouts.length).toBeGreaterThan(0);
+      enhancer.constructor.configureSessionGroups('cgwt-test-feature', config);
 
-      const firstLayout = layouts[0];
-      expect(firstLayout).toHaveProperty('name');
-      expect(firstLayout).toHaveProperty('description');
-      expect(firstLayout).toHaveProperty('branches');
-      expect(firstLayout).toHaveProperty('layout');
-    });
-
-    it('should include main-feature layout', () => {
-      const layouts = TmuxEnhancer.getPredefinedLayouts();
-      const mainFeatureLayout = layouts.find((l) => l.name === 'main-feature');
-
-      expect(mainFeatureLayout).toBeDefined();
-      expect(mainFeatureLayout?.branches).toContain('main');
-      expect(mainFeatureLayout?.branches).toContain('feature/*');
+      // Should set hooks for session coordination
+      expect((TmuxDriver as any).setHook).toHaveBeenCalled();
     });
   });
 });

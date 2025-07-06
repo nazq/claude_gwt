@@ -196,47 +196,32 @@ describe('Claude GWT Full E2E Workflow', () => {
       expect(worktrees).toHaveLength(2);
     }, 30000);
 
-    it.skip('should convert regular git repo to worktree setup', async () => {
-      // Skip: This test requires complex setup as conversion fetches from the original repo
-      // Create a regular git repo first
-      await execCommandSafe('git', ['init'], { cwd: testDir });
+    it('should detect when conversion is not possible', async () => {
+      // Test 1: Already a worktree
+      await execCommandSafe('git', ['init', '--bare', '.bare'], { cwd: testDir });
+      await fs.writeFile(path.join(testDir, '.git'), 'gitdir: .bare');
+
+      const repo1 = new GitRepository(testDir);
+      const { canConvert: canConvert1, reason: reason1 } = await repo1.canConvertToWorktree();
+      expect(canConvert1).toBe(false);
+      expect(reason1).toBeDefined();
+      expect(reason1).toContain('Already a worktree');
+
+      // Test 2: Regular repo can be converted
+      const regularRepo = path.join(testDir, 'regular');
+      await fs.mkdir(regularRepo);
+      await execCommandSafe('git', ['init'], { cwd: regularRepo });
 
       // Create initial commit
-      const testFile = path.join(testDir, 'README.md');
+      const testFile = path.join(regularRepo, 'README.md');
       await fs.writeFile(testFile, '# Test Repo');
-      await execCommandSafe('git', ['add', '.'], { cwd: testDir });
-      await execCommandSafe('git', ['commit', '-m', 'Initial commit'], { cwd: testDir });
+      await execCommandSafe('git', ['add', '.'], { cwd: regularRepo });
+      await execCommandSafe('git', ['commit', '-m', 'Initial commit'], { cwd: regularRepo });
 
-      // Add a fake remote to make it convertible
-      await execCommandSafe(
-        'git',
-        ['remote', 'add', 'origin', 'https://github.com/test/test.git'],
-        { cwd: testDir },
-      );
-
-      const repo = new GitRepository(testDir);
-
-      // Check if conversion is possible
-      const { canConvert, reason } = await repo.canConvertToWorktree();
-      expect(canConvert).toBe(true);
-      expect(reason).toBeUndefined();
-
-      // Convert to worktree setup
-      const result = await repo.convertToWorktreeSetup();
-      expect(result.defaultBranch).toBeDefined();
-
-      // Verify conversion
-      const bareDir = path.join(testDir, '.bare');
-      const gitFile = path.join(testDir, '.git');
-
-      expect(await fs.stat(bareDir).then((s) => s.isDirectory())).toBe(true);
-      expect(await fs.readFile(gitFile, 'utf-8')).toContain('gitdir: ./.bare');
-
-      // Original working directory should now be a worktree
-      const manager = new WorktreeManager(testDir);
-      const worktrees = await manager.listWorktrees();
-      expect(worktrees.some((wt) => wt.branch === result.defaultBranch)).toBe(true);
-    }, 60000);
+      const repo2 = new GitRepository(regularRepo);
+      const { canConvert: canConvert2 } = await repo2.canConvertToWorktree();
+      expect(canConvert2).toBe(true);
+    }, 30000);
   });
 
   describe('Tmux Session Management (if available)', () => {
