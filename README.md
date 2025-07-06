@@ -101,10 +101,17 @@ cgwt 0  # → Overview of all branches
 **Claude GWT** gives each git branch its own:
 - 📁 **Dedicated directory** (via git worktrees)
 - 🤖 **Dedicated Claude instance** with persistent memory
-- 🖥️ **Dedicated tmux session** for instant switching
+- 🖥️ **Dedicated tmux session** for instant switching, and remote access
 - 📝 **Dedicated context** that never gets lost
 
 > _"It's like having a team of specialized AI assistants, each an expert in their own feature"_
+
+### 🌐 Remote Access
+Connect to **Claude GWT** from anywhere
+
+- 🔐 Use [Tailscale](https://tailscale.com) to trivially create your mesh VPN
+- 🤖 Use [JuiceSSH](https://juicessh.com)/[Termius](https://termius.com) to connect from Android
+- 🍎 Use [Termius](https://termius.com)/[Blink Shell](https://blink.sh)/[Secure ShellFish](https://secureshellfish.app) to connect from iOS
 
 ---
 
@@ -129,21 +136,21 @@ cgwt 0  # → Overview of all branches
 </tr>
 <tr>
 <td width="33%" align="center">
-  <h4>👥 Supervisor Mode</h4>
+  <h4>👥 Supervisor Mode <br><i>(coming soon)</i></h4>
   <p>Master Claude oversees<br>and coordinates all branches</p>
 </td>
 <td width="33%" align="center">
-  <h4>🎨 Beautiful CLI</h4>
+  <h4>🎨 Modern CLI</h4>
   <p>Intuitive interface with<br>colors and animations</p>
 </td>
 <td width="33%" align="center">
   <h4>🔐 Secure by Design</h4>
-  <p>Sandboxed environments<br>with validation</p>
+  <p>Sandboxed environments</p>
 </td>
 </tr>
 </table>
 
-### 🚀 Advanced Features
+### 🚀 Advanced Features (WIP)
 
 - **📊 Visual Layouts** - Pre-configured tmux layouts for different workflows
 - **🔄 Smart Syncing** - Synchronize commands across multiple panes
@@ -353,15 +360,16 @@ cgwt s feature-auth
 │          Claude GWT Orchestrator        │
 ├─────────────────────────────────────────┤
 │                                         │
-│  ┌──────────┐  ┌──────────┐  ┌──────┐ │
-│  │   Git    │  │  Tmux    │  │ MCP  │ │
-│  │ Worktree │  │ Sessions │  │Server│ │
-│  └──────────┘  └──────────┘  └──────┘ │
+│  ┌──────────┐  ┌──────────┐  ┌──────┐   │
+│  │   Git    │  │  Tmux    │  │ MCP  │   │
+│  │ Worktree │  │ Sessions │  │Server|   |
+│  │          |  |          |  |(soon)|   |
+│  └──────────┘  └──────────┘  └──────┘   │
 │                                         │
 └─────────────┬───────────────────────────┘
               │
-    ┌─────────┴─────────┬─────────────┐
-    │                   │             │
+    ┌─────────┴────────┬────────────┐
+    │                  │            │
 ┌───▼────┐        ┌────▼───┐   ┌────▼───┐
 │ Branch │        │ Branch │   │ Branch │
 │   A    │        │   B    │   │   C    │
@@ -439,8 +447,6 @@ MIT © [Claude GWT Contributors](https://github.com/nazq/claude_gwt/graphs/contr
     <sub>Built with ❤️ by developers who were tired of losing context</sub>
   </p>
   <p>
-    <a href="https://github.com/nazq/claude_gwt/stargazers">⭐ Star us on GitHub</a> •
-    <a href="https://twitter.com/claude_gwt">🐦 Follow on Twitter</a> •
-    <a href="https://discord.gg/claude-gwt">💬 Join Discord</a>
+    <a href="https://github.com/nazq/claude_gwt/stargazers">⭐ Star us on GitHub</a>
   </p>
 </div>
