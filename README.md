@@ -488,7 +488,7 @@ Claude GWT prioritizes security:
 - ✅ **No Arbitrary Execution** - Commands are validated
 - ✅ **Secure Sessions** - Tmux sessions are protected
 
-Report security issues to security@claude-gwt.dev
+For security issues, please follow responsible disclosure via GitHub Security.
 
 ---
 
