@@ -21,7 +21,7 @@
     <a href="https://www.npmjs.com/package/claude-gwt"><img src="https://img.shields.io/npm/v/claude-gwt.svg?style=flat-square&color=00ADD8&label=npm" alt="NPM Version"></a>
     <a href="https://www.npmjs.com/package/claude-gwt"><img src="https://img.shields.io/npm/dm/claude-gwt.svg?style=flat-square&color=00ADD8" alt="NPM Downloads"></a>
     <a href="https://github.com/nazq/claude_gwt/blob/master/LICENSE"><img src="https://img.shields.io/npm/l/claude-gwt.svg?style=flat-square&color=00ADD8" alt="License"></a>
-    <a href="https://github.com/nazq/claude_gwt/actions"><img src="https://img.shields.io/github/actions/workflow/status/nazq/claude_gwt/ci.yml?branch=master&style=flat-square&label=build" alt="Build Status"></a>
+    <a href="https://github.com/nazq/claude_gwt/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/nazq/claude_gwt/ci.yml?branch=master&style=flat-square&label=build" alt="Build Status"></a>
     <a href="https://codecov.io/gh/nazq/claude_gwt"><img src="https://img.shields.io/codecov/c/github/nazq/claude_gwt?style=flat-square&color=00ADD8" alt="Coverage"></a>
     <a href="https://github.com/nazq/claude_gwt"><img src="https://img.shields.io/github/stars/nazq/claude_gwt?style=flat-square&color=00ADD8" alt="GitHub Stars"></a>
   </p>

@@ -1,9 +1,15 @@
 import { vi } from 'vitest';
-import inquirer from 'inquirer';
 import * as prompts from '../../../../src/cli/ui/prompts';
 import type { GitWorktreeInfo } from '../../../../src/types';
 
-vi.mock('inquirer');
+// Mock inquirer
+vi.mock('inquirer', () => ({
+  default: {
+    prompt: vi.fn(),
+  },
+}));
+
+import inquirer from 'inquirer';
 
 interface PromptConfig {
   type: string;

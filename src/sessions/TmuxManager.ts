@@ -5,7 +5,7 @@ import { Logger } from '../core/utils/logger.js';
 import { TmuxEnhancer } from './TmuxEnhancer.js';
 import type { GitRepository } from '../core/git/GitRepository.js';
 import { ConfigManager } from '../core/ConfigManager.js';
-import { TmuxDriver } from '../core/drivers/TmuxDriver.js';
+import { TmuxDriver } from './TmuxDriver.js';
 import { sanitizePath, sanitizeSessionName } from '../core/utils/security.js';
 
 export interface SessionConfig {

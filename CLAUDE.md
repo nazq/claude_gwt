@@ -304,6 +304,23 @@ let mockGit: any;
 ```bash
 # Full CI simulation - run this before EVERY commit
 npm run lint && npm run typecheck && npm test
+```
+
+**MANDATORY**: The entire test suite MUST pass locally with 100% success before pushing ANY code to remote. No exceptions unless explicitly overridden by the user. This includes:
+- All unit tests passing
+- All integration tests passing
+- All e2e tests passing
+- Zero test failures
+- Zero unhandled errors
+- Lint passing
+- Type checking passing
+
+## Pre-commit Verification
+**CRITICAL**: We should ALWAYS know if CI will pass before pushing code. Run the complete verification suite locally:
+
+```bash
+# Full CI simulation - run this before EVERY commit
+npm run lint && npm run typecheck && npm test
 
 # If any of these fail, fix the issues before committing
 ```

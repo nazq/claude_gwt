@@ -1,10 +1,15 @@
 import { vi } from 'vitest';
 import { execSync } from 'child_process';
-import { TmuxEnhancer } from '../../../src/sessions/TmuxEnhancer';
 
-// Mock child_process
+// Mock dependencies to prevent actual command execution
 vi.mock('child_process');
 vi.mock('../../../src/core/utils/logger');
+vi.mock('../../../src/core/utils/async', () => ({
+  execCommandSafe: vi.fn().mockResolvedValue({ code: 0, stdout: '', stderr: '' }),
+}));
+
+// Import after mocking
+import { TmuxEnhancer } from '../../../src/sessions/TmuxEnhancer';
 
 describe('Tmux bind-key command validation', () => {
   const mockExecSync = execSync as vi.MockedFunction<typeof execSync>;

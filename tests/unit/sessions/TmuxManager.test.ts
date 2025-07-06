@@ -2,6 +2,7 @@ import { vi } from 'vitest';
 import * as fs from 'fs';
 import { TmuxManager } from '../../../src/sessions/TmuxManager';
 import { TmuxEnhancer } from '../../../src/sessions/TmuxEnhancer';
+import { TmuxDriver } from '../../../src/sessions/TmuxDriver';
 import type { SessionConfig } from '../../../src/sessions/TmuxManager';
 
 // Mock child_process
@@ -32,7 +33,7 @@ vi.mock('../../../src/core/utils/logger');
 vi.mock('../../../src/sessions/TmuxEnhancer');
 
 // Mock TmuxDriver
-vi.mock('../../../src/core/drivers/TmuxDriver', () => ({
+vi.mock('../../../src/sessions/TmuxDriver', () => ({
   TmuxDriver: {
     isAvailable: vi.fn().mockResolvedValue(true),
     isInsideTmux: vi.fn().mockReturnValue(false),
@@ -92,14 +93,12 @@ describe('TmuxManager', () => {
 
   describe('isTmuxAvailable', () => {
     it('should return true when tmux is available', async () => {
-      const { TmuxDriver } = require('../../../src/core/drivers/TmuxDriver');
       TmuxDriver.isAvailable.mockResolvedValue(true);
 
       expect(await TmuxManager.isTmuxAvailable()).toBe(true);
     });
 
     it('should return false when tmux is not available', async () => {
-      const { TmuxDriver } = require('../../../src/core/drivers/TmuxDriver');
       TmuxDriver.isAvailable.mockResolvedValue(false);
 
       expect(await TmuxManager.isTmuxAvailable()).toBe(false);
@@ -108,14 +107,12 @@ describe('TmuxManager', () => {
 
   describe('isInsideTmux', () => {
     it('should return true when inside tmux', () => {
-      const { TmuxDriver } = require('../../../src/core/drivers/TmuxDriver');
       TmuxDriver.isInsideTmux.mockReturnValue(true);
 
       expect(TmuxManager.isInsideTmux()).toBe(true);
     });
 
     it('should return false when not inside tmux', () => {
-      const { TmuxDriver } = require('../../../src/core/drivers/TmuxDriver');
       TmuxDriver.isInsideTmux.mockReturnValue(false);
 
       expect(TmuxManager.isInsideTmux()).toBe(false);
@@ -124,7 +121,6 @@ describe('TmuxManager', () => {
 
   describe('getSessionInfo', () => {
     it('should return session info when session exists', async () => {
-      const { TmuxDriver } = require('../../../src/core/drivers/TmuxDriver');
       TmuxDriver.getSession.mockResolvedValue({
         name: 'cgwt-repo-main',
         windows: 2,
@@ -145,7 +141,6 @@ describe('TmuxManager', () => {
     });
 
     it('should return null when session does not exist', async () => {
-      const { TmuxDriver } = require('../../../src/core/drivers/TmuxDriver');
       TmuxDriver.getSession.mockResolvedValue(null);
 
       const info = await TmuxManager.getSessionInfo('non-existent');
@@ -154,7 +149,6 @@ describe('TmuxManager', () => {
     });
 
     it('should handle sessions without Claude running', async () => {
-      const { TmuxDriver } = require('../../../src/core/drivers/TmuxDriver');
       TmuxDriver.getSession.mockResolvedValue({
         name: 'cgwt-repo-main',
         windows: 1,
@@ -175,7 +169,6 @@ describe('TmuxManager', () => {
     });
 
     it('should handle errors when checking for Claude', async () => {
-      const { TmuxDriver } = require('../../../src/core/drivers/TmuxDriver');
       TmuxDriver.getSession.mockResolvedValue({
         name: 'cgwt-repo-main',
         windows: 1,
@@ -203,14 +196,12 @@ describe('TmuxManager', () => {
     });
 
     it('should check tmux availability', async () => {
-      const { TmuxDriver } = require('../../../src/core/drivers/TmuxDriver');
       TmuxDriver.isAvailable.mockResolvedValue(false);
 
       await expect(TmuxManager.launchSession(mockConfig)).rejects.toThrow('tmux is not installed');
     });
 
     it('should create context file', async () => {
-      const { TmuxDriver } = require('../../../src/core/drivers/TmuxDriver');
       TmuxDriver.isAvailable.mockResolvedValue(true);
       TmuxDriver.getSession.mockResolvedValue(null);
 
@@ -223,7 +214,6 @@ describe('TmuxManager', () => {
     });
 
     it('should create new session when it does not exist', async () => {
-      const { TmuxDriver } = require('../../../src/core/drivers/TmuxDriver');
       TmuxDriver.isAvailable.mockResolvedValue(true);
       TmuxDriver.getSession.mockResolvedValue(null);
       TmuxDriver.isInsideTmux.mockReturnValue(false);
@@ -235,7 +225,6 @@ describe('TmuxManager', () => {
     });
 
     it('should restart Claude in existing session without Claude', async () => {
-      const { TmuxDriver } = require('../../../src/core/drivers/TmuxDriver');
       TmuxDriver.isAvailable.mockResolvedValue(true);
       TmuxDriver.getSession.mockResolvedValue({
         name: 'cgwt-repo-main',
@@ -252,7 +241,6 @@ describe('TmuxManager', () => {
     });
 
     it('should attach to existing session with Claude running', async () => {
-      const { TmuxDriver } = require('../../../src/core/drivers/TmuxDriver');
       TmuxDriver.isAvailable.mockResolvedValue(true);
       TmuxDriver.getSession.mockResolvedValue({
         name: 'cgwt-repo-main',
@@ -270,7 +258,6 @@ describe('TmuxManager', () => {
     });
 
     it('should handle being inside tmux differently', async () => {
-      const { TmuxDriver } = require('../../../src/core/drivers/TmuxDriver');
       TmuxDriver.isAvailable.mockResolvedValue(true);
       TmuxDriver.getSession.mockResolvedValue(null);
       TmuxDriver.isInsideTmux.mockReturnValue(true);
@@ -290,7 +277,6 @@ describe('TmuxManager', () => {
     };
 
     it('should create a detached session', async () => {
-      const { TmuxDriver } = require('../../../src/core/drivers/TmuxDriver');
       TmuxDriver.isAvailable.mockResolvedValue(true);
       TmuxDriver.getSession.mockResolvedValue(null);
 
@@ -308,7 +294,6 @@ describe('TmuxManager', () => {
 
   describe('attachToSession', () => {
     it('should use switch-client when inside tmux', async () => {
-      const { TmuxDriver } = require('../../../src/core/drivers/TmuxDriver');
       TmuxDriver.isInsideTmux.mockReturnValue(true);
 
       await TmuxManager.attachToSession('cgwt-repo-main');
@@ -317,7 +302,6 @@ describe('TmuxManager', () => {
     });
 
     it('should use attach-session when outside tmux', async () => {
-      const { TmuxDriver } = require('../../../src/core/drivers/TmuxDriver');
       TmuxDriver.isInsideTmux.mockReturnValue(false);
 
       await TmuxManager.attachToSession('cgwt-repo-main');
@@ -329,8 +313,6 @@ describe('TmuxManager', () => {
 
   describe('killSession', () => {
     it('should kill the specified session', async () => {
-      const { TmuxDriver } = require('../../../src/core/drivers/TmuxDriver');
-
       await TmuxManager.killSession('cgwt-repo-main');
 
       expect(TmuxDriver.killSession).toHaveBeenCalledWith('cgwt-repo-main');
@@ -339,7 +321,6 @@ describe('TmuxManager', () => {
 
   describe('listSessions', () => {
     it('should return list of cgwt sessions', async () => {
-      const { TmuxDriver } = require('../../../src/core/drivers/TmuxDriver');
       TmuxDriver.listSessions.mockResolvedValue([
         { name: 'cgwt-repo-main', windows: 2, created: 1234567890, attached: true },
         { name: 'cgwt-repo-feature', windows: 1, created: 1234567891, attached: false },
@@ -383,7 +364,6 @@ describe('TmuxManager', () => {
     });
 
     it('should return empty array when no sessions exist', async () => {
-      const { TmuxDriver } = require('../../../src/core/drivers/TmuxDriver');
       TmuxDriver.listSessions.mockRejectedValue(new Error('no sessions'));
 
       const sessions = await TmuxManager.listSessions();
@@ -394,7 +374,6 @@ describe('TmuxManager', () => {
 
   describe('shutdownAll', () => {
     it('should kill all cgwt sessions', async () => {
-      const { TmuxDriver } = require('../../../src/core/drivers/TmuxDriver');
       TmuxDriver.listSessions.mockResolvedValue([
         { name: 'cgwt-repo-main', windows: 2, created: 1234567890, attached: true },
         { name: 'cgwt-repo-feature', windows: 1, created: 1234567891, attached: false },
@@ -468,7 +447,6 @@ describe('TmuxManager', () => {
 
   describe('getSessionGroup', () => {
     it('should return session group name', async () => {
-      const { TmuxDriver } = require('../../../src/core/drivers/TmuxDriver');
       TmuxDriver.getOption.mockResolvedValue('cgwt-repo');
 
       const group = await TmuxManager.getSessionGroup('cgwt-repo-main');
@@ -477,7 +455,6 @@ describe('TmuxManager', () => {
     });
 
     it('should return null when session has no group', async () => {
-      const { TmuxDriver } = require('../../../src/core/drivers/TmuxDriver');
       TmuxDriver.getOption.mockRejectedValue(new Error('no group'));
 
       const group = await TmuxManager.getSessionGroup('cgwt-repo-main');
@@ -488,8 +465,6 @@ describe('TmuxManager', () => {
 
   describe('getSessionsInGroup', () => {
     it('should return sessions in the specified group', async () => {
-      const { TmuxDriver } = require('../../../src/core/drivers/TmuxDriver');
-
       // Mock listSessions
       TmuxDriver.listSessions.mockResolvedValue([
         { name: 'cgwt-repo-main', windows: 2, created: 1234567890, attached: true },
