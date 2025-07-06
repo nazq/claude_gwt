@@ -20,7 +20,7 @@ const program = new Command();
 program
   .name('cgwt')
   .description('Quick session switcher for Claude GWT')
-  .version('0.1.2-beta.0')
+  .version('0.1.2')
   .argument('[index]', 'Session index to switch to')
   .option('-l, --list', 'List all sessions')
   .option('-s, --switch <branch>', 'Switch to branch by name')

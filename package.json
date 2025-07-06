@@ -1,13 +1,11 @@
 {
   "name": "claude-gwt",
-  "version": "0.1.2-beta.0",
+  "version": "0.1.2",
   "description": "[BETA] A beautiful Git Worktree manager with integrated Claude Code orchestration - Experimental software under active development",
   "main": "dist/index.js",
   "bin": {
     "claude-gwt": "./dist/src/cli/index.js",
-    "cgwt": "./dist/src/cli/cgwt.js",
-    "cgwt-tokens": "./dist/src/cli/token-report.js",
-    "claude-gwt-mcp": "./dist/src/mcp/server.js"
+    "cgwt": "./dist/src/cli/cgwt.js"
   },
   "scripts": {
     "build": "tsc",
@@ -56,8 +54,6 @@
     "ai",
     "orchestration",
     "tmux",
-    "mcp",
-    "model-context-protocol",
     "developer-tools",
     "cli",
     "beta",
@@ -134,10 +130,6 @@
     {
       "path": "dist/src/cli/index.js",
       "limit": "500 KB"
-    },
-    {
-      "path": "dist/src/mcp/server.js",
-      "limit": "200 KB"
     }
   ]
 }
