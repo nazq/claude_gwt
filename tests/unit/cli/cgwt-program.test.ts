@@ -78,15 +78,16 @@ branch refs/heads/feature
       const sessions = parseWorktreeOutput(output);
 
       expect(sessions).toHaveLength(2);
+      // Sessions are sorted alphabetically by branch name
       expect(sessions[0]).toEqual({
-        path: '/test/main',
-        head: 'abc123def456',
-        branch: 'refs/heads/main',
-      });
-      expect(sessions[1]).toEqual({
         path: '/test/feature',
         head: '123456abcdef',
         branch: 'refs/heads/feature',
+      });
+      expect(sessions[1]).toEqual({
+        path: '/test/main',
+        head: 'abc123def456',
+        branch: 'refs/heads/main',
       });
     });
 
@@ -95,12 +96,16 @@ branch refs/heads/feature
       expect(sessions).toEqual([]);
     });
 
-    it('should filter out sessions without branches', () => {
+    it('should keep sessions without branches', () => {
       const output = `worktree /test/detached
 HEAD abc123
 `;
       const sessions = parseWorktreeOutput(output);
-      expect(sessions).toEqual([]);
+      expect(sessions).toHaveLength(1);
+      expect(sessions[0]).toEqual({
+        path: '/test/detached',
+        head: 'abc123',
+      });
     });
   });
 
@@ -207,9 +212,10 @@ HEAD abc123
       );
     });
 
-    it('should accept zero-based index 0 for first session', async () => {
+    it('should switch to first branch by index 1', async () => {
       await switchSession('1');
-      expect(mockProcessChdir).toHaveBeenCalledWith('/test/main');
+      // Sessions are sorted alphabetically: develop, feature, main
+      expect(mockProcessChdir).toHaveBeenCalledWith('/test/develop');
     });
   });
 
@@ -416,12 +422,13 @@ HEAD abc123
       program.exitOverride();
 
       try {
-        await program.parseAsync(['node', 'cgwt', '2']);
+        await program.parseAsync(['node', 'cgwt', '1']);
       } catch (error: any) {
         // Command will exit after execution
         expect(error.code).toBe(0);
       }
 
+      // With alphabetical sorting: feature=1, main=2
       expect(mockProcessChdir).toHaveBeenCalledWith('/test/feature');
     });
 
@@ -457,14 +464,19 @@ branch refs/heads/third
 `;
       const sessions = parseWorktreeOutput(output);
 
-      // Should only return sessions with branches (first and third)
-      expect(sessions).toHaveLength(2);
+      // All sessions are kept, even without branches
+      expect(sessions).toHaveLength(3);
+      // Sessions without branches come first (empty string sorts before others)
       expect(sessions[0]).toEqual({
+        path: '/test/second',
+        head: 'def456',
+      });
+      expect(sessions[1]).toEqual({
         path: '/test/first',
         head: 'abc123',
         branch: 'refs/heads/first',
       });
-      expect(sessions[1]).toEqual({
+      expect(sessions[2]).toEqual({
         path: '/test/third',
         head: 'ghi789',
         branch: 'refs/heads/third',
@@ -481,8 +493,10 @@ branch refs/heads/main
 `;
       const sessions = parseWorktreeOutput(output);
 
-      expect(sessions).toHaveLength(1);
-      expect(sessions[0].path).toBe('/test/main');
+      expect(sessions).toHaveLength(2);
+      // Session without branch comes first after sorting (empty string sorts before others)
+      expect(sessions[0].path).toBe('/test/existing');
+      expect(sessions[1].path).toBe('/test/main');
     });
   });
 

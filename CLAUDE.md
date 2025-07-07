@@ -43,6 +43,14 @@ npm run format:check && npm run lint && npm run typecheck && npm test
 
 **NO EXCEPTIONS: If any check fails, fix it before pushing.**
 
+### Code Coverage Requirements
+
+**MANDATORY: No PR should reduce overall code coverage**
+- Run `npm run test:coverage` to check coverage
+- New code should maintain or improve the coverage percentage
+- If coverage drops, add tests to cover the new code
+- Aim for 100% coverage on new code additions
+
 ### When Tests Fail
 
 If tests fail locally:
