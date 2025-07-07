@@ -1,0 +1,34 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "packageManager": "npm",
+  "reporters": [
+    "html",
+    "clear-text",
+    "progress"
+  ],
+  "testRunner": "vitest",
+  "coverageAnalysis": "perTest",
+  "mutate": [
+    "src/**/*.ts",
+    "!src/**/*.test.ts",
+    "!src/**/*.spec.ts",
+    "!src/types/**/*.ts",
+    "!src/cli/index.ts"
+  ],
+  "testRunner_comment": "Only run unit tests to avoid worker issues",
+  "commandRunner": {
+    "command": "npm test tests/unit"
+  },
+  "tempDirName": ".stryker-tmp",
+  "cleanTempDir": true,
+  "concurrency": 2,
+  "htmlReporter": {
+    "fileName": "reports/mutation/index.html"
+  },
+  "thresholds": {
+    "high": 80,
+    "low": 60,
+    "break": null
+  },
+  "disableTypeChecks": "src/**/*.ts"
+}
