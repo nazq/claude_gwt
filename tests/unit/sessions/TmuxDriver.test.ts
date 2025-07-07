@@ -1260,6 +1260,26 @@ describe('TmuxDriver', () => {
       });
     });
 
+    describe('colorFrom helper', () => {
+      it('should generate color strings for valid numbers', () => {
+        expect(TmuxDriver.colorFrom(0)).toBe('colour0');
+        expect(TmuxDriver.colorFrom(42)).toBe('colour42');
+        expect(TmuxDriver.colorFrom(128)).toBe('colour128');
+        expect(TmuxDriver.colorFrom(255)).toBe('colour255');
+      });
+
+      it('should throw error for invalid color numbers', () => {
+        expect(() => TmuxDriver.colorFrom(-1)).toThrow('Color number must be between 0 and 255');
+        expect(() => TmuxDriver.colorFrom(256)).toThrow('Color number must be between 0 and 255');
+        expect(() => TmuxDriver.colorFrom(1000)).toThrow('Color number must be between 0 and 255');
+      });
+
+      it('should work with decimal numbers by truncating', () => {
+        expect(TmuxDriver.colorFrom(42.7)).toBe('colour42');
+        expect(TmuxDriver.colorFrom(128.1)).toBe('colour128');
+      });
+    });
+
     describe('TmuxLayoutBuilder', () => {
       it('should build layout with multiple panes', async () => {
         mockExecCommandSafe.mockResolvedValue({

@@ -809,6 +809,32 @@ export class TmuxDriver {
     // Apply layout
     await this.applyLayout(`${sessionName}:${windowName}`, layout);
   }
+
+  /**
+   * Generate a tmux colour string for any numbered color (0-255)
+   * @param colorNumber The color number (0-255)
+   * @returns The tmux color string (e.g., 'colour42')
+   * @example
+   * // Use any of the 256 terminal colors
+   * const purple = TmuxDriver.colorFrom(135);
+   * const orange = TmuxDriver.colorFrom(208);
+   * const gray = TmuxDriver.colorFrom(244);
+   * 
+   * // Use in status bar configuration
+   * await TmuxDriver.configureStatusBar(sessionName, {
+   *   style: {
+   *     background: TmuxDriver.colorFrom(22), // dark green
+   *     foreground: TmuxDriver.colorFrom(231), // bright white
+   *   }
+   * });
+   */
+  static colorFrom(colorNumber: number): string {
+    const intColor = Math.floor(colorNumber);
+    if (intColor < 0 || intColor > 255) {
+      throw new Error('Color number must be between 0 and 255');
+    }
+    return `colour${intColor}`;
+  }
 }
 
 /**
