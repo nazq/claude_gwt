@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # Script to trigger a production release
+# This creates a Version Packages PR that, when merged, publishes to npm
 
 echo "🚀 Claude GWT Production Release Tool"
 echo "===================================="

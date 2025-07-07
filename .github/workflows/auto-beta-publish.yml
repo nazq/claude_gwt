@@ -15,18 +15,24 @@ jobs:
     # Skip if:
     # - Commit message contains [skip ci]
     # - It's a version commit
-    # - It's not from a PR merge
+    # - It's a release commit
     if: |
       !contains(github.event.head_commit.message, '[skip ci]') &&
       !contains(github.event.head_commit.message, 'chore: version packages') &&
       !contains(github.event.head_commit.message, 'chore(release):') &&
-      !contains(github.event.head_commit.message, 'Version Packages') &&
-      (contains(github.event.head_commit.message, '(#') || github.event.head_commit.author.name == 'github-actions[bot]')
+      !contains(github.event.head_commit.message, 'Version Packages')
     permissions:
       contents: write
       packages: write
       id-token: write
     steps:
+      - name: Debug - Show event info
+        run: |
+          echo "Commit message: ${{ github.event.head_commit.message }}"
+          echo "Author: ${{ github.event.head_commit.author.name }}"
+          echo "Event name: ${{ github.event_name }}"
+          echo "Branch: ${{ github.ref }}"
+          
       - name: Checkout Repo
         uses: actions/checkout@v4
         with:
