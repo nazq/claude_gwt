@@ -250,6 +250,35 @@ describe('Service Adapters', () => {
 
       expect(result).toEqual(expectedSessions);
     });
+
+    it('should delegate killSession with logging and error boundary', async () => {
+      const sessionName = 'test-session';
+      mockErrorBoundary.handle.mockImplementation(async (fn) => fn());
+      mockTmuxManager.killSession.mockResolvedValue();
+
+      await adapter.killSession(sessionName);
+
+      expect(mockLogger.info).toHaveBeenCalledWith('Killing tmux session', { sessionName });
+      expect(mockTmuxManager.killSession).toHaveBeenCalledWith(sessionName);
+      expect(mockErrorBoundary.handle).toHaveBeenCalledWith(
+        expect.any(Function) as () => Promise<void>,
+        'TmuxService.killSession',
+      );
+    });
+
+    it('should delegate shutdownAll with logging and error boundary', async () => {
+      mockErrorBoundary.handle.mockImplementation(async (fn) => fn());
+      mockTmuxManager.shutdownAll.mockResolvedValue();
+
+      await adapter.shutdownAll();
+
+      expect(mockLogger.info).toHaveBeenCalledWith('Shutting down all tmux sessions');
+      expect(mockTmuxManager.shutdownAll).toHaveBeenCalled();
+      expect(mockErrorBoundary.handle).toHaveBeenCalledWith(
+        expect.any(Function) as () => Promise<void>,
+        'TmuxService.shutdownAll',
+      );
+    });
   });
 
   describe('CachingAdapter', () => {

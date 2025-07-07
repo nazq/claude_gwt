@@ -391,4 +391,54 @@ describe('ConfigManager', () => {
       expect(contextDir).toContain('contexts');
     });
   });
+
+  describe('getTemplate', () => {
+    it('should handle file read errors gracefully', () => {
+      mockFs.existsSync.mockReturnValue(true);
+      mockFs.readFileSync
+        .mockImplementationOnce(() => '{}') // For config load
+        .mockImplementationOnce(() => {
+          throw new Error('Permission denied');
+        });
+
+      const manager = ConfigManager.getInstance();
+      const template = manager.getTemplate('test-template');
+
+      expect(template).toBeNull();
+    });
+  });
+
+  describe('initializeUserConfig', () => {
+    let consoleLogSpy: vi.SpyInstance;
+
+    beforeEach(() => {
+      consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      consoleLogSpy.mockRestore();
+    });
+
+    it('should initialize user configuration with console output', () => {
+      mockFs.existsSync.mockReturnValue(true);
+      mockFs.readFileSync.mockReturnValue('{}');
+
+      const manager = ConfigManager.getInstance();
+      manager.initializeUserConfig();
+
+      // Check that configuration information was displayed
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Claude GWT Configuration'),
+      );
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Configuration directory:'),
+      );
+      expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Context directory:'));
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Configuration files created:'),
+      );
+      expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Next steps:'));
+      expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Tips:'));
+    });
+  });
 });

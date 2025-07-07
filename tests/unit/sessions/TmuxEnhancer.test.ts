@@ -24,6 +24,7 @@ vi.mock('../../../src/sessions/TmuxDriver', async (importOriginal) => {
       splitPane: vi.fn(),
       setPaneTitle: vi.fn(),
       sendKeys: vi.fn(),
+      createLayoutBuilder: vi.fn(),
     },
     // Keep TmuxColor as is
     TmuxColor: actual.TmuxColor,
@@ -397,6 +398,78 @@ describe('TmuxEnhancer', () => {
       expect(result.success).toBe(false);
       expect(result.error).toBeInstanceOf(Error);
       expect(result.details?.projectGroup).toBe('cgwt-project');
+    });
+  });
+
+  describe('toggleSynchronizedPanes', () => {
+    it('should toggle synchronized panes successfully', () => {
+      mockTmuxDriver.setWindowOption.mockReturnValue();
+
+      const result = TmuxEnhancer.toggleSynchronizedPanes('test-session');
+
+      expect(result).toBe(true);
+      expect(mockTmuxDriver.setWindowOption).toHaveBeenCalledWith(
+        'test-session',
+        'synchronize-panes',
+        'on',
+      );
+    });
+
+    it('should handle errors when toggling synchronized panes', () => {
+      mockTmuxDriver.setWindowOption.mockImplementation(() => {
+        throw new Error('Failed to set option');
+      });
+
+      const result = TmuxEnhancer.toggleSynchronizedPanes('test-session');
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('createDashboardWindow', () => {
+    it('should create dashboard window with branches', async () => {
+      const branches = ['main', 'feature-1', 'feature-2', 'feature-3'];
+      const worktreeBase = '/test/worktrees';
+
+      const mockBuilder = {
+        addPane: vi.fn(),
+        build: vi.fn().mockResolvedValue(),
+      };
+      mockTmuxDriver.createLayoutBuilder.mockReturnValue(mockBuilder);
+
+      await TmuxEnhancer.createDashboardWindow('test-session', branches, worktreeBase);
+
+      expect(mockTmuxDriver.createLayoutBuilder).toHaveBeenCalledWith('test-session');
+      expect(mockBuilder.addPane).toHaveBeenCalledTimes(4); // 4 branches
+      expect(mockBuilder.build).toHaveBeenCalledWith('dashboard', expect.anything());
+    });
+
+    it('should handle errors when creating dashboard window', async () => {
+      const branches = ['main'];
+      const worktreeBase = '/test/worktrees';
+
+      mockTmuxDriver.createLayoutBuilder.mockImplementation(() => {
+        throw new Error('Layout builder failed');
+      });
+
+      // Should not throw, just log error
+      await expect(
+        TmuxEnhancer.createDashboardWindow('test-session', branches, worktreeBase),
+      ).resolves.not.toThrow();
+    });
+  });
+
+  describe('createComparisonLayout', () => {
+    it('should handle errors when creating comparison layout', async () => {
+      const branches = ['main', 'feature'];
+      const worktreeBase = '/test/worktrees';
+
+      mockTmuxDriver.createWindow.mockRejectedValue(new Error('Window creation failed'));
+
+      // Should not throw, just log error
+      await expect(
+        TmuxEnhancer.createComparisonLayout('test-session', branches, worktreeBase),
+      ).resolves.not.toThrow();
     });
   });
 });

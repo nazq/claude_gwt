@@ -293,6 +293,18 @@ describe('StructuredLogger (Pino)', () => {
       expect(networkLogger).toBeInstanceOf(StructuredLogger);
       expect(networkLogger).not.toBe(structuredLogger);
     });
+
+    it('should create worktree context', () => {
+      const worktreeLogger = structuredLogger.forWorktree('/path/to/worktree', 'feature-branch');
+      expect(worktreeLogger).toBeInstanceOf(StructuredLogger);
+      expect(worktreeLogger).not.toBe(structuredLogger);
+    });
+
+    it('should create session context', () => {
+      const sessionLogger = structuredLogger.forSession('session-123');
+      expect(sessionLogger).toBeInstanceOf(StructuredLogger);
+      expect(sessionLogger).not.toBe(structuredLogger);
+    });
   });
 
   describe('level checking', () => {
@@ -328,6 +340,53 @@ describe('Legacy console logger implementation', () => {
       expect(logger.forNetworkOperation).toBeInstanceOf(Function);
       expect(logger.flush).toBeInstanceOf(Function);
     });
+
+    it('should delegate all logger methods correctly', () => {
+      // Test that all proxy methods work without errors
+      expect(() => logger.info('test info')).not.toThrow();
+      expect(() => logger.error('test error', new Error('test'))).not.toThrow();
+      expect(() => logger.debug('test debug')).not.toThrow();
+      expect(() => logger.warn('test warn')).not.toThrow();
+      expect(() => logger.fatal('test fatal')).not.toThrow();
+      expect(() => logger.trace('test trace')).not.toThrow();
+      expect(() => logger.success('test success')).not.toThrow();
+      expect(() => logger.failure('test failure', new Error('test'))).not.toThrow();
+      expect(() => logger.progress('test progress')).not.toThrow();
+      expect(() => logger.milestone('test milestone')).not.toThrow();
+      expect(() => logger.verbose('test verbose')).not.toThrow();
+    });
+
+    it('should delegate context methods correctly', () => {
+      const gitLogger = logger.forGitOperation('commit', 'main');
+      expect(gitLogger).toBeInstanceOf(StructuredLogger);
+
+      const worktreeLogger = logger.forWorktree('/path', 'branch');
+      expect(worktreeLogger).toBeInstanceOf(StructuredLogger);
+
+      const sessionLogger = logger.forSession('session-id');
+      expect(sessionLogger).toBeInstanceOf(StructuredLogger);
+
+      const networkLogger = logger.forNetworkOperation('GET', 'https://api.test');
+      expect(networkLogger).toBeInstanceOf(StructuredLogger);
+    });
+
+    it('should delegate utility methods correctly', () => {
+      const timer = logger.time('operation');
+      expect(timer).toBeInstanceOf(Function);
+      expect(() => timer()).not.toThrow();
+
+      expect(logger.isLevelEnabled('info')).toBe(false);
+
+      const childLogger = logger.child({ component: 'test' });
+      expect(childLogger).toBeInstanceOf(StructuredLogger);
+
+      const boundLogger = logger.bind({ requestId: '123' });
+      expect(boundLogger).toBeInstanceOf(StructuredLogger);
+    });
+
+    it('should handle flush correctly', async () => {
+      await expect(logger.flush()).resolves.not.toThrow();
+    });
   });
 
   describe('createLogger factory', () => {
@@ -350,6 +409,27 @@ describe('Legacy console logger implementation', () => {
     it('should export Logger as type alias for StructuredLogger', () => {
       const typedLogger: Logger = new StructuredLogger();
       expect(typedLogger).toBeInstanceOf(StructuredLogger);
+    });
+  });
+
+  describe('Backward compatibility Logger object', () => {
+    it('should provide all legacy methods', () => {
+      expect(() => Logger.info('test info')).not.toThrow();
+      expect(() => Logger.error('test error', new Error('test'))).not.toThrow();
+      expect(() => Logger.debug('test debug', { data: 'test' })).not.toThrow();
+      expect(() => Logger.warn('test warn', { warning: true })).not.toThrow();
+      expect(() => Logger.verbose('test verbose', { verbose: true })).not.toThrow();
+      expect(() => Logger.success('test success', { result: 'ok' })).not.toThrow();
+      expect(() => Logger.failure('test failure', new Error('fail'), { code: 500 })).not.toThrow();
+      expect(() => Logger.progress('test progress', { percent: 50 })).not.toThrow();
+      expect(() => Logger.milestone('test milestone', { phase: 'complete' })).not.toThrow();
+    });
+
+    it('should handle undefined data gracefully', () => {
+      expect(() => Logger.info('test', undefined)).not.toThrow();
+      expect(() => Logger.debug('test', undefined)).not.toThrow();
+      expect(() => Logger.warn('test', undefined)).not.toThrow();
+      expect(() => Logger.verbose('test', undefined)).not.toThrow();
     });
   });
 });
