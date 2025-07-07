@@ -78,12 +78,11 @@ jobs:
             NEXT_VERSION="${BASE_VERSION}-beta.${NEXT_BETA_NUM}"
           else
             # If not beta, create first beta of next patch version
-            # This uses npm version to calculate the next patch version
-            NEXT_PATCH=$(npm version patch --no-git-tag-version --no-commit-hooks)
-            NEXT_PATCH=${NEXT_PATCH#v}
-            # Revert the version change
-            git checkout -- package.json package-lock.json
-            NEXT_VERSION="${NEXT_PATCH}-beta.0"
+            # Parse current version components
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+            # Increment patch version
+            NEXT_PATCH=$((PATCH + 1))
+            NEXT_VERSION="${MAJOR}.${MINOR}.${NEXT_PATCH}-beta.0"
           fi
           
           echo "next_version=$NEXT_VERSION" >> $GITHUB_OUTPUT
