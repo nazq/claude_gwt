@@ -477,7 +477,7 @@ ${customContext}`
     branches: string[],
     projectName: string,
   ): void {
-    TmuxEnhancer.createComparisonLayout(sessionName, branches, projectName);
+    void TmuxEnhancer.createComparisonLayout(sessionName, branches, projectName);
   }
 
   /**
@@ -491,7 +491,7 @@ ${customContext}`
    * Create a dashboard window showing all branches
    */
   static createDashboard(sessionName: string, branches: string[], worktreeBase: string): void {
-    TmuxEnhancer.createDashboardWindow(sessionName, branches, worktreeBase);
+    void TmuxEnhancer.createDashboardWindow(sessionName, branches, worktreeBase);
   }
 
   /**

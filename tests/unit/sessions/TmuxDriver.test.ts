@@ -1,5 +1,14 @@
 import { vi } from 'vitest';
-import { TmuxDriver } from '../../../src/sessions/TmuxDriver';
+import {
+  TmuxDriver,
+  TmuxStatusPosition,
+  TmuxStatusJustify,
+  TmuxColor,
+  TmuxKeyTable,
+  TmuxPaneBorderStatus,
+  TmuxHook,
+  TmuxLayout,
+} from '../../../src/sessions/TmuxDriver';
 import * as asyncUtils from '../../../src/core/utils/async';
 
 vi.mock('../../../src/core/utils/async');
@@ -822,14 +831,543 @@ describe('TmuxDriver', () => {
           code: 0,
         });
 
-        await TmuxDriver.setHook('session1', 'window-linked', 'display-message "Window linked"');
+        await TmuxDriver.setHook('window-linked', 'display-message "Window linked"');
 
         expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
           'set-hook',
           '-g',
-          'session1',
           'window-linked',
+          'display-message "Window linked"',
         ]);
+      });
+
+      it('should handle displayMessage without target', async () => {
+        mockExecCommandSafe.mockResolvedValue({
+          stdout: '',
+          stderr: '',
+          code: 0,
+        });
+
+        await TmuxDriver.displayMessage('Hello, World!');
+
+        expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
+          'display-message',
+          'Hello, World!',
+        ]);
+      });
+
+      it('should handle displayMessage with target', async () => {
+        mockExecCommandSafe.mockResolvedValue({
+          stdout: '',
+          stderr: '',
+          code: 0,
+        });
+
+        await TmuxDriver.displayMessage('Hello, Session!', 'test-session');
+
+        expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
+          'display-message',
+          '-t',
+          'test-session',
+          'Hello, Session!',
+        ]);
+      });
+
+      it('should handle synchronizePanes enabled', async () => {
+        mockExecCommandSafe.mockResolvedValue({
+          stdout: '',
+          stderr: '',
+          code: 0,
+        });
+
+        await TmuxDriver.synchronizePanes('test-session:1', true);
+
+        expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
+          'setw',
+          '-t',
+          'test-session:1',
+          'synchronize-panes',
+          'on',
+        ]);
+      });
+
+      it('should handle synchronizePanes disabled', async () => {
+        mockExecCommandSafe.mockResolvedValue({
+          stdout: '',
+          stderr: '',
+          code: 0,
+        });
+
+        await TmuxDriver.synchronizePanes('test-session:1', false);
+
+        expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
+          'setw',
+          '-t',
+          'test-session:1',
+          'synchronize-panes',
+          'off',
+        ]);
+      });
+
+      it('should handle setPaneBorderStatus', async () => {
+        mockExecCommandSafe.mockResolvedValue({
+          stdout: '',
+          stderr: '',
+          code: 0,
+        });
+
+        await TmuxDriver.setPaneBorderStatus('test-session', 'top');
+
+        expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
+          'set',
+          '-t',
+          'test-session',
+          'pane-border-status',
+          'top',
+        ]);
+      });
+
+      it('should handle refreshClient without target', async () => {
+        mockExecCommandSafe.mockResolvedValue({
+          stdout: '',
+          stderr: '',
+          code: 0,
+        });
+
+        await TmuxDriver.refreshClient();
+
+        expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', ['refresh-client']);
+      });
+
+      it('should handle refreshClient with target', async () => {
+        mockExecCommandSafe.mockResolvedValue({
+          stdout: '',
+          stderr: '',
+          code: 0,
+        });
+
+        await TmuxDriver.refreshClient('test-session');
+
+        expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
+          'refresh-client',
+          '-t',
+          'test-session',
+        ]);
+      });
+    });
+
+    describe('SDK methods', () => {
+      it('should configure status bar', async () => {
+        mockExecCommandSafe.mockResolvedValue({
+          stdout: '',
+          stderr: '',
+          code: 0,
+        });
+
+        await TmuxDriver.configureStatusBar('test-session', {
+          enabled: true,
+          position: TmuxStatusPosition.Bottom,
+          interval: 5,
+          justify: TmuxStatusJustify.Centre,
+          style: {
+            background: TmuxColor.Colour32,
+            foreground: TmuxColor.Colour255,
+          },
+          left: 'left content',
+          right: 'right content',
+        });
+
+        // Should be called multiple times for different options
+        expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
+          'set',
+          '-t',
+          'test-session',
+          'status',
+          'on',
+        ]);
+        expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
+          'set',
+          '-t',
+          'test-session',
+          'status-position',
+          'bottom',
+        ]);
+        expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
+          'set',
+          '-t',
+          'test-session',
+          'status-interval',
+          '5',
+        ]);
+        expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
+          'set',
+          '-t',
+          'test-session',
+          'status-justify',
+          'centre',
+        ]);
+        expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
+          'set',
+          '-t',
+          'test-session',
+          'status-style',
+          'bg=colour32,fg=colour255',
+        ]);
+        expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
+          'set',
+          '-t',
+          'test-session',
+          'status-left',
+          'left content',
+        ]);
+        expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
+          'set',
+          '-t',
+          'test-session',
+          'status-right',
+          'right content',
+        ]);
+      });
+
+      it('should configure status bar with partial config', async () => {
+        mockExecCommandSafe.mockResolvedValue({
+          stdout: '',
+          stderr: '',
+          code: 0,
+        });
+
+        await TmuxDriver.configureStatusBar('test-session', {
+          enabled: false,
+        });
+
+        // Should only set the provided options
+        expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
+          'set',
+          '-t',
+          'test-session',
+          'status',
+          'off',
+        ]);
+        expect(mockExecCommandSafe).toHaveBeenCalledTimes(1);
+      });
+
+      it('should configure key bindings', async () => {
+        mockExecCommandSafe.mockResolvedValue({
+          stdout: '',
+          stderr: '',
+          code: 0,
+        });
+
+        await TmuxDriver.configureKeyBindings([
+          { key: 'h', command: 'select-pane -L' },
+          { key: 'H', command: 'resize-pane -L 5', table: TmuxKeyTable.Root, repeat: true },
+        ]);
+
+        expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
+          'bind-key',
+          'h',
+          'select-pane -L',
+        ]);
+        expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
+          'bind-key',
+          '-T',
+          'root',
+          '-r',
+          'H',
+          'resize-pane -L 5',
+        ]);
+      });
+
+      it('should configure pane borders', async () => {
+        mockExecCommandSafe.mockResolvedValue({
+          stdout: '',
+          stderr: '',
+          code: 0,
+        });
+
+        await TmuxDriver.configurePaneBorders('test-session', {
+          status: TmuxPaneBorderStatus.Top,
+          style: {
+            inactive: 'fg=colour240',
+            active: 'fg=colour32,bold',
+          },
+          format: '#{pane_title}',
+        });
+
+        expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
+          'set',
+          '-t',
+          'test-session',
+          'pane-border-status',
+          'top',
+        ]);
+        expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
+          'set',
+          '-t',
+          'test-session',
+          'pane-border-style',
+          'fg=colour240',
+        ]);
+        expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
+          'set',
+          '-t',
+          'test-session',
+          'pane-active-border-style',
+          'fg=colour32,bold',
+        ]);
+        expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
+          'set',
+          '-t',
+          'test-session',
+          'pane-border-format',
+          '#{pane_title}',
+        ]);
+      });
+
+      it('should enable vi copy mode', async () => {
+        mockExecCommandSafe.mockResolvedValue({
+          stdout: '',
+          stderr: '',
+          code: 0,
+        });
+
+        await TmuxDriver.enableViCopyMode('test-session');
+
+        // Should set vi mode
+        expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
+          'set',
+          '-g',
+          '-t',
+          'test-session',
+          'mode-keys',
+          'vi',
+        ]);
+        // Should enable mouse
+        expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
+          'set',
+          '-g',
+          '-t',
+          'test-session',
+          'mouse',
+          'on',
+        ]);
+        // Should configure copy bindings
+        expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
+          'bind-key',
+          '-T',
+          'copy-mode-vi',
+          'v',
+          'send-keys -X begin-selection',
+        ]);
+        expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
+          'bind-key',
+          '-T',
+          'copy-mode-vi',
+          'y',
+          'send-keys -X copy-selection-and-cancel',
+        ]);
+        // Should unbind mouse drag
+        expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', ['unbind-key', 'MouseDrag1Pane']);
+      });
+
+      it('should configure monitoring', async () => {
+        mockExecCommandSafe.mockResolvedValue({
+          stdout: '',
+          stderr: '',
+          code: 0,
+        });
+
+        await TmuxDriver.configureMonitoring('test-session', {
+          [TmuxHook.AlertActivity]: 'display-message "Activity"',
+          [TmuxHook.SessionCreated]: 'display-message "Created"',
+        });
+
+        expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
+          'set-hook',
+          '-g',
+          'alert-activity',
+          'display-message "Activity"',
+        ]);
+        expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
+          'set-hook',
+          '-g',
+          'session-created',
+          'display-message "Created"',
+        ]);
+      });
+
+      it('should apply layout', async () => {
+        mockExecCommandSafe.mockResolvedValue({
+          stdout: '',
+          stderr: '',
+          code: 0,
+        });
+
+        await TmuxDriver.applyLayout('test-session:1', TmuxLayout.EvenHorizontal);
+
+        expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
+          'send-keys',
+          '-t',
+          'test-session:1',
+          'select-layout even-horizontal',
+        ]);
+      });
+
+      it('should create multi-pane window', async () => {
+        mockExecCommandSafe.mockResolvedValue({
+          stdout: '',
+          stderr: '',
+          code: 0,
+        });
+
+        await TmuxDriver.createMultiPaneWindow('test-session', 'multi', 3, TmuxLayout.Tiled);
+
+        // Should create window
+        expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
+          'new-window',
+          '-t',
+          'test-session',
+          '-n',
+          'multi',
+        ]);
+        // Should split panes
+        expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
+          'split-window',
+          '-t',
+          'test-session:multi',
+          '-v',
+        ]);
+        expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
+          'split-window',
+          '-t',
+          'test-session:multi',
+          '-h',
+        ]);
+        // Should apply layout
+        expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
+          'send-keys',
+          '-t',
+          'test-session:multi',
+          'select-layout tiled',
+        ]);
+      });
+
+      it('should create layout builder', () => {
+        const builder = TmuxDriver.createLayoutBuilder('test-session');
+        expect(builder).toBeDefined();
+        expect(builder.addPane).toBeDefined();
+        expect(builder.build).toBeDefined();
+      });
+    });
+
+    describe('TmuxLayoutBuilder', () => {
+      it('should build layout with multiple panes', async () => {
+        mockExecCommandSafe.mockResolvedValue({
+          stdout: '',
+          stderr: '',
+          code: 0,
+        });
+
+        const builder = TmuxDriver.createLayoutBuilder('test-session');
+        builder
+          .addPane({ command: 'vim', workingDirectory: '/src', title: 'Editor' })
+          .addPane({ command: 'npm run dev', workingDirectory: '/src', title: 'Dev Server' })
+          .addPane({ command: 'git status', workingDirectory: '/src', title: 'Git' });
+
+        await builder.build('dev', TmuxLayout.Tiled);
+
+        // Should create window with first pane
+        expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
+          'new-window',
+          '-t',
+          'test-session',
+          '-n',
+          'dev',
+          '-c',
+          '/src',
+          'vim',
+        ]);
+        // Should split for additional panes
+        expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
+          'split-window',
+          '-t',
+          'test-session:dev',
+          '-v',
+          '-c',
+          '/src',
+          'npm run dev',
+        ]);
+        expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
+          'split-window',
+          '-t',
+          'test-session:dev',
+          '-h',
+          '-c',
+          '/src',
+          'git status',
+        ]);
+        // Should set pane titles
+        expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
+          'select-pane',
+          '-t',
+          'test-session:dev.1',
+          '-T',
+          'Dev Server',
+        ]);
+        expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
+          'select-pane',
+          '-t',
+          'test-session:dev.2',
+          '-T',
+          'Git',
+        ]);
+        // Should apply layout
+        expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
+          'send-keys',
+          '-t',
+          'test-session:dev',
+          'select-layout tiled',
+        ]);
+      });
+
+      it('should handle empty builder', async () => {
+        const builder = TmuxDriver.createLayoutBuilder('test-session');
+        await builder.build('empty', TmuxLayout.Tiled);
+
+        // Should not call any commands
+        expect(mockExecCommandSafe).not.toHaveBeenCalled();
+      });
+
+      it('should handle single pane', async () => {
+        mockExecCommandSafe.mockResolvedValue({
+          stdout: '',
+          stderr: '',
+          code: 0,
+        });
+
+        const builder = TmuxDriver.createLayoutBuilder('test-session');
+        builder.addPane({ command: 'vim' });
+
+        await builder.build('single', TmuxLayout.Tiled);
+
+        // Should only create window
+        expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
+          'new-window',
+          '-t',
+          'test-session',
+          '-n',
+          'single',
+          'vim',
+        ]);
+        // Should apply layout even for single pane
+        expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
+          'send-keys',
+          '-t',
+          'test-session:single',
+          'select-layout tiled',
+        ]);
+        // Should not split or set titles
+        expect(mockExecCommandSafe).toHaveBeenCalledTimes(2);
       });
     });
   });

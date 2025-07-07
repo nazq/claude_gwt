@@ -19,12 +19,18 @@ describe('TmuxEnhancer', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    // Default successful responses
+    // Default successful responses for low-level methods
     mockTmuxDriver.setOption.mockResolvedValue({ code: 0, stdout: '', stderr: '' });
     mockTmuxDriver.setWindowOption.mockResolvedValue({ code: 0, stdout: '', stderr: '' });
     mockTmuxDriver.bindKey.mockResolvedValue({ code: 0, stdout: '', stderr: '' });
     mockTmuxDriver.unbindKey.mockResolvedValue({ code: 0, stdout: '', stderr: '' });
     mockTmuxDriver.setHook.mockResolvedValue({ code: 0, stdout: '', stderr: '' });
+
+    // Mock new SDK methods
+    mockTmuxDriver.enableViCopyMode.mockResolvedValue(undefined);
+    mockTmuxDriver.configureStatusBar.mockResolvedValue(undefined);
+    mockTmuxDriver.configureKeyBindings.mockResolvedValue(undefined);
+    mockTmuxDriver.configureMonitoring.mockResolvedValue(undefined);
   });
 
   describe('configureSession', () => {
@@ -46,10 +52,7 @@ describe('TmuxEnhancer', () => {
 
     it('should return partial success when some operations fail', async () => {
       // Make one operation fail
-      mockTmuxDriver.setOption
-        .mockResolvedValueOnce({ code: 0, stdout: '', stderr: '' })
-        .mockRejectedValueOnce(new Error('Option failed'))
-        .mockResolvedValue({ code: 0, stdout: '', stderr: '' });
+      mockTmuxDriver.enableViCopyMode.mockRejectedValueOnce(new Error('Option failed'));
 
       const config: StatusBarConfig = {
         sessionName: 'test-session',
@@ -64,6 +67,10 @@ describe('TmuxEnhancer', () => {
     });
 
     it('should handle complete failure gracefully', async () => {
+      mockTmuxDriver.enableViCopyMode.mockRejectedValue(new Error('Total failure'));
+      mockTmuxDriver.configureStatusBar.mockRejectedValue(new Error('Total failure'));
+      mockTmuxDriver.configureKeyBindings.mockRejectedValue(new Error('Total failure'));
+      mockTmuxDriver.configureMonitoring.mockRejectedValue(new Error('Total failure'));
       mockTmuxDriver.setOption.mockRejectedValue(new Error('Total failure'));
 
       const config: StatusBarConfig = {
@@ -86,38 +93,33 @@ describe('TmuxEnhancer', () => {
       expect(result.success).toBe(true);
       expect(result.operation).toBe('configureCopyMode');
 
-      // Verify key commands were called
+      // Verify SDK method was called
+      expect(mockTmuxDriver.enableViCopyMode).toHaveBeenCalledWith('test-session');
+      // Verify additional option was set
       expect(mockTmuxDriver.setOption).toHaveBeenCalledWith(
         'test-session',
-        'mode-keys',
-        'vi',
+        '@yank_action',
+        'copy-pipe',
         true,
       );
-      expect(mockTmuxDriver.setOption).toHaveBeenCalledWith('test-session', 'mouse', 'on', true);
-      expect(mockTmuxDriver.bindKey).toHaveBeenCalledWith(
-        'v',
-        'send-keys -X begin-selection',
-        'copy-mode-vi',
-        false,
-      );
-      expect(mockTmuxDriver.unbindKey).toHaveBeenCalledWith('MouseDrag1Pane', undefined);
     });
 
     it('should handle partial failures', async () => {
-      mockTmuxDriver.setOption
-        .mockResolvedValueOnce({ code: 0, stdout: '', stderr: '' })
-        .mockRejectedValueOnce(new Error('Failed'))
-        .mockResolvedValue({ code: 0, stdout: '', stderr: '' });
+      // First call succeeds, second call fails
+      mockTmuxDriver.enableViCopyMode.mockResolvedValueOnce(undefined);
+      mockTmuxDriver.setOption.mockRejectedValueOnce(new Error('Failed'));
 
       const result = await TmuxEnhancer.configureCopyMode('test-session');
 
       expect(result.success).toBe(false);
       expect(result.error).toBeInstanceOf(Error);
       expect(result.details?.errorCount).toBe(1);
-      expect(result.details?.successCount).toBeGreaterThan(0);
+      expect(result.details?.successCount).toBe(1);
     });
 
     it('should handle non-Error objects', async () => {
+      // First call succeeds, second call fails with string
+      mockTmuxDriver.enableViCopyMode.mockResolvedValueOnce(undefined);
       mockTmuxDriver.setOption.mockRejectedValueOnce('string error');
 
       const result = await TmuxEnhancer.configureCopyMode('test-session');
@@ -140,16 +142,23 @@ describe('TmuxEnhancer', () => {
 
       expect(result.success).toBe(true);
 
-      expect(mockTmuxDriver.setOption).toHaveBeenCalledWith(
+      // Verify SDK method was called
+      expect(mockTmuxDriver.configureStatusBar).toHaveBeenCalledWith(
         'cgwt-project-feature',
-        'status-style',
-        expect.stringContaining('colour25'), // Child color
+        expect.objectContaining({
+          enabled: true,
+          position: 'bottom',
+          style: expect.objectContaining({
+            background: 'colour25', // Child color
+          }),
+          left: expect.stringContaining('WRK'),
+        }),
       );
-
-      expect(mockTmuxDriver.setOption).toHaveBeenCalledWith(
+      // Verify window option was set
+      expect(mockTmuxDriver.setWindowOption).toHaveBeenCalledWith(
         'cgwt-project-feature',
-        'status-left',
-        expect.stringContaining('WRK'),
+        'monitor-activity',
+        'on',
       );
     });
 
@@ -164,16 +173,23 @@ describe('TmuxEnhancer', () => {
 
       expect(result.success).toBe(true);
 
-      expect(mockTmuxDriver.setOption).toHaveBeenCalledWith(
+      // Verify SDK method was called
+      expect(mockTmuxDriver.configureStatusBar).toHaveBeenCalledWith(
         'cgwt-project-supervisor',
-        'status-style',
-        expect.stringContaining('colour32'), // Supervisor color
+        expect.objectContaining({
+          enabled: true,
+          position: 'bottom',
+          style: expect.objectContaining({
+            background: 'colour32', // Supervisor color
+          }),
+          left: expect.stringContaining('SUP'),
+        }),
       );
-
-      expect(mockTmuxDriver.setOption).toHaveBeenCalledWith(
+      // Verify window option was set
+      expect(mockTmuxDriver.setWindowOption).toHaveBeenCalledWith(
         'cgwt-project-supervisor',
-        'status-left',
-        expect.stringContaining('SUP'),
+        'monitor-activity',
+        'on',
       );
     });
 
@@ -189,10 +205,17 @@ describe('TmuxEnhancer', () => {
       expect(result.success).toBe(true);
 
       // Should use 'project' as default
-      expect(mockTmuxDriver.setOption).toHaveBeenCalledWith(
+      expect(mockTmuxDriver.configureStatusBar).toHaveBeenCalledWith(
         'simple-name',
-        'status-left',
-        expect.stringContaining('project'),
+        expect.objectContaining({
+          left: expect.stringContaining('project'),
+        }),
+      );
+      // Verify window option was set
+      expect(mockTmuxDriver.setWindowOption).toHaveBeenCalledWith(
+        'simple-name',
+        'monitor-activity',
+        'on',
       );
     });
 
@@ -209,7 +232,14 @@ describe('TmuxEnhancer', () => {
       expect(result.details?.monitoringResult).toBeDefined();
 
       // Supervisor should have more hooks
-      expect(mockTmuxDriver.setHook).toHaveBeenCalledTimes(3);
+      expect(mockTmuxDriver.configureMonitoring).toHaveBeenCalledWith(
+        'test-session',
+        expect.objectContaining({
+          'alert-activity': expect.any(String),
+          'session-created': expect.any(String),
+          'window-linked': expect.any(String),
+        }),
+      );
     });
   });
 
@@ -224,11 +254,12 @@ describe('TmuxEnhancer', () => {
       const result = await TmuxEnhancer.setupAdvancedStatusMonitoring('test-session', config);
 
       expect(result.success).toBe(true);
-      expect(mockTmuxDriver.setHook).toHaveBeenCalledWith(
-        'alert-activity',
-        'display-message "Activity in #S"',
+      expect(mockTmuxDriver.configureMonitoring).toHaveBeenCalledWith(
+        'test-session',
+        expect.objectContaining({
+          'alert-activity': 'display-message "Activity in #S"',
+        }),
       );
-      expect(mockTmuxDriver.setHook).toHaveBeenCalledTimes(1);
     });
 
     it('should set up additional hooks for supervisor role', async () => {
@@ -241,16 +272,18 @@ describe('TmuxEnhancer', () => {
       const result = await TmuxEnhancer.setupAdvancedStatusMonitoring('test-session', config);
 
       expect(result.success).toBe(true);
-      expect(mockTmuxDriver.setHook).toHaveBeenCalledTimes(3);
-
-      expect(mockTmuxDriver.setHook).toHaveBeenCalledWith(
-        'session-created',
-        'display-message "Session #S created"',
+      expect(mockTmuxDriver.configureMonitoring).toHaveBeenCalledWith(
+        'test-session',
+        expect.objectContaining({
+          'alert-activity': expect.any(String),
+          'session-created': 'display-message "Session #S created"',
+          'window-linked': expect.any(String),
+        }),
       );
     });
 
     it('should handle hook failures', async () => {
-      mockTmuxDriver.setHook.mockRejectedValueOnce(new Error('Hook not supported'));
+      mockTmuxDriver.configureMonitoring.mockRejectedValueOnce(new Error('Hook not supported'));
 
       const config: StatusBarConfig = {
         sessionName: 'test-session',
@@ -272,23 +305,24 @@ describe('TmuxEnhancer', () => {
 
       expect(result.success).toBe(true);
 
-      // Check various bindings
-      expect(mockTmuxDriver.bindKey).toHaveBeenCalledWith('S', 'choose-tree -s', undefined, false);
-      expect(mockTmuxDriver.bindKey).toHaveBeenCalledWith('h', 'select-pane -L', undefined, false);
-      expect(mockTmuxDriver.bindKey).toHaveBeenCalledWith('H', 'resize-pane -L 5', undefined, true);
+      // Check SDK method was called with correct bindings
+      expect(mockTmuxDriver.configureKeyBindings).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({ key: 'S', command: 'choose-tree -s' }),
+          expect.objectContaining({ key: 'h', command: 'select-pane -L' }),
+          expect.objectContaining({ key: 'H', command: 'resize-pane -L 5', repeat: true }),
+        ]),
+      );
     });
 
     it('should handle binding failures', async () => {
-      mockTmuxDriver.bindKey
-        .mockResolvedValueOnce({ code: 0, stdout: '', stderr: '' })
-        .mockRejectedValueOnce(new Error('Key conflict'))
-        .mockResolvedValue({ code: 0, stdout: '', stderr: '' });
+      mockTmuxDriver.configureKeyBindings.mockRejectedValueOnce(new Error('Key conflict'));
 
       const result = await TmuxEnhancer.configureKeyBindings('test-session');
 
       expect(result.success).toBe(false);
       expect(result.error).toBeInstanceOf(Error);
-      expect(result.details?.successCount).toBeGreaterThan(0);
+      expect(result.details?.successCount).toBe(0);
     });
   });
 

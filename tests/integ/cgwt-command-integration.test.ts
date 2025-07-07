@@ -94,7 +94,7 @@ describe('cgwt command integration tests', () => {
     it('should show "Not in a Claude GWT managed repository" for non-git directories', async () => {
       // The new cgwt shows "No Git worktree sessions found" instead
       const output = execSync(`node ${cgwtPath} l 2>&1 || true`, { encoding: 'utf8' });
-      expect(output).toMatch(/No Git worktree sessions found|not a git repository/);
+      expect(output).toMatch(/No Git worktree sessions found|Not in a Git repository/);
     });
 
     it('should list sessions with proper formatting', async () => {
