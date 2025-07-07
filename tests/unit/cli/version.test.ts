@@ -11,8 +11,8 @@ describe('CLI Version', () => {
     const packageJson = JSON.parse(packageJsonContent) as { version: string };
     const expectedVersion = packageJson.version;
 
-    // Get CLI version
-    const cliPath = join(process.cwd(), 'dist', 'src', 'cli', 'index.js');
+    // Get CLI version using cgwt
+    const cliPath = join(process.cwd(), 'dist', 'src', 'cli', 'cgwt.js');
     const cliVersion = execSync(`node ${cliPath} --version`, { encoding: 'utf-8' }).trim();
 
     // Verify they match
@@ -20,7 +20,7 @@ describe('CLI Version', () => {
   });
 
   it('should display version with --version flag', () => {
-    const cliPath = join(process.cwd(), 'dist', 'src', 'cli', 'index.js');
+    const cliPath = join(process.cwd(), 'dist', 'src', 'cli', 'cgwt.js');
     const output = execSync(`node ${cliPath} --version`, { encoding: 'utf-8' }).trim();
 
     // Should be a valid semver format
@@ -28,7 +28,7 @@ describe('CLI Version', () => {
   });
 
   it('should display version with -V flag', () => {
-    const cliPath = join(process.cwd(), 'dist', 'src', 'cli', 'index.js');
+    const cliPath = join(process.cwd(), 'dist', 'src', 'cli', 'cgwt.js');
     const output = execSync(`node ${cliPath} -V`, { encoding: 'utf-8' }).trim();
 
     // Should be a valid semver format

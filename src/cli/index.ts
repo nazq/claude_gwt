@@ -1,90 +1,48 @@
 #!/usr/bin/env node
 
-import { Command } from 'commander';
-import { readFileSync } from 'fs';
-import { fileURLToPath } from 'url';
+import chalk from 'chalk';
+import { spawn } from 'child_process';
 import { dirname, join } from 'path';
-import { ClaudeGWTApp } from './ClaudeGWTApp.js';
-import { theme } from './ui/theme.js';
-import { Logger } from '../core/utils/logger.js';
-import type { CLIOptions } from '../types/index.js';
+import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Read version from package.json dynamically
-const packageJsonPath = join(__dirname, '../../../package.json');
-const packageJsonContent = readFileSync(packageJsonPath, 'utf-8');
-const packageJson = JSON.parse(packageJsonContent) as { version: string };
+// Show deprecation warning
+console.log(chalk.yellow('\n⚠️  WARNING: claude-gwt is deprecated!'));
+console.log(chalk.yellow('   Please use "cgwt" instead.'));
+console.log(chalk.yellow('   All functionality has been moved to the unified cgwt command.\n'));
 
-const program = new Command();
+// Map claude-gwt commands to cgwt equivalents
+const args = process.argv.slice(2);
+let cgwtArgs: string[] = [];
 
-program
-  .name('claude-gwt')
-  .description('Git Worktree Manager with Claude Code Orchestration')
-  .version(packageJson.version);
-
-// Main command
-program
-  .argument('[path]', 'Directory path (defaults to current directory)', '.')
-  .option('-r, --repo <url>', 'Git repository URL')
-  .option('-b, --branch <name>', 'Branch name')
-  .option('-i, --interactive', 'Run in interactive mode', true)
-  .option('-n, --no-interactive', 'Run in non-interactive mode')
-  .option('-q, --quiet', 'Suppress banner and decorative output')
-  .option('-j, --json', 'Output results as JSON')
-  .option('-v, --verbose', 'Enable verbose logging', false)
-  .option('-vv, --very-verbose', 'Enable very verbose logging', false)
-  .option('-vvv, --debug', 'Enable debug logging', false)
-  .action(async (path: string, options: CLIOptions) => {
-    // Set log level based on verbosity
-    if (options.debug) {
-      Logger.setLogLevel('debug');
-    } else if (options.veryVerbose) {
-      Logger.setLogLevel('trace');
-    } else if (options.verbose) {
-      Logger.setLogLevel('info');
-    } else {
-      Logger.setLogLevel('warn');
-    }
-
-    Logger.info('CLI started', { path, options });
-    try {
-      const app = new ClaudeGWTApp(path, options);
-      await app.run();
-    } catch (error) {
-      Logger.error('CLI fatal error', error);
-      if (!options.quiet) {
-        console.error(theme.error('\n✖ Fatal error:'), error);
-        console.error(theme.muted(`\nCheck logs at: .claude-gwt.log`));
-      }
-      process.exit(1);
-    }
-  });
-
-// Logs command
-program
-  .command('logs')
-  .description('Show log file location')
-  .action(() => {
-    console.log(theme.info('Log file location:'));
-    console.log(theme.muted('.claude-gwt.log'));
-  });
-
-// Main entry point
-async function main(): Promise<void> {
-  try {
-    await program.parseAsync();
-  } catch (error) {
-    console.error('Unexpected error:', error);
-    Logger.error('Unexpected CLI error', error);
-    process.exit(1);
-  }
+// Check specific commands first
+if (args[0] === 'logs') {
+  // Map "claude-gwt logs" to "cgwt app logs"
+  cgwtArgs = ['app', 'logs'];
+} else if (args.length > 0 && args[0] && !args[0].startsWith('-')) {
+  // This is likely "claude-gwt [path]" - map to "cgwt app" (guided) in that directory
+  console.log(chalk.dim(`Note: Switching to directory '${args[0]}' first...`));
+  process.chdir(args[0]);
+  cgwtArgs = ['app'];
+} else if (args.length === 0 || args.every((arg) => arg.startsWith('-'))) {
+  // No path argument, likely interactive mode - map to "cgwt app" (guided)
+  cgwtArgs = ['app', ...args.filter((arg) => arg.startsWith('-'))]; // Keep flags
+} else {
+  // Pass through other arguments with app prefix
+  cgwtArgs = ['app', ...args];
 }
 
-// Run the CLI
-main().catch((error) => {
-  console.error('Fatal error:', error);
-  Logger.error('Fatal CLI error in main', error);
-  process.exit(1);
+console.log(chalk.dim(`Redirecting to: cgwt ${cgwtArgs.join(' ')}\n`));
+
+// Execute cgwt with mapped arguments
+const cgwtPath = join(__dirname, 'cgwt.js');
+const cgwt = spawn('node', [cgwtPath, ...cgwtArgs], {
+  stdio: 'inherit',
+  env: process.env,
+});
+
+cgwt.on('exit', (code) => {
+  process.exit(code ?? 0);
 });

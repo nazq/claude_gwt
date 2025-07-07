@@ -144,8 +144,8 @@ In Progress
       const repoName = 'test-repo';
       for (const branch of branches) {
         const sessionName = TmuxManager.getSessionName(repoName, branch);
-        expect(sessionName).toBe(`cgwt-${repoName}-${branch}`);
-        expect(sessionName).toMatch(/^cgwt-test-repo-feature-/);
+        expect(sessionName).toBe(`cgwt-${repoName}--${branch}`);
+        expect(sessionName).toMatch(/^cgwt-test-repo--feature-/);
       }
     });
 

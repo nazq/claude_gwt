@@ -113,17 +113,17 @@ describe('TmuxManager', () => {
   describe('getSessionName', () => {
     it('should generate valid tmux session names', () => {
       expect(TmuxManager.getSessionName('my-repo', 'feature/test')).toBe(
-        'cgwt-my-repo-feature-test',
+        'cgwt-my-repo--feature-test',
       );
       expect(TmuxManager.getSessionName('repo@2.0', 'fix/bug#123')).toBe(
-        'cgwt-repo-2-0-fix-bug-123',
+        'cgwt-repo-2-0--fix-bug-123',
       );
-      expect(TmuxManager.getSessionName('--repo--', '--branch--')).toBe('cgwt-repo-branch');
+      expect(TmuxManager.getSessionName('--repo--', '--branch--')).toBe('cgwt-repo--branch');
     });
 
     it('should handle special characters correctly', () => {
-      expect(TmuxManager.getSessionName('repo!@#$%', 'branch^&*()')).toBe('cgwt-repo-branch');
-      expect(TmuxManager.getSessionName('my.repo', 'my.branch')).toBe('cgwt-my-repo-my-branch');
+      expect(TmuxManager.getSessionName('repo!@#$%', 'branch^&*()')).toBe('cgwt-repo--branch');
+      expect(TmuxManager.getSessionName('my.repo', 'my.branch')).toBe('cgwt-my-repo--my-branch');
     });
   });
 
