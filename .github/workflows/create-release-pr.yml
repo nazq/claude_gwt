@@ -42,6 +42,17 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
+      - name: Create Release Changeset
+        run: |
+          mkdir -p .changeset
+          cat > .changeset/release-${{ github.run_id }}.md << EOF
+          ---
+          "claude-gwt": ${{ inputs.release_type }}
+          ---
+          
+          Production release - ${{ inputs.release_type }} version bump
+          EOF
+          
       - name: Create Release Pull Request or Publish to npm
         id: changesets
         uses: changesets/action@v1
