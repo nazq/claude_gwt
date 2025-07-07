@@ -39,7 +39,7 @@
     "reports": "./scripts/generate-reports.sh",
     "lint:report": "eslint src/**/*.ts tests/**/*.ts --format html --output-file reports/lint/eslint-report.html",
     "test:mutation": "stryker run",
-    "test:mutation:quick": "stryker run --mutate 'src/cli/**/*.ts' --concurrency 2"
+    "test:mutation:quick": "stryker run --mutate 'src/core/utils/**/*.ts' --concurrency 2"
   },
   "keywords": [
     "git",

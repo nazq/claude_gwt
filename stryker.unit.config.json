@@ -7,6 +7,9 @@
     "progress"
   ],
   "testRunner": "vitest",
+  "vitest": {
+    "configFile": "./vitest.stryker.config.ts"
+  },
   "coverageAnalysis": "perTest",
   "mutate": [
     "src/**/*.ts",
@@ -15,10 +18,6 @@
     "!src/types/**/*.ts",
     "!src/cli/index.ts"
   ],
-  "testRunner_comment": "Only run unit tests to avoid worker issues",
-  "commandRunner": {
-    "command": "npm test tests/unit"
-  },
   "tempDirName": ".stryker-tmp",
   "cleanTempDir": true,
   "concurrency": 2,

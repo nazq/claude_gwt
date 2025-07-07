@@ -4,8 +4,7 @@
   "reporters": ["html", "clear-text", "progress"],
   "testRunner": "vitest",
   "vitest": {
-    "configFile": "./vitest.config.ts",
-    "command": "vitest run tests/unit"
+    "configFile": "./vitest.stryker.config.ts"
   },
   "mutate": [
     "src/**/*.ts",
@@ -15,13 +14,10 @@
     "!src/types/**/*.ts"
   ],
   "checkers": ["typescript"],
-  "typescript": {
-    "tsconfigFile": "tsconfig.json"
-  },
   "coverageAnalysis": "perTest",
   "timeoutMS": 60000,
   "timeoutFactor": 1.5,
-  "maxConcurrentTestRunners": 4,
+  "concurrency": 4,
   "thresholds": {
     "high": 80,
     "low": 60,
