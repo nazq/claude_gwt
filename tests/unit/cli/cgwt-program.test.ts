@@ -47,7 +47,7 @@ describe('cgwt-program', () => {
     it('should create a command program with correct configuration', () => {
       const program = createProgram();
       expect(program.name()).toBe('cgwt');
-      expect(program.description()).toBe('Quick session switcher for Claude GWT');
+      expect(program.description()).toBe('Quick session switcher and Git worktree manager');
     });
 
     it('should have list command', () => {
@@ -445,7 +445,7 @@ HEAD abc123
       expect(mockConsoleLog).toHaveBeenCalledWith(
         expect.stringContaining('Invalid argument: invalid-arg'),
       );
-      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Usage:'));
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Quick Commands:'));
     });
   });
 

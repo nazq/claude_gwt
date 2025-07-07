@@ -48,7 +48,45 @@ export class TmuxManager {
       .replace(/[^a-zA-Z0-9-_]/g, '-')
       .replace(/--+/g, '-')
       .replace(/^-|-$/g, '');
-    return `${this.SESSION_PREFIX}-${sanitizedRepo}-${sanitizedBranch}`;
+    return `${this.SESSION_PREFIX}-${sanitizedRepo}--${sanitizedBranch}`;
+  }
+
+  /**
+   * Parse session name to extract repo and branch
+   */
+  static parseSessionName(sessionName: string): { repo: string; branch: string } | null {
+    // Expected format: cgwt-<repo>--<branch>
+    if (!sessionName.startsWith(this.SESSION_PREFIX)) {
+      return null;
+    }
+
+    // Remove prefix and split by double dash
+    const withoutPrefix = sessionName.substring(this.SESSION_PREFIX.length + 1);
+    const parts = withoutPrefix.split('--');
+
+    if (parts.length !== 2) {
+      // Handle legacy format (single dash) for backward compatibility
+      const legacyParts = withoutPrefix.split('-');
+      if (legacyParts.length >= 2) {
+        const branch = legacyParts[legacyParts.length - 1];
+        if (branch) {
+          return {
+            repo: legacyParts.slice(0, -1).join('-'),
+            branch,
+          };
+        }
+      }
+      return null;
+    }
+
+    if (parts[0] && parts[1]) {
+      return {
+        repo: parts[0],
+        branch: parts[1],
+      };
+    }
+
+    return null;
   }
 
   /**
@@ -104,8 +142,8 @@ export class TmuxManager {
     });
 
     // Extract project name from session name
-    const sessionParts = config.sessionName.split('-');
-    const projectName = sessionParts.length >= 3 ? sessionParts.slice(1, -1).join('-') : 'unknown';
+    const parsed = this.parseSessionName(config.sessionName);
+    const projectName = parsed?.repo ?? 'unknown';
 
     // Get custom context from config
     const configManager = ConfigManager.getInstance();

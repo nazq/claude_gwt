@@ -236,7 +236,7 @@ branch refs/heads/main
       expect(vi.mocked(async.execCommandSafe)).toHaveBeenCalledWith('tmux', [
         'switch-client',
         '-t',
-        'cgwt-test-main',
+        'cgwt-test--main',
       ]);
 
       // Should not have called chdir since tmux switch succeeded
