@@ -54,9 +54,31 @@ describe('prompts', () => {
       expect(validator).toBeDefined();
 
       if (validator) {
+        // Valid URLs
         expect(validator('https://github.com/user/repo.git')).toBe(true);
         expect(validator('git@github.com:user/repo.git')).toBe(true);
+        expect(validator('ssh://git@github.com/user/repo.git')).toBe(true);
+        expect(validator('git://github.com/user/repo.git')).toBe(true);
+        expect(validator('file:///path/to/repo')).toBe(true);
+        expect(validator('user@host.com:repo.git')).toBe(true);
+
+        // Invalid URLs
         expect(validator('invalid-url')).toContain('Please enter a valid Git repository URL');
+        expect(validator('not-a-url')).toContain('Please enter a valid Git repository URL');
+      }
+    });
+
+    it('should allow empty input', async () => {
+      mockInquirer.prompt.mockResolvedValue({ repoUrl: '' });
+
+      await prompts.promptForRepoUrl();
+
+      const promptConfig = mockInquirer.prompt.mock.calls[0]?.[0] as PromptConfig[];
+      const validator = promptConfig[0]?.validate;
+
+      if (validator) {
+        // Empty input should be allowed (returns true)
+        expect(validator('')).toBe(true);
       }
     });
   });
@@ -87,10 +109,31 @@ describe('prompts', () => {
       const validator = promptConfig[0]?.validate;
 
       if (validator) {
+        // Valid folder names
         expect(validator('valid-folder')).toBe(true);
         expect(validator('valid_folder')).toBe(true);
+        expect(validator('folder123')).toBe(true);
+        expect(validator('folder.name')).toBe(true);
+
+        // Invalid folder names
         expect(validator('invalid/folder')).toContain('Invalid folder name');
         expect(validator('..')).toContain('Invalid folder name');
+        expect(validator('folder<name>')).toContain('Invalid folder name');
+        expect(validator('folder:name')).toContain('Invalid folder name');
+      }
+    });
+
+    it('should require non-empty folder name', async () => {
+      mockInquirer.prompt.mockResolvedValue({ folderName: 'valid-folder' });
+
+      await prompts.promptForFolderName('default');
+
+      const promptConfig = mockInquirer.prompt.mock.calls[0]?.[0] as PromptConfig[];
+      const validator = promptConfig[0]?.validate;
+
+      if (validator) {
+        expect(validator('')).toContain('Folder name is required');
+        expect(validator('   ')).toContain('Invalid folder name');
       }
     });
   });
@@ -176,11 +219,32 @@ describe('prompts', () => {
       const validator = promptConfig[0]?.validate;
 
       if (validator) {
+        // Valid branch names
         expect(validator('feature/test')).toBe(true);
         expect(validator('bugfix-123')).toBe(true);
+        expect(validator('hotfix_v1.2')).toBe(true);
+        expect(validator('feature.new')).toBe(true);
+
+        // Invalid branch names
         expect(validator('-invalid')).toContain('Invalid branch name');
         expect(validator('invalid-')).toContain('Invalid branch name');
         expect(validator('invalid..branch')).toContain('Invalid branch name');
+        expect(validator('feature/branch@{upstream}')).toContain('Invalid branch name');
+        expect(validator('branch with spaces')).toContain('Invalid branch name');
+      }
+    });
+
+    it('should require non-empty branch name', async () => {
+      mockInquirer.prompt.mockResolvedValue({ branchName: 'feature/test' });
+
+      await prompts.promptForBranchName();
+
+      const promptConfig = mockInquirer.prompt.mock.calls[0]?.[0] as PromptConfig[];
+      const validator = promptConfig[0]?.validate;
+
+      if (validator) {
+        expect(validator('')).toContain('Branch name is required');
+        expect(validator('   ')).toContain('Invalid branch name');
       }
     });
   });
@@ -303,6 +367,112 @@ describe('prompts', () => {
     });
   });
 
+<<<<<<< HEAD
+=======
+  describe('promptForSubdirectoryName', () => {
+    it('should prompt for subdirectory name with default value', async () => {
+      mockInquirer.prompt.mockResolvedValue({ subdirName: 'my-repo' });
+
+      const result = await prompts.promptForSubdirectoryName('my-repo');
+
+      expect(result).toBe('my-repo');
+      expect(mockInquirer.prompt).toHaveBeenCalledWith([
+        expect.objectContaining({
+          type: 'input',
+          name: 'subdirName',
+          message: 'Subdirectory name:',
+          default: 'my-repo',
+        }),
+      ]);
+    });
+
+    it('should validate subdirectory name', async () => {
+      mockInquirer.prompt.mockResolvedValue({ subdirName: 'valid-subdir' });
+
+      await prompts.promptForSubdirectoryName('default');
+
+      const promptConfig = mockInquirer.prompt.mock.calls[0]?.[0] as PromptConfig[];
+      const validator = promptConfig[0]?.validate;
+
+      if (validator) {
+        // Valid subdirectory names
+        expect(validator('valid-subdir')).toBe(true);
+        expect(validator('valid_subdir')).toBe(true);
+        expect(validator('subdir123')).toBe(true);
+        expect(validator('subdir.name')).toBe(true);
+
+        // Invalid subdirectory names
+        expect(validator('')).toContain('Subdirectory name is required');
+        expect(validator('   ')).toContain('Subdirectory name is required');
+        expect(validator('invalid/subdir')).toContain(
+          'Please use only letters, numbers, dots, hyphens, and underscores',
+        );
+        expect(validator('subdir<name>')).toContain(
+          'Please use only letters, numbers, dots, hyphens, and underscores',
+        );
+      }
+    });
+  });
+
+  describe('selectAction', () => {
+    it('should prompt for action selection', async () => {
+      const choices = [
+        { title: 'First Option', value: 'first' },
+        { title: 'Second Option', value: 'second' },
+      ];
+      mockInquirer.prompt.mockResolvedValue({ action: 'first' });
+
+      const result = await prompts.selectAction('Choose an action:', choices);
+
+      expect(result).toBe('first');
+      expect(mockInquirer.prompt).toHaveBeenCalledWith([
+        expect.objectContaining({
+          type: 'list',
+          name: 'action',
+          message: 'Choose an action:',
+          choices: [
+            { name: 'First Option', value: 'first' },
+            { name: 'Second Option', value: 'second' },
+          ],
+        }),
+      ]);
+    });
+  });
+
+  describe('selectBranch', () => {
+    it('should prompt for branch selection', async () => {
+      const branches = ['main', 'feature/test', 'bugfix/issue-123'];
+      mockInquirer.prompt.mockResolvedValue({ branch: 'feature/test' });
+
+      const result = await prompts.selectBranch('Select a branch:', branches);
+
+      expect(result).toBe('feature/test');
+      expect(mockInquirer.prompt).toHaveBeenCalledWith([
+        expect.objectContaining({
+          type: 'list',
+          name: 'branch',
+          message: 'Select a branch:',
+          choices: expect.arrayContaining([
+            { name: 'main', value: 'main' },
+            { name: 'feature/test', value: 'feature/test' },
+            { name: 'bugfix/issue-123', value: 'bugfix/issue-123' },
+            expect.objectContaining({ value: 'cancel' }),
+          ]),
+        }),
+      ]);
+    });
+
+    it('should include cancel option', async () => {
+      const branches = ['main'];
+      mockInquirer.prompt.mockResolvedValue({ branch: 'cancel' });
+
+      const result = await prompts.selectBranch('Select a branch:', branches);
+
+      expect(result).toBe('cancel');
+    });
+  });
+
+>>>>>>> 9ca57d9 (feat: refactor TmuxDriver to structured SDK with comprehensive test coverage)
   describe('promptForWorktreeAction', () => {
     const mockWorktrees: GitWorktreeInfo[] = [
       {
@@ -321,10 +491,17 @@ describe('prompts', () => {
       },
     ];
 
+<<<<<<< HEAD
     it('should show all options when multiple worktrees exist and has sessions', async () => {
       mockInquirer.prompt.mockResolvedValue({ action: 'new' });
 
       const result = await prompts.promptForWorktreeAction(mockWorktrees, true);
+=======
+    it('should show worktree action menu without sessions', async () => {
+      mockInquirer.prompt.mockResolvedValue({ action: 'new' });
+
+      const result = await prompts.promptForWorktreeAction(mockWorktrees, false);
+>>>>>>> 9ca57d9 (feat: refactor TmuxDriver to structured SDK with comprehensive test coverage)
 
       expect(result).toBe('new');
       expect(mockInquirer.prompt).toHaveBeenCalledWith([
@@ -337,13 +514,17 @@ describe('prompts', () => {
             expect.objectContaining({ value: 'new' }),
             expect.objectContaining({ value: 'list' }),
             expect.objectContaining({ value: 'remove' }),
+<<<<<<< HEAD
             expect.objectContaining({ value: 'shutdown' }),
+=======
+>>>>>>> 9ca57d9 (feat: refactor TmuxDriver to structured SDK with comprehensive test coverage)
             expect.objectContaining({ value: 'exit' }),
           ]),
         }),
       ]);
     });
 
+<<<<<<< HEAD
     it('should hide remove option with single worktree', async () => {
       mockInquirer.prompt.mockResolvedValue({ action: 'list' });
 
@@ -367,11 +548,15 @@ describe('prompts', () => {
     });
 
     it('should return shutdown action when sessions exist', async () => {
+=======
+    it('should include shutdown option when sessions exist', async () => {
+>>>>>>> 9ca57d9 (feat: refactor TmuxDriver to structured SDK with comprehensive test coverage)
       mockInquirer.prompt.mockResolvedValue({ action: 'shutdown' });
 
       const result = await prompts.promptForWorktreeAction(mockWorktrees, true);
 
       expect(result).toBe('shutdown');
+<<<<<<< HEAD
     });
   });
 
@@ -636,12 +821,33 @@ describe('prompts', () => {
       mockInquirer.prompt.mockResolvedValue({ worktree: worktrees[0] });
 
       await prompts.selectWorktree(worktrees);
+=======
+      const promptConfig = mockInquirer.prompt.mock.calls[0]?.[0] as PromptConfig[];
+      const choices = promptConfig[0]?.choices;
+
+      expect(choices).toEqual(
+        expect.arrayContaining([expect.objectContaining({ value: 'shutdown' })]),
+      );
+    });
+
+    it('should not include remove option for single worktree', async () => {
+      const singleWorktree = [mockWorktrees[0]];
+      mockInquirer.prompt.mockResolvedValue({ action: 'new' });
+
+      await prompts.promptForWorktreeAction(singleWorktree, false);
+>>>>>>> 9ca57d9 (feat: refactor TmuxDriver to structured SDK with comprehensive test coverage)
 
       const promptConfig = mockInquirer.prompt.mock.calls[0]?.[0] as PromptConfig[];
       const choices = promptConfig[0]?.choices;
 
+<<<<<<< HEAD
       expect(choices?.[0]?.name).toContain('main (main)');
       expect(choices?.[0]?.name).not.toContain('(current)');
+=======
+      expect(choices).not.toEqual(
+        expect.arrayContaining([expect.objectContaining({ value: 'remove' })]),
+      );
+>>>>>>> 9ca57d9 (feat: refactor TmuxDriver to structured SDK with comprehensive test coverage)
     });
   });
 });

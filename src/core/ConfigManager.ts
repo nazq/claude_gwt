@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { Logger } from './utils/logger.js';
+import { sanitizePath, isValidDirectoryName } from './utils/security.js';
 
 export interface ContextConfig {
   // Global context applied to all sessions
@@ -253,6 +254,17 @@ router.post('/endpoint',
   getContext(projectName: string, branchName: string, role: 'supervisor' | 'child'): string {
     const contexts: string[] = [];
 
+    // Validate and sanitize input parameters
+    if (!isValidDirectoryName(projectName)) {
+      Logger.warn('Invalid project name provided', { projectName });
+      return this.getGlobalContext(role);
+    }
+
+    if (!isValidDirectoryName(branchName)) {
+      Logger.warn('Invalid branch name provided', { branchName });
+      return this.getGlobalContext(role);
+    }
+
     // 1. Global context
     if (this.config.context?.global) {
       contexts.push(this.config.context.global);
@@ -284,36 +296,80 @@ router.post('/endpoint',
       }
     }
 
-    // 4. Load project context from file if exists
-    const projectContextFile = path.join(this.contextDir, 'projects', `${projectName}.md`);
-    if (fs.existsSync(projectContextFile)) {
-      try {
-        const projectContext = fs.readFileSync(projectContextFile, 'utf-8');
-        contexts.push(`# Project Context from ${projectName}.md\n\n${projectContext}`);
-      } catch (error) {
-        Logger.error('Failed to load project context file', error);
-      }
-    }
-
-    // 5. Load branch-specific context file if exists
-    if (role === 'child') {
-      const branchContextFile = path.join(
+    // 4. Load project context from file if exists (with path sanitization)
+    try {
+      const sanitizedProjectName = this.sanitizeFileName(projectName);
+      const projectContextFile = path.join(
         this.contextDir,
         'projects',
-        projectName,
-        `${branchName}.md`,
+        `${sanitizedProjectName}.md`,
       );
-      if (fs.existsSync(branchContextFile)) {
-        try {
-          const branchContext = fs.readFileSync(branchContextFile, 'utf-8');
-          contexts.push(`# Branch Context for ${branchName}\n\n${branchContext}`);
-        } catch (error) {
-          Logger.error('Failed to load branch context file', error);
+
+      // Ensure the path stays within the expected directory
+      const resolvedPath = sanitizePath(projectContextFile, this.contextDir);
+
+      if (fs.existsSync(resolvedPath)) {
+        const projectContext = fs.readFileSync(resolvedPath, 'utf-8');
+        contexts.push(`# Project Context from ${sanitizedProjectName}.md\n\n${projectContext}`);
+      }
+    } catch (error) {
+      Logger.error('Failed to load project context file', { error, projectName });
+    }
+
+    // 5. Load branch-specific context file if exists (with path sanitization)
+    if (role === 'child') {
+      try {
+        const sanitizedProjectName = this.sanitizeFileName(projectName);
+        const sanitizedBranchName = this.sanitizeFileName(branchName);
+        const branchContextFile = path.join(
+          this.contextDir,
+          'projects',
+          sanitizedProjectName,
+          `${sanitizedBranchName}.md`,
+        );
+
+        // Ensure the path stays within the expected directory
+        const resolvedPath = sanitizePath(branchContextFile, this.contextDir);
+
+        if (fs.existsSync(resolvedPath)) {
+          const branchContext = fs.readFileSync(resolvedPath, 'utf-8');
+          contexts.push(`# Branch Context for ${sanitizedBranchName}\n\n${branchContext}`);
         }
+      } catch (error) {
+        Logger.error('Failed to load branch context file', { error, projectName, branchName });
       }
     }
 
     return contexts.join('\n\n---\n\n');
+  }
+
+  /**
+   * Get only global and role-specific context (fallback)
+   */
+  private getGlobalContext(role: 'supervisor' | 'child'): string {
+    const contexts: string[] = [];
+
+    if (this.config.context?.global) {
+      contexts.push(this.config.context.global);
+    }
+
+    const roleContext =
+      role === 'supervisor' ? this.config.context?.supervisor : this.config.context?.child;
+    if (roleContext) {
+      contexts.push(roleContext);
+    }
+
+    return contexts.join('\n\n---\n\n');
+  }
+
+  /**
+   * Sanitize a filename for safe file system operations
+   */
+  private sanitizeFileName(name: string): string {
+    return name
+      .replace(/[^a-zA-Z0-9._-]/g, '_') // Replace invalid chars with underscore
+      .replace(/^\.+/, '') // Remove leading dots
+      .substring(0, 100); // Limit length
   }
 
   /**
@@ -379,19 +435,30 @@ router.post('/endpoint',
    * Get a template by name
    */
   getTemplate(name: string): string | null {
+    // Validate template name
+    if (!isValidDirectoryName(name)) {
+      Logger.warn('Invalid template name provided', { name });
+      return null;
+    }
+
     // Check config first
     if (this.config.context?.templates?.[name]) {
       return this.config.context.templates[name].context;
     }
 
-    // Check file
-    const templateFile = path.join(this.contextDir, 'templates', `${name}.md`);
-    if (fs.existsSync(templateFile)) {
-      try {
-        return fs.readFileSync(templateFile, 'utf-8');
-      } catch (error) {
-        Logger.error('Failed to load template file', error);
+    // Check file (with path sanitization)
+    try {
+      const sanitizedName = this.sanitizeFileName(name);
+      const templateFile = path.join(this.contextDir, 'templates', `${sanitizedName}.md`);
+
+      // Ensure the path stays within the expected directory
+      const resolvedPath = sanitizePath(templateFile, this.contextDir);
+
+      if (fs.existsSync(resolvedPath)) {
+        return fs.readFileSync(resolvedPath, 'utf-8');
       }
+    } catch (error) {
+      Logger.error('Failed to load template file', { error, name });
     }
 
     return null;

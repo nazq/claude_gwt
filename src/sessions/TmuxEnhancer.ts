@@ -1,10 +1,15 @@
 import * as path from 'path';
 import { Logger } from '../core/utils/logger.js';
 import type { GitRepository } from '../core/git/GitRepository.js';
-import { TmuxDriver } from './TmuxDriver.js';
-import { TmuxCommandParser } from './TmuxCommandParser.js';
-import { TmuxHookParser } from './TmuxHookParser.js';
-import type { TmuxOperationResult, TmuxEnhancerResult } from './TmuxOperationResult.js';
+import {
+  TmuxDriver,
+  TmuxLayout,
+  TmuxColor,
+  TmuxStatusPosition,
+  TmuxStatusJustify,
+  TmuxPaneBorderStatus,
+} from './TmuxDriver.js';
+import type { TmuxKeyBindingConfig, TmuxStatusBarConfig } from './TmuxDriver.js';
 
 export interface StatusBarConfig {
   sessionName: string;
@@ -17,333 +22,207 @@ export interface PaneLayout {
   name: string;
   description: string;
   branches: string[];
-  layout: 'even-horizontal' | 'even-vertical' | 'main-horizontal' | 'main-vertical' | 'tiled';
+  layout: TmuxLayout;
 }
 
-/**
- * Enhanced Tmux session manager with full testability
- */
 export class TmuxEnhancer {
   /**
-   * Configure enhanced tmux settings for a session - now returns results
+   * Configure enhanced tmux settings for a session
    */
-  static async configureSession(
-    sessionName: string,
-    config: StatusBarConfig,
-  ): Promise<TmuxEnhancerResult> {
+  static async configureSession(sessionName: string, config: StatusBarConfig): Promise<void> {
     Logger.info('Configuring enhanced tmux session', {
       sessionName,
       branchName: config.branchName,
       role: config.role,
     });
 
-    const results: TmuxEnhancerResult = {
-      copyModeResult: { success: false, operation: 'configureCopyMode' },
-      statusBarResult: { success: false, operation: 'configureStatusBar' },
-      keyBindingsResult: { success: false, operation: 'configureKeyBindings' },
-      sessionGroupsResult: { success: false, operation: 'configureSessionGroups' },
-      overallSuccess: false,
-    };
-
     try {
-      // Configure copy mode and mouse settings
-      results.copyModeResult = await this.configureCopyMode(sessionName);
+      // Configure copy mode with vi bindings
+      await TmuxDriver.enableViCopyMode(sessionName);
 
-      // Configure status bar
-      results.statusBarResult = await this.configureStatusBar(sessionName, config);
+      // Configure status bar using structured configuration
+      await this.configureStatusBarStructured(sessionName, config);
 
-      // Configure key bindings
-      results.keyBindingsResult = await this.configureKeyBindings(sessionName);
+      // Configure key bindings using structured configuration
+      await this.configureKeyBindingsStructured(sessionName);
 
-      // Set up session grouping
-      results.sessionGroupsResult = await this.configureSessionGroups(sessionName, config);
+      // Set up session grouping (keeping original implementation for now)
+      this.configureSessionGroups(sessionName, config);
 
-      results.overallSuccess =
-        results.copyModeResult.success &&
-        results.statusBarResult.success &&
-        results.keyBindingsResult.success &&
-        results.sessionGroupsResult.success;
-
-      if (results.overallSuccess) {
-        Logger.info('Tmux session enhanced successfully', { sessionName });
-      } else {
-        Logger.warn('Tmux session partially enhanced', { sessionName, results });
-      }
+      Logger.info('Tmux session enhanced successfully', { sessionName });
     } catch (error) {
       Logger.error('Failed to enhance tmux session', error);
       // Don't throw - we want the session to work even if enhancements fail
     }
-
-    return results;
   }
 
   /**
-   * Configure copy mode - now returns results
+   * Configure status bar using the new structured TmuxDriver API
    */
-  static async configureCopyMode(sessionName: string): Promise<TmuxOperationResult> {
-    const copyModeSettings = [
-      'set -g mode-keys vi',
-      'set -g mouse on',
-      'set -g @yank_action "copy-pipe"',
-      'bind-key -T copy-mode-vi v send-keys -X begin-selection',
-      'bind-key -T copy-mode-vi y send-keys -X copy-selection-and-cancel',
-      'unbind-key -n MouseDrag1Pane',
-    ];
-
-    let successCount = 0;
-    const errors: Error[] = [];
-
-    for (const setting of copyModeSettings) {
-      try {
-        const parsed = TmuxCommandParser.parse(setting);
-
-        switch (parsed.type) {
-          case 'set':
-            if (parsed.option && parsed.value) {
-              await TmuxDriver.setOption(sessionName, parsed.option, parsed.value, parsed.isGlobal);
-              successCount++;
-            }
-            break;
-
-          case 'bind-key':
-            if (parsed.key && parsed.command) {
-              await TmuxDriver.bindKey(parsed.key, parsed.command, parsed.table, parsed.repeat);
-              successCount++;
-            }
-            break;
-
-          case 'unbind-key':
-            if (parsed.key) {
-              await TmuxDriver.unbindKey(parsed.key, parsed.table);
-              successCount++;
-            }
-            break;
-        }
-      } catch (error) {
-        errors.push(error instanceof Error ? error : new Error(String(error)));
-        Logger.debug('Failed to apply copy mode setting', {
-          setting,
-          error: error instanceof Error ? error.message : 'Unknown error',
-        });
-      }
-    }
-
-    return {
-      success: successCount > 0 && errors.length === 0,
-      operation: 'configureCopyMode',
-      details: {
-        successCount,
-        totalSettings: copyModeSettings.length,
-        errorCount: errors.length,
-      },
-      error: errors.length > 0 ? errors[0] : undefined,
-    };
-  }
-
-  /**
-   * Configure status bar - now returns results
-   */
-  static async configureStatusBar(
+  private static async configureStatusBarStructured(
     sessionName: string,
     config: StatusBarConfig,
-  ): Promise<TmuxOperationResult> {
+  ): Promise<void> {
     const { branchName, role } = config;
 
     // Color scheme based on role
-    const bgColor = role === 'supervisor' ? 'colour32' : 'colour25';
-    const fgColor = 'colour255';
+    const bgColor = role === 'supervisor' ? TmuxColor.Colour32 : TmuxColor.Colour25;
+    const fgColor = TmuxColor.Colour255;
 
     // Extract project name
     const sessionParts = sessionName.split('-');
     const projectName = sessionParts.length >= 3 ? sessionParts.slice(1, -1).join('-') : 'project';
 
-    const statusBarSettings = [
-      'set status on',
-      'set status-interval 5',
-      'set status-position bottom',
-      `set status-style bg=${bgColor},fg=${fgColor}`,
-      `set status-left '#[bg=colour${role === 'supervisor' ? '196' : '28'},fg=colour255,bold] ${role === 'supervisor' ? 'SUP' : 'WRK'} #[bg=colour236,fg=colour255] ${projectName}${role !== 'supervisor' ? ':' + branchName : ''} #[bg=${bgColor},fg=${fgColor}] '`,
-      'setw monitor-activity on',
-    ];
-
-    let successCount = 0;
-    const errors: Error[] = [];
-
-    for (const setting of statusBarSettings) {
-      try {
-        const parsed = TmuxCommandParser.parse(setting);
-
-        switch (parsed.type) {
-          case 'set':
-            if (parsed.option && parsed.value) {
-              await TmuxDriver.setOption(sessionName, parsed.option, parsed.value);
-              successCount++;
-            }
-            break;
-
-          case 'setw':
-            if (parsed.option && parsed.value) {
-              await TmuxDriver.setWindowOption(sessionName, parsed.option, parsed.value);
-              successCount++;
-            }
-            break;
-        }
-      } catch (error) {
-        errors.push(error instanceof Error ? error : new Error(String(error)));
-        Logger.debug('Failed to apply tmux setting', {
-          setting,
-          error: error instanceof Error ? error.message : 'Unknown error',
-        });
-      }
-    }
-
-    // Set up advanced monitoring
-    const monitoringResult = await this.setupAdvancedStatusMonitoring(sessionName, config);
-
-    return {
-      success: successCount > 0 && errors.length === 0 && monitoringResult.success,
-      operation: 'configureStatusBar',
-      details: {
-        successCount,
-        totalSettings: statusBarSettings.length,
-        errorCount: errors.length,
-        monitoringResult,
+    const statusBarConfig: TmuxStatusBarConfig = {
+      enabled: true,
+      position: TmuxStatusPosition.Bottom,
+      interval: 5,
+      justify: TmuxStatusJustify.Centre,
+      style: {
+        background: bgColor,
+        foreground: fgColor,
       },
-      error: errors.length > 0 ? errors[0] : monitoringResult.error,
+      left: {
+        content: `#[bg=${role === 'supervisor' ? TmuxColor.Colour196 : TmuxColor.Colour28},fg=${TmuxColor.Colour255},bold] ${role === 'supervisor' ? 'SUP' : 'WRK'} #[bg=${TmuxColor.Colour236},fg=${TmuxColor.Colour255}] ${projectName}${role !== 'supervisor' ? ':' + branchName : ''} #[bg=${bgColor},fg=${fgColor}] `,
+        length: 60,
+      },
+      right: {
+        content: `#[bg=${TmuxColor.Colour28},fg=${TmuxColor.Colour255}] #{b:pane_current_path} #[bg=${TmuxColor.Colour236},fg=${TmuxColor.Colour255}] #(cd #{pane_current_path} && git status -s 2>/dev/null | wc -l | sed 's/^0$/✓/' | sed 's/^[1-9].*$/±&/') #[bg=${TmuxColor.Colour237},fg=${TmuxColor.Colour255}] 📊 #(tmux ls 2>/dev/null | grep -c cgwt-${projectName}) #[bg=${TmuxColor.Colour238},fg=${TmuxColor.Colour255}] %H:%M:%S `,
+        length: 150,
+      },
+      windowStatus: {
+        currentFormat: ` #I:#W#{?window_zoomed_flag,🔍,} `,
+        format: ` #I:#W#{?window_activity_flag,*,} `,
+        currentStyle: `bg=${TmuxColor.Colour236},fg=${fgColor},bold`,
+        activityStyle: `bg=${TmuxColor.Colour88},fg=${TmuxColor.Colour255}`,
+      },
     };
+
+    await TmuxDriver.configureStatusBar(sessionName, statusBarConfig);
   }
 
   /**
-   * Set up hooks - now returns results
+   * Configure key bindings using the new structured TmuxDriver API
    */
-  static async setupAdvancedStatusMonitoring(
-    sessionName: string,
-    config: StatusBarConfig,
-  ): Promise<TmuxOperationResult> {
-    const { role } = config;
+  private static async configureKeyBindingsStructured(_sessionName: string): Promise<void> {
+    const keyBindings: TmuxKeyBindingConfig[] = [
+      // Session navigation
+      {
+        key: 'S',
+        command: 'choose-tree -s',
+        note: 'Show session tree',
+      },
 
-    const hooks = [
-      `set-hook -t ${sessionName} -g alert-activity 'display-message "Activity in #S"'`,
+      // Pane navigation (vim-style)
+      {
+        key: 'h',
+        command: 'select-pane -L',
+        note: 'Select left pane',
+      },
+      {
+        key: 'j',
+        command: 'select-pane -D',
+        note: 'Select pane below',
+      },
+      {
+        key: 'k',
+        command: 'select-pane -U',
+        note: 'Select pane above',
+      },
+      {
+        key: 'l',
+        command: 'select-pane -R',
+        note: 'Select right pane',
+      },
+
+      // Pane resizing (repeatable)
+      {
+        key: 'H',
+        command: 'resize-pane -L 5',
+        repeat: true,
+        note: 'Resize pane left',
+      },
+      {
+        key: 'J',
+        command: 'resize-pane -D 5',
+        repeat: true,
+        note: 'Resize pane down',
+      },
+      {
+        key: 'K',
+        command: 'resize-pane -U 5',
+        repeat: true,
+        note: 'Resize pane up',
+      },
+      {
+        key: 'L',
+        command: 'resize-pane -R 5',
+        repeat: true,
+        note: 'Resize pane right',
+      },
+
+      // Quick layouts
+      {
+        key: '=',
+        command: 'select-layout even-horizontal',
+        note: 'Even horizontal layout',
+      },
+      {
+        key: '|',
+        command: 'select-layout even-vertical',
+        note: 'Even vertical layout',
+      },
+      {
+        key: '+',
+        command: 'select-layout main-horizontal',
+        note: 'Main horizontal layout',
+      },
+      {
+        key: '_',
+        command: 'select-layout main-vertical',
+        note: 'Main vertical layout',
+      },
+
+      // Pane synchronization
+      {
+        key: 'y',
+        command: 'setw synchronize-panes',
+        note: 'Toggle pane synchronization',
+      },
+
+      // Quick pane creation
+      {
+        key: 'b',
+        command: 'split-window -h -c "#{pane_current_path}"',
+        note: 'Split horizontally',
+      },
+      {
+        key: 'B',
+        command: 'split-window -v -c "#{pane_current_path}"',
+        note: 'Split vertically',
+      },
     ];
 
-    if (role === 'supervisor') {
-      hooks.push(
-        `set-hook -t ${sessionName} -g session-created 'display-message "Session #S created"'`,
-        `set-hook -t ${sessionName} -g window-linked 'display-message "Window linked"'`,
-      );
-    }
-
-    let successCount = 0;
-    const errors: Error[] = [];
-
-    for (const hook of hooks) {
-      const parsed = TmuxHookParser.parse(hook);
-
-      if (parsed.isValid && parsed.hookName && parsed.command) {
-        try {
-          await TmuxDriver.setHook(parsed.hookName, parsed.command);
-          successCount++;
-        } catch (error) {
-          errors.push(error instanceof Error ? error : new Error(String(error)));
-        }
-      }
-    }
-
-    return {
-      success: errors.length === 0,
-      operation: 'setupAdvancedStatusMonitoring',
-      details: {
-        successCount,
-        totalHooks: hooks.length,
-        errorCount: errors.length,
-      },
-      error: errors.length > 0 ? errors[0] : undefined,
-    };
+    await TmuxDriver.configureKeyBindings(keyBindings);
   }
 
   /**
-   * Configure key bindings - now returns results
+   * Configure session groups for related branches
    */
-  static async configureKeyBindings(_sessionName: string): Promise<TmuxOperationResult> {
-    const keyBindings = [
-      'bind-key S choose-tree -s',
-      'bind-key h select-pane -L',
-      'bind-key j select-pane -D',
-      'bind-key k select-pane -U',
-      'bind-key l select-pane -R',
-      'bind-key -r H resize-pane -L 5',
-      'bind-key -r J resize-pane -D 5',
-      'bind-key -r K resize-pane -U 5',
-      'bind-key -r L resize-pane -R 5',
-    ];
-
-    let successCount = 0;
-    const errors: Error[] = [];
-
-    for (const binding of keyBindings) {
-      try {
-        const parsed = TmuxCommandParser.parse(binding);
-
-        if (parsed.type === 'bind-key' && parsed.key && parsed.command) {
-          await TmuxDriver.bindKey(parsed.key, parsed.command, parsed.table, parsed.repeat);
-          successCount++;
-        }
-      } catch (error) {
-        errors.push(error instanceof Error ? error : new Error(String(error)));
-        Logger.debug('Failed to apply key binding', {
-          binding,
-          error: error instanceof Error ? error.message : 'Unknown error',
-        });
-      }
-    }
-
-    return {
-      success: successCount > 0 && errors.length === 0,
-      operation: 'configureKeyBindings',
-      details: {
-        successCount,
-        totalBindings: keyBindings.length,
-        errorCount: errors.length,
-      },
-      error: errors.length > 0 ? errors[0] : undefined,
-    };
-  }
-
-  /**
-   * Configure session groups - now returns results
-   */
-  static async configureSessionGroups(
-    sessionName: string,
-    _config: StatusBarConfig,
-  ): Promise<TmuxOperationResult> {
+  private static configureSessionGroups(sessionName: string, _config: StatusBarConfig): void {
+    // Extract project name from session name
     const parts = sessionName.split('-');
+    if (parts.length >= 3) {
+      const projectGroup = parts.slice(0, -1).join('-'); // Everything except the branch name
 
-    if (parts.length < 3) {
-      return {
-        success: true, // Not an error, just no grouping needed
-        operation: 'configureSessionGroups',
-        details: { reason: 'Session name does not support grouping' },
-      };
-    }
+      try {
+        // Set session group (tmux 3.2+)
+        void TmuxDriver.setOption(sessionName, '@session-group', projectGroup);
 
-    const projectGroup = parts.slice(0, -1).join('-');
-
-    try {
-      await TmuxDriver.setOption(sessionName, '@session-group', projectGroup);
-
-      return {
-        success: true,
-        operation: 'configureSessionGroups',
-        details: { projectGroup },
-      };
-    } catch (error) {
-      // Session grouping might not be supported
-      return {
-        success: false,
-        operation: 'configureSessionGroups',
-        error: error instanceof Error ? error : new Error(String(error)),
-        details: { projectGroup },
-      };
+        // Session grouping handled - status-left is already configured
+      } catch {
+        // Session grouping might not be supported
+      }
     }
   }
 
@@ -521,26 +400,52 @@ export class TmuxEnhancer {
         name: 'main-feature',
         description: 'Main branch and feature branch side by side',
         branches: ['main', 'feature/*'],
-        layout: 'even-horizontal',
+        layout: TmuxLayout.EvenHorizontal,
       },
       {
         name: 'triple-review',
         description: 'Three branches for code review',
         branches: ['main', 'develop', 'feature/*'],
-        layout: 'even-horizontal',
+        layout: TmuxLayout.EvenHorizontal,
       },
       {
         name: 'quad-split',
         description: 'Four branches in grid layout',
         branches: ['*', '*', '*', '*'],
-        layout: 'tiled',
+        layout: TmuxLayout.Tiled,
       },
       {
         name: 'main-develop',
         description: 'Main branch with develop branch below',
         branches: ['main', 'develop'],
-        layout: 'main-horizontal',
+        layout: TmuxLayout.MainHorizontal,
       },
     ];
+  }
+
+  /**
+   * Configure a session with a predefined layout using the builder pattern
+   */
+  static async configureSessionWithLayout(sessionName: string, layoutName: string): Promise<void> {
+    const layouts = this.getPredefinedLayouts();
+    const layout = layouts.find((l) => l.name === layoutName);
+
+    if (!layout) {
+      throw new Error(`Layout '${layoutName}' not found`);
+    }
+
+    // Use the builder pattern for cleaner configuration
+    await TmuxDriver.createLayoutBuilder(sessionName)
+      .withLayout(layout.layout)
+      .withBorderStatus(TmuxPaneBorderStatus.Top)
+      .withBorderStyle(`fg=${TmuxColor.Colour240}`)
+      .withActiveBorderStyle(`fg=${TmuxColor.Colour32},bold`)
+      .apply();
+
+    Logger.info('Session configured with predefined layout', {
+      sessionName,
+      layoutName,
+      layout: layout.layout,
+    });
   }
 }

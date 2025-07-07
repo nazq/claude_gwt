@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
 
-// Mock child_process before importing modules that use it
-vi.mock('child_process', () => ({
-  execSync: vi.fn(() => ''),
+// Mock the async utilities
+vi.mock('../../../src/core/utils/async.js', () => ({
+  execCommandSafe: vi.fn(),
 }));
 
 // Now import after the mock is set up
-import { execSync } from 'child_process';
+import { execCommandSafe } from '../../../src/core/utils/async.js';
 import {
   createProgram,
   listSessions,
@@ -34,8 +34,12 @@ describe('cgwt-program', () => {
     mockProcessCwd = vi.spyOn(process, 'cwd').mockReturnValue('/test/path');
 
     // Reset mock implementation to default
-    vi.mocked(execSync).mockReset();
-    vi.mocked(execSync).mockReturnValue('');
+    vi.mocked(execCommandSafe).mockReset();
+    vi.mocked(execCommandSafe).mockResolvedValue({
+      stdout: '',
+      stderr: '',
+      code: 0,
+    });
   });
 
   afterEach(() => {
@@ -123,10 +127,14 @@ HEAD abc123
   });
 
   describe('listSessions', () => {
-    it('should handle empty worktree list', () => {
-      vi.mocked(execSync).mockReturnValue('');
+    it('should handle empty worktree list', async () => {
+      vi.mocked(execCommandSafe).mockResolvedValue({
+        stdout: '',
+        stderr: '',
+        code: 0,
+      });
 
-      const sessions = listSessions();
+      const sessions = await listSessions();
 
       expect(sessions).toHaveLength(0);
       expect(mockConsoleLog).toHaveBeenCalledWith(
@@ -134,12 +142,14 @@ HEAD abc123
       );
     });
 
-    it('should handle git errors', () => {
-      vi.mocked(execSync).mockImplementation(() => {
-        throw new Error('not a git repository');
+    it('should handle git errors', async () => {
+      vi.mocked(execCommandSafe).mockResolvedValue({
+        stdout: '',
+        stderr: 'not a git repository',
+        code: 1,
       });
 
-      expect(() => listSessions()).toThrow('process.exit(1)');
+      await expect(listSessions()).rejects.toThrow('process.exit(1)');
       expect(mockConsoleLog).toHaveBeenCalledWith(
         expect.stringContaining('Not in a Git repository'),
       );
@@ -153,81 +163,97 @@ HEAD abc123
       'worktree /test/develop\nHEAD ghi789\nbranch refs/heads/develop\n';
 
     beforeEach(() => {
-      // Mock execSync for both git worktree and tmux
-      vi.mocked(execSync).mockImplementation((command: string) => {
-        if (command.includes('git worktree')) {
-          return mockSessions;
+      // Mock execCommandSafe for both git worktree and tmux
+      vi.mocked(execCommandSafe).mockImplementation(async (command: string, args?: string[]) => {
+        if (command === 'git' && args?.includes('worktree')) {
+          return {
+            stdout: mockSessions,
+            stderr: '',
+            code: 0,
+          };
         }
-        if (command.includes('tmux')) {
-          throw new Error('no tmux');
+        if (command === 'tmux') {
+          return {
+            stdout: '',
+            stderr: 'no tmux',
+            code: 1,
+          };
         }
-        return '';
+        return {
+          stdout: '',
+          stderr: '',
+          code: 0,
+        };
       });
     });
 
-    it('should switch to session by index', () => {
-      switchSession('2');
+    it('should switch to session by index', async () => {
+      await switchSession('2');
 
       expect(mockProcessChdir).toHaveBeenCalledWith('/test/feature');
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Switched to'));
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('feature'));
     });
 
-    it('should switch to session by branch name', () => {
-      switchSession('develop');
+    it('should switch to session by branch name', async () => {
+      await switchSession('develop');
 
       expect(mockProcessChdir).toHaveBeenCalledWith('/test/develop');
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Switched to'));
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('develop'));
     });
 
-    it('should handle index out of range', () => {
-      expect(() => switchSession('10')).toThrow('process.exit(1)');
+    it('should handle index out of range', async () => {
+      await expect(switchSession('10')).rejects.toThrow('process.exit(1)');
       expect(mockConsoleLog).toHaveBeenCalledWith(
         expect.stringContaining('Index 10 is out of range'),
       );
     });
 
-    it('should handle branch not found', () => {
-      expect(() => switchSession('nonexistent')).toThrow('process.exit(1)');
+    it('should handle branch not found', async () => {
+      await expect(switchSession('nonexistent')).rejects.toThrow('process.exit(1)');
       expect(mockConsoleLog).toHaveBeenCalledWith(
         expect.stringContaining("Branch 'nonexistent' not found"),
       );
     });
 
-    it('should handle no sessions', () => {
-      vi.mocked(execSync).mockReturnValue('');
+    it('should handle no sessions', async () => {
+      vi.mocked(execCommandSafe).mockResolvedValue({
+        stdout: '',
+        stderr: '',
+        code: 0,
+      });
 
-      expect(() => switchSession('1')).toThrow('process.exit(1)');
+      await expect(switchSession('1')).rejects.toThrow('process.exit(1)');
       expect(mockConsoleLog).toHaveBeenCalledWith(
         expect.stringContaining('No Git worktree sessions found'),
       );
     });
 
-    it('should accept zero-based index 0 for first session', () => {
-      switchSession('1');
+    it('should accept zero-based index 0 for first session', async () => {
+      await switchSession('1');
       expect(mockProcessChdir).toHaveBeenCalledWith('/test/main');
     });
   });
 
   describe('getSessionsQuietly', () => {
-    it('should return sessions without logging', () => {
-      vi.mocked(execSync).mockReturnValue(
-        'worktree /test/main\nHEAD abc123\nbranch refs/heads/main\n',
-      );
+    it('should return sessions without logging', async () => {
+      vi.mocked(execCommandSafe).mockResolvedValue({
+        stdout: 'worktree /test/main\nHEAD abc123\nbranch refs/heads/main\n',
+        stderr: '',
+        code: 0,
+      });
 
-      const sessions = getSessionsQuietly();
+      const sessions = await getSessionsQuietly();
 
       expect(sessions).toHaveLength(1);
       expect(mockConsoleLog).not.toHaveBeenCalled();
     });
 
-    it('should return empty array on error', () => {
-      vi.mocked(execSync).mockImplementation(() => {
-        throw new Error('git error');
-      });
+    it('should return empty array on error', async () => {
+      vi.mocked(execCommandSafe).mockRejectedValue(new Error('git error'));
 
-      const sessions = getSessionsQuietly();
+      const sessions = await getSessionsQuietly();
 
       expect(sessions).toEqual([]);
       expect(mockConsoleLog).not.toHaveBeenCalled();
@@ -235,28 +261,38 @@ HEAD abc123
   });
 
   describe('listTmuxSessions', () => {
-    it('should handle no tmux sessions', () => {
-      vi.mocked(execSync).mockImplementation(() => {
-        throw new Error('no sessions');
+    it('should handle no tmux sessions', async () => {
+      vi.mocked(execCommandSafe).mockResolvedValue({
+        stdout: '',
+        stderr: 'no sessions',
+        code: 1,
       });
 
-      listTmuxSessions();
+      await listTmuxSessions();
 
       expect(mockConsoleLog).not.toHaveBeenCalledWith(expect.stringContaining('Tmux Sessions:'));
     });
 
-    it('should handle empty tmux output', () => {
-      vi.mocked(execSync).mockReturnValue('');
+    it('should handle empty tmux output', async () => {
+      vi.mocked(execCommandSafe).mockResolvedValue({
+        stdout: '',
+        stderr: '',
+        code: 0,
+      });
 
-      listTmuxSessions();
+      await listTmuxSessions();
 
       expect(mockConsoleLog).not.toHaveBeenCalledWith(expect.stringContaining('Tmux Sessions:'));
     });
 
-    it('should filter only cgwt sessions', () => {
-      vi.mocked(execSync).mockReturnValue('regular-session: 1 windows\n');
+    it('should filter only cgwt sessions', async () => {
+      vi.mocked(execCommandSafe).mockResolvedValue({
+        stdout: 'regular-session: 1 windows\n',
+        stderr: '',
+        code: 0,
+      });
 
-      listTmuxSessions();
+      await listTmuxSessions();
 
       expect(mockConsoleLog).not.toHaveBeenCalledWith(expect.stringContaining('Tmux Sessions:'));
     });

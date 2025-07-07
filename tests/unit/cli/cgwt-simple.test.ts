@@ -43,7 +43,7 @@ describe('cgwt CLI script', () => {
     // Check that the program module exports the expected functions
     const content = fs.readFileSync(programPath, 'utf-8');
     expect(content).toContain('export function createProgram()');
-    expect(content).toContain('export function listSessions()');
-    expect(content).toContain('export function switchSession(');
+    expect(content).toContain('export async function listSessions()');
+    expect(content).toContain('export async function switchSession(');
   });
 });

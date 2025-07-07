@@ -5,6 +5,190 @@ import { Logger } from '../core/utils/logger.js';
 import { TmuxParser } from './TmuxParser.js';
 
 /**
+ * Tmux layout types
+ */
+export enum TmuxLayout {
+  EvenHorizontal = 'even-horizontal',
+  EvenVertical = 'even-vertical',
+  MainHorizontal = 'main-horizontal',
+  MainVertical = 'main-vertical',
+  Tiled = 'tiled',
+}
+
+/**
+ * Tmux key table names
+ */
+export enum TmuxKeyTable {
+  Root = 'root',
+  Prefix = 'prefix',
+  CopyMode = 'copy-mode',
+  CopyModeVi = 'copy-mode-vi',
+}
+
+/**
+ * Tmux status bar positions
+ */
+export enum TmuxStatusPosition {
+  Top = 'top',
+  Bottom = 'bottom',
+  Off = 'off',
+}
+
+/**
+ * Tmux pane border status positions
+ */
+export enum TmuxPaneBorderStatus {
+  Top = 'top',
+  Bottom = 'bottom',
+  Off = 'off',
+}
+
+/**
+ * Common tmux option names
+ */
+export enum TmuxOption {
+  // Session options
+  Status = 'status',
+  StatusPosition = 'status-position',
+  StatusStyle = 'status-style',
+  StatusLeft = 'status-left',
+  StatusRight = 'status-right',
+  StatusLeftLength = 'status-left-length',
+  StatusRightLength = 'status-right-length',
+  StatusInterval = 'status-interval',
+  StatusJustify = 'status-justify',
+
+  // Window options
+  WindowStatusStyle = 'window-status-style',
+  WindowStatusCurrentStyle = 'window-status-current-style',
+  WindowStatusFormat = 'window-status-format',
+  WindowStatusCurrentFormat = 'window-status-current-format',
+  WindowStatusActivityStyle = 'window-status-activity-style',
+  MonitorActivity = 'monitor-activity',
+  SynchronizePanes = 'synchronize-panes',
+  AggressiveResize = 'aggressive-resize',
+  RemainOnExit = 'remain-on-exit',
+
+  // Copy mode options
+  ModeKeys = 'mode-keys',
+  Mouse = 'mouse',
+
+  // Pane options
+  PaneBorderStatus = 'pane-border-status',
+  PaneBorderStyle = 'pane-border-style',
+  PaneActiveBorderStyle = 'pane-active-border-style',
+  PaneBorderFormat = 'pane-border-format',
+}
+
+/**
+ * Tmux hook names
+ */
+export enum TmuxHook {
+  SessionCreated = 'session-created',
+  SessionClosed = 'session-closed',
+  WindowCreated = 'window-created',
+  WindowClosed = 'window-closed',
+  PaneCreated = 'pane-created',
+  PaneDestroyed = 'pane-destroyed',
+  AlertActivity = 'alert-activity',
+}
+
+/**
+ * Tmux color names (commonly used ones)
+ */
+export enum TmuxColor {
+  Black = 'black',
+  Red = 'red',
+  Green = 'green',
+  Yellow = 'yellow',
+  Blue = 'blue',
+  Magenta = 'magenta',
+  Cyan = 'cyan',
+  White = 'white',
+  BrightBlack = 'brightblack',
+  BrightRed = 'brightred',
+  BrightGreen = 'brightgreen',
+  BrightYellow = 'brightyellow',
+  BrightBlue = 'brightblue',
+  BrightMagenta = 'brightmagenta',
+  BrightCyan = 'brightcyan',
+  BrightWhite = 'brightwhite',
+  // Common color numbers
+  Colour0 = 'colour0',
+  Colour25 = 'colour25',
+  Colour28 = 'colour28',
+  Colour32 = 'colour32',
+  Colour88 = 'colour88',
+  Colour196 = 'colour196',
+  Colour236 = 'colour236',
+  Colour237 = 'colour237',
+  Colour238 = 'colour238',
+  Colour240 = 'colour240',
+  Colour255 = 'colour255',
+}
+
+/**
+ * Tmux status bar justification
+ */
+export enum TmuxStatusJustify {
+  Left = 'left',
+  Centre = 'centre',
+  Right = 'right',
+}
+
+/**
+ * Configuration for status bar
+ */
+export interface TmuxStatusBarConfig {
+  enabled?: boolean;
+  position?: TmuxStatusPosition;
+  style?: {
+    background?: TmuxColor | string;
+    foreground?: TmuxColor | string;
+  };
+  left?: {
+    content?: string;
+    length?: number;
+  };
+  right?: {
+    content?: string;
+    length?: number;
+  };
+  interval?: number;
+  justify?: TmuxStatusJustify;
+  windowStatus?: {
+    format?: string;
+    currentFormat?: string;
+    style?: string;
+    currentStyle?: string;
+    activityStyle?: string;
+  };
+}
+
+/**
+ * Configuration for key binding
+ */
+export interface TmuxKeyBindingConfig {
+  key: string;
+  command: string;
+  table?: TmuxKeyTable | string;
+  repeat?: boolean;
+  note?: string; // Documentation for the binding
+}
+
+/**
+ * Configuration for pane layout
+ */
+export interface TmuxPaneLayoutConfig {
+  layout: TmuxLayout;
+  mainPaneSize?: number; // For main-* layouts
+  borderStatus?: TmuxPaneBorderStatus;
+  borderStyle?: string;
+  activeBorderStyle?: string;
+  borderFormat?: string;
+}
+
+/**
  * Tmux session information
  */
 export interface TmuxSessionInfo {
@@ -477,9 +661,308 @@ export class TmuxDriver {
    */
   static async setPaneBorderStatus(
     target: string,
-    position: 'top' | 'bottom' | 'off',
+    position: TmuxPaneBorderStatus,
   ): Promise<ExecResult> {
-    return this.setOption(target, 'pane-border-status', position);
+    return this.setOption(target, TmuxOption.PaneBorderStatus, position);
+  }
+
+  /**
+   * Configure status bar with structured configuration
+   */
+  static async configureStatusBar(
+    sessionName: string,
+    config: TmuxStatusBarConfig,
+  ): Promise<ExecResult[]> {
+    const results: ExecResult[] = [];
+    const target = sanitizeSessionName(sessionName);
+
+    try {
+      // Enable/disable status bar
+      if (config.enabled !== undefined) {
+        results.push(
+          await this.setOption(target, TmuxOption.Status, config.enabled ? 'on' : 'off'),
+        );
+      }
+
+      // Set position
+      if (config.position) {
+        results.push(await this.setOption(target, TmuxOption.StatusPosition, config.position));
+      }
+
+      // Set style
+      if (config.style) {
+        const styleStr = [
+          config.style.background ? `bg=${config.style.background}` : '',
+          config.style.foreground ? `fg=${config.style.foreground}` : '',
+        ]
+          .filter(Boolean)
+          .join(',');
+
+        if (styleStr) {
+          results.push(await this.setOption(target, TmuxOption.StatusStyle, styleStr));
+        }
+      }
+
+      // Set left status
+      if (config.left) {
+        if (config.left.content) {
+          results.push(await this.setOption(target, TmuxOption.StatusLeft, config.left.content));
+        }
+        if (config.left.length) {
+          results.push(
+            await this.setOption(
+              target,
+              TmuxOption.StatusLeftLength,
+              config.left.length.toString(),
+            ),
+          );
+        }
+      }
+
+      // Set right status
+      if (config.right) {
+        if (config.right.content) {
+          results.push(await this.setOption(target, TmuxOption.StatusRight, config.right.content));
+        }
+        if (config.right.length) {
+          results.push(
+            await this.setOption(
+              target,
+              TmuxOption.StatusRightLength,
+              config.right.length.toString(),
+            ),
+          );
+        }
+      }
+
+      // Set interval
+      if (config.interval) {
+        results.push(
+          await this.setOption(target, TmuxOption.StatusInterval, config.interval.toString()),
+        );
+      }
+
+      // Set justification
+      if (config.justify) {
+        results.push(await this.setOption(target, TmuxOption.StatusJustify, config.justify));
+      }
+
+      // Set window status formatting
+      if (config.windowStatus) {
+        const ws = config.windowStatus;
+        if (ws.format) {
+          results.push(
+            await this.setWindowOption(target, TmuxOption.WindowStatusFormat, ws.format),
+          );
+        }
+        if (ws.currentFormat) {
+          results.push(
+            await this.setWindowOption(
+              target,
+              TmuxOption.WindowStatusCurrentFormat,
+              ws.currentFormat,
+            ),
+          );
+        }
+        if (ws.style) {
+          results.push(await this.setWindowOption(target, TmuxOption.WindowStatusStyle, ws.style));
+        }
+        if (ws.currentStyle) {
+          results.push(
+            await this.setWindowOption(
+              target,
+              TmuxOption.WindowStatusCurrentStyle,
+              ws.currentStyle,
+            ),
+          );
+        }
+        if (ws.activityStyle) {
+          results.push(
+            await this.setWindowOption(
+              target,
+              TmuxOption.WindowStatusActivityStyle,
+              ws.activityStyle,
+            ),
+          );
+        }
+      }
+
+      return results;
+    } catch (error) {
+      Logger.error('Failed to configure status bar', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Apply multiple key bindings at once
+   */
+  static async configureKeyBindings(bindings: TmuxKeyBindingConfig[]): Promise<ExecResult[]> {
+    const results: ExecResult[] = [];
+
+    for (const binding of bindings) {
+      try {
+        const result = await this.bindKey(
+          binding.key,
+          binding.command,
+          binding.table,
+          binding.repeat,
+        );
+        results.push(result);
+      } catch (error) {
+        Logger.error(`Failed to bind key ${binding.key}`, error);
+        results.push({
+          stdout: '',
+          stderr: error instanceof Error ? error.message : 'Unknown error',
+          code: 1,
+        });
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Configure pane layout with structured configuration
+   */
+  static async configurePaneLayout(
+    sessionName: string,
+    config: TmuxPaneLayoutConfig,
+  ): Promise<ExecResult[]> {
+    const results: ExecResult[] = [];
+    const target = sanitizeSessionName(sessionName);
+
+    try {
+      // Set layout
+      results.push(await execCommandSafe('tmux', ['select-layout', '-t', target, config.layout]));
+
+      // Configure border status
+      if (config.borderStatus) {
+        results.push(
+          await this.setOption(target, TmuxOption.PaneBorderStatus, config.borderStatus),
+        );
+      }
+
+      // Configure border styling
+      if (config.borderStyle) {
+        results.push(await this.setOption(target, TmuxOption.PaneBorderStyle, config.borderStyle));
+      }
+
+      if (config.activeBorderStyle) {
+        results.push(
+          await this.setOption(target, TmuxOption.PaneActiveBorderStyle, config.activeBorderStyle),
+        );
+      }
+
+      if (config.borderFormat) {
+        results.push(
+          await this.setOption(target, TmuxOption.PaneBorderFormat, config.borderFormat),
+        );
+      }
+
+      return results;
+    } catch (error) {
+      Logger.error('Failed to configure pane layout', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Enable copy mode with vi key bindings
+   */
+  static async enableViCopyMode(sessionName: string): Promise<ExecResult[]> {
+    const target = sanitizeSessionName(sessionName);
+
+    const keyBindings: TmuxKeyBindingConfig[] = [
+      {
+        key: 'v',
+        command: 'send-keys -X begin-selection',
+        table: TmuxKeyTable.CopyModeVi,
+        note: 'Begin selection in copy mode',
+      },
+      {
+        key: 'C-v',
+        command: 'send-keys -X rectangle-toggle',
+        table: TmuxKeyTable.CopyModeVi,
+        note: 'Toggle rectangle selection',
+      },
+      {
+        key: 'y',
+        command: 'send-keys -X copy-selection-and-cancel',
+        table: TmuxKeyTable.CopyModeVi,
+        note: 'Copy selection and exit copy mode',
+      },
+      {
+        key: 'Escape',
+        command: 'send-keys -X cancel',
+        table: TmuxKeyTable.CopyModeVi,
+        note: 'Exit copy mode',
+      },
+    ];
+
+    const results: ExecResult[] = [];
+
+    // Set vi mode
+    results.push(await this.setOption(target, TmuxOption.ModeKeys, 'vi', true));
+
+    // Enable mouse
+    results.push(await this.setOption(target, TmuxOption.Mouse, 'on', true));
+
+    // Apply key bindings
+    const bindingResults = await this.configureKeyBindings(keyBindings);
+    results.push(...bindingResults);
+
+    return results;
+  }
+
+  /**
+   * Create a predefined layout (builder pattern helper)
+   */
+  static createLayoutBuilder(sessionName: string): {
+    withLayout: (layout: TmuxLayout) => {
+      withBorderStatus: (status: TmuxPaneBorderStatus) => {
+        withBorderStyle: (style: string) => {
+          withActiveBorderStyle: (activeStyle: string) => {
+            apply: () => Promise<ExecResult[]>;
+          };
+          apply: () => Promise<ExecResult[]>;
+        };
+        apply: () => Promise<ExecResult[]>;
+      };
+      apply: () => Promise<ExecResult[]>;
+    };
+  } {
+    const target = sanitizeSessionName(sessionName);
+
+    return {
+      withLayout: (layout: TmuxLayout) => ({
+        withBorderStatus: (status: TmuxPaneBorderStatus) => ({
+          withBorderStyle: (style: string) => ({
+            withActiveBorderStyle: (activeStyle: string) => ({
+              apply: (): Promise<ExecResult[]> =>
+                this.configurePaneLayout(target, {
+                  layout,
+                  borderStatus: status,
+                  borderStyle: style,
+                  activeBorderStyle: activeStyle,
+                }),
+            }),
+            apply: (): Promise<ExecResult[]> =>
+              this.configurePaneLayout(target, {
+                layout,
+                borderStatus: status,
+                borderStyle: style,
+              }),
+          }),
+          apply: (): Promise<ExecResult[]> =>
+            this.configurePaneLayout(target, {
+              layout,
+              borderStatus: status,
+            }),
+        }),
+        apply: (): Promise<ExecResult[]> => this.configurePaneLayout(target, { layout }),
+      }),
+    };
   }
 
   /**

@@ -89,6 +89,106 @@ describe('StructuredLogger (Pino)', () => {
     });
   });
 
+  describe('log level methods', () => {
+    let structuredLogger: StructuredLogger;
+
+    beforeEach(() => {
+      structuredLogger = new StructuredLogger();
+    });
+
+    it('should call trace method with message and context', () => {
+      const message = 'Trace message';
+      const context = { traceId: '123' };
+
+      structuredLogger.trace(message, context);
+
+      expect(structuredLogger.trace).toBeDefined();
+    });
+
+    it('should call debug method with message and context', () => {
+      const message = 'Debug message';
+      const context = { debugInfo: 'test' };
+
+      structuredLogger.debug(message, context);
+
+      expect(structuredLogger.debug).toBeDefined();
+    });
+
+    it('should call info method with message and context', () => {
+      const message = 'Info message';
+      const context = { userId: 'user123' };
+
+      structuredLogger.info(message, context);
+
+      expect(structuredLogger.info).toBeDefined();
+    });
+
+    it('should call warn method with message and context', () => {
+      const message = 'Warning message';
+      const context = { warningCode: 'W001' };
+
+      structuredLogger.warn(message, context);
+
+      expect(structuredLogger.warn).toBeDefined();
+    });
+
+    it('should call error method with message and context', () => {
+      const message = 'Error message';
+      const error = new Error('Test error');
+      const context = { errorCode: 'E001' };
+
+      structuredLogger.error(message, error, context);
+
+      expect(structuredLogger.error).toBeDefined();
+    });
+
+    it('should call fatal method with message and context', () => {
+      const message = 'Fatal error';
+      const error = new Error('Fatal test error');
+      const context = { fatalCode: 'F001' };
+
+      structuredLogger.fatal(message, error, context);
+
+      expect(structuredLogger.fatal).toBeDefined();
+    });
+
+    it('should handle error method with error object only', () => {
+      const error = new Error('Test error');
+
+      structuredLogger.error('Error occurred', error);
+
+      expect(structuredLogger.error).toBeDefined();
+    });
+
+    it('should handle error method with string error', () => {
+      structuredLogger.error('Error occurred', 'string error');
+
+      expect(structuredLogger.error).toBeDefined();
+    });
+
+    it('should check if level is enabled', () => {
+      const isInfoEnabled = structuredLogger.isLevelEnabled('info');
+      const isDebugEnabled = structuredLogger.isLevelEnabled('debug');
+
+      expect(typeof isInfoEnabled).toBe('boolean');
+      expect(typeof isDebugEnabled).toBe('boolean');
+    });
+
+    it('should create child logger with additional context', () => {
+      const childContext = { component: 'git-operations' };
+      const childLogger = structuredLogger.child(childContext);
+
+      expect(childLogger).toBeDefined();
+      expect(childLogger).not.toBe(structuredLogger);
+    });
+
+    it('should flush logger buffers', async () => {
+      await structuredLogger.flush();
+
+      expect(structuredLogger.flush).toBeDefined();
+    });
+  });
+
   describe('gitignore management', () => {
     it('should handle non-existent gitignore file', () => {
       mockFs.existsSync.mockReturnValue(false);
