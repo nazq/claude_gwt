@@ -52,36 +52,41 @@ print_step "Current version: $CURRENT_VERSION"
 
 # Determine release type
 if [ -z "$1" ]; then
-    echo "Usage: $0 <release-type> [pre-id]"
+    echo "Usage: $0 <release-type>"
     echo ""
-    echo "Release types:"
+    echo "Production release types:"
     echo "  patch        - Bug fixes (1.0.0 → 1.0.1)"
     echo "  minor        - New features (1.0.0 → 1.1.0)"
     echo "  major        - Breaking changes (1.0.0 → 2.0.0)"
-    echo "  prepatch     - Pre-release patch (1.0.0 → 1.0.1-beta.0)"
-    echo "  preminor     - Pre-release minor (1.0.0 → 1.1.0-beta.0)"
-    echo "  premajor     - Pre-release major (1.0.0 → 2.0.0-beta.0)"
-    echo "  prerelease   - Increment pre-release (1.0.0-beta.0 → 1.0.0-beta.1)"
     echo ""
     echo "Examples:"
     echo "  $0 patch"
     echo "  $0 minor"
-    echo "  $0 prerelease beta"
+    echo "  $0 major"
+    echo ""
+    echo "Note: Beta releases are now automatically created when PRs are merged to master."
     echo ""
     exit 1
 fi
 
 RELEASE_TYPE=$1
-PRE_ID=${2:-beta}
 
-# For pre-releases, add the pre-id
-if [[ "$RELEASE_TYPE" == pre* ]] && [ "$RELEASE_TYPE" != "prerelease" ]; then
-    NPM_VERSION_ARGS="$RELEASE_TYPE --preid=$PRE_ID"
-elif [ "$RELEASE_TYPE" == "prerelease" ]; then
-    NPM_VERSION_ARGS="$RELEASE_TYPE"
-else
-    NPM_VERSION_ARGS="$RELEASE_TYPE"
+# Validate release type
+if [ "$RELEASE_TYPE" != "patch" ] && [ "$RELEASE_TYPE" != "minor" ] && [ "$RELEASE_TYPE" != "major" ]; then
+    print_error "Invalid release type: $RELEASE_TYPE"
+    echo "Valid options are: patch, minor, major"
+    exit 1
 fi
+
+# Check if current version is a beta
+CURRENT_VERSION=$(node -p "require('./package.json').version")
+if [[ "$CURRENT_VERSION" == *"-beta."* ]]; then
+    print_warning "Current version is a beta ($CURRENT_VERSION)"
+    echo "Production releases should be created from stable versions."
+    echo "The beta suffix will be removed for this release."
+fi
+
+NPM_VERSION_ARGS="$RELEASE_TYPE"
 
 # Run tests
 print_step "Running tests..."
@@ -139,16 +144,12 @@ echo "  2. Publish to npm"
 echo "  3. Generate release notes"
 echo ""
 
-# Check if this is a pre-release
-if [[ "$NEW_VERSION" == *-* ]]; then
-    print_warning "This is a pre-release version ($NEW_VERSION)"
-    echo "  - It will be published with the '$PRE_ID' tag on npm"
-    echo "  - Users will need to install with: npm install claude-gwt@$PRE_ID"
-else
-    print_success "This is a stable release"
-    echo "  - It will be published as 'latest' on npm"
-    echo "  - Users can install with: npm install claude-gwt"
-fi
+print_success "Production release created!"
+echo "  - Version: $NEW_VERSION"
+echo "  - It will be published as 'latest' on npm"
+echo "  - Users can install with: npm install claude-gwt"
+echo ""
+print_step "Note: Beta releases are automatically created when PRs are merged to master"
 
 echo ""
 print_step "Monitor the release at:"

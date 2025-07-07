@@ -1,172 +1,203 @@
 # Release Process for Claude GWT
 
-This document outlines the exact steps to release claude-gwt to ensure version synchronization between Git tags and npm.
+This document outlines the automated beta release and manual production release processes for claude-gwt.
 
-## 🎯 Release Types
+## 🤖 Automated Beta Releases
 
-### Patch Release (0.2.0 → 0.2.1)
-For bug fixes and minor updates.
+**Every merge to master automatically creates a beta release!**
 
-### Minor Release (0.2.1 → 0.3.0)
-For new features that don't break existing functionality.
+When a PR is merged to master:
+1. CI automatically runs tests
+2. Version is bumped to next beta (e.g., 0.2.2 → 0.2.3-beta.0)
+3. Git tag is created and pushed
+4. Package is published to npm with `beta` tag
+5. Users can install with: `npm install -g claude-gwt@beta`
 
-### Major Release (0.3.0 → 1.0.0)
-For breaking changes or significant milestones.
+### Beta Version Progression
+- First beta after stable: `0.2.2` → `0.2.3-beta.0`
+- Subsequent betas: `0.2.3-beta.0` → `0.2.3-beta.1` → `0.2.3-beta.2`
+- Production release: `0.2.3-beta.2` → `0.2.3`
 
-## 📋 Pre-Release Checklist
+## 🚀 Production Releases
 
-1. **All tests passing**
+Production releases are **manually triggered** when you decide a beta is stable.
+
+### Release Types
+
+- **Patch Release** (0.2.2 → 0.2.3): Bug fixes and minor updates
+- **Minor Release** (0.2.3 → 0.3.0): New features, no breaking changes
+- **Major Release** (0.2.3 → 1.0.0): Breaking changes or major milestones
+
+### Pre-Release Checklist
+
+1. **Review beta feedback**
+   ```bash
+   # Check latest beta version
+   npm view claude-gwt@beta version
+   
+   # Test the beta
+   npm install -g claude-gwt@beta
+   claude-gwt --version
+   ```
+
+2. **Ensure clean state**
+   ```bash
+   git status  # Should be clean
+   git pull origin master
+   ```
+
+3. **All tests passing**
    ```bash
    npm test
    npm run lint
    npm run typecheck
    ```
 
-2. **Clean working directory**
-   ```bash
-   git status  # Should be clean
-   ```
-
-3. **Up to date with origin**
-   ```bash
-   git pull origin master
-   ```
-
-4. **Version decision made**
-   - What type of release? (patch/minor/major)
-   - Any breaking changes?
-   - Any new features?
-
-## 🚀 Release Steps
-
-### Method 1: Using Scripts (Recommended)
+### Creating a Production Release
 
 ```bash
-# For patch releases
+# For patch releases (bug fixes)
 npm run release:patch
 
-# For minor releases  
+# For minor releases (new features)
 npm run release:minor
 
-# For major releases
+# For major releases (breaking changes)
 npm run release:major
 ```
 
-### Method 2: Manual Process
+The script will:
+1. Run all tests
+2. Build the project
+3. Bump version (removes beta suffix if present)
+4. Update CLI version string
+5. Create git commit and tag
+6. Push to GitHub
+7. Trigger GitHub Actions to publish to npm
 
-1. **Bump version**
-   ```bash
-   npm version patch  # or minor/major
-   ```
+## 📊 Version Management
 
-2. **Verify changes**
-   ```bash
-   git log --oneline -2
-   git tag -l | tail -5
-   ```
+### Current Flow
+```
+Development → PR → Merge to master → Auto Beta → Manual Prod Release
+     ↓          ↓         ↓                ↓              ↓
+  Feature    Review   0.2.3-beta.0   0.2.3-beta.1     0.2.3
+```
 
-3. **Build and test**
-   ```bash
-   npm run build:clean
-   npm test
-   ```
+### Checking Versions
+```bash
+# Current package version
+cat package.json | grep version
 
-4. **Publish**
-   ```bash
-   npm publish
-   ```
+# Latest stable version on npm
+npm view claude-gwt version
 
-5. **Push tags**
-   ```bash
-   git push origin master --tags
-   ```
+# Latest beta version on npm
+npm view claude-gwt@beta version
 
-## 📝 Release Notes
+# All published versions
+npm view claude-gwt versions --json
 
-### v0.2.1 (Current)
-- Fix version sync between Git tags and npm
-- Add formal release process documentation
-- Ensure proper tagging workflow
-
-### v0.2.0
-- Initial production release
-- Complete TypeScript rewrite from bash scripts
-- 474 comprehensive tests
-- Full CI/CD pipeline
-
-### v1.0.0 (Yanked)
-- Accidentally published as 1.0.0
-- Unpublished and replaced with 0.2.0
+# Git tags
+git tag -l | sort -V
+```
 
 ## 🐛 Troubleshooting
 
-### Version Mismatch
-If git tags and npm versions don't match:
+### Beta Not Publishing
+If auto-beta fails:
+1. Check GitHub Actions: https://github.com/nazq/claude_gwt/actions
+2. Ensure NPM_TOKEN secret is set
+3. Check for `[skip ci]` in commit message
 
-1. Check current state:
+### Version Conflicts
+If versions get out of sync:
+```bash
+# Reset to match npm latest
+npm view claude-gwt version
+# Update package.json to match
+npm version --no-git-tag-version <version>
+git add package.json package-lock.json
+git commit -m "chore: sync version with npm"
+```
+
+### Manual Beta Release (Emergency)
+If automation fails:
+```bash
+# Increment beta manually
+npm version prerelease --preid=beta
+npm publish --tag beta
+git push origin master --tags
+```
+
+## 📝 Release Notes
+
+### v0.2.2 (Current Stable)
+- Fixed release workflow issues
+- Updated CLI version management
+- Improved temp directory cleanup
+
+### v0.2.1
+- Fixed temp directory collision issues
+- Added proper cleanup in tests
+
+### v0.2.0
+- Initial production release
+- Complete TypeScript rewrite
+- 474 comprehensive tests
+- Full CI/CD pipeline
+
+## 🔍 Post-Release Verification
+
+After a production release:
+
+1. **Verify npm**
    ```bash
-   git tag -l | sort -V
    npm view claude-gwt version
-   cat package.json | grep version
+   npm view claude-gwt@beta version  # Should be newer than stable
    ```
 
-2. If npm is ahead, create a git tag:
-   ```bash
-   git tag v$(cat package.json | jq -r .version)
-   git push origin --tags
-   ```
-
-3. If git is ahead, bump package.json:
-   ```bash
-   npm version --no-git-tag-version $(git describe --tags --abbrev=0 | sed 's/^v//')
-   git add package.json package-lock.json
-   git commit -m "chore: sync version with git tag"
-   ```
-
-## 🔍 Verification
-
-After each release:
-
-1. **Check npm**
-   ```bash
-   npm view claude-gwt version
-   ```
-
-2. **Check git tags**
-   ```bash
-   git tag -l | sort -V | tail -5
-   ```
-
-3. **Test installation**
+2. **Test installation**
    ```bash
    npm install -g claude-gwt@latest
    claude-gwt --version
    ```
 
-## 🚨 Emergency: Unpublishing
+3. **Check GitHub Release**
+   - Visit: https://github.com/nazq/claude_gwt/releases
+   - Ensure release notes were generated
 
-If you need to unpublish a version:
+## 🚨 Emergency Procedures
 
+### Unpublishing
+Within 24 hours:
 ```bash
-# Within 24 hours of publishing
 npm unpublish claude-gwt@VERSION
+```
 
-# After 24 hours, you can only deprecate
+After 24 hours:
+```bash
 npm deprecate claude-gwt@VERSION "Reason for deprecation"
 ```
 
-## 📋 Post-Release Tasks
+### Reverting a Bad Release
+```bash
+# Publish previous version as latest
+npm install claude-gwt@PREVIOUS_VERSION
+cd node_modules/claude-gwt
+npm publish
+```
 
-1. Update CHANGELOG.md
-2. Create GitHub release with notes
-3. Update README if needed
-4. Announce on social media
-5. Close related GitHub issues
+## 📋 Workflow Summary
 
-## 🎯 Version Strategy
+1. **Development**: Work on feature branches
+2. **Review**: Create PR to master
+3. **Auto Beta**: Merge triggers automatic beta release
+4. **Testing**: Community tests beta versions
+5. **Production**: Manually release stable version when ready
 
-- **0.x.x**: Beta/experimental phase
-- **1.x.x**: Production ready, stable API
-- **2.x.x**: Major architectural changes
-
-Current: Beta phase - expect frequent updates and potential breaking changes.
+This approach ensures:
+- Every merge is immediately available for testing
+- Production releases are deliberate and stable
+- Version history is clean and traceable
+- Users can choose stability (latest) or features (beta)

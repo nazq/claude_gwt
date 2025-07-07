@@ -3,7 +3,7 @@ name: Release and Publish
 on:
   push:
     tags:
-      - 'v*' # Trigger on version tags like v1.0.0, v1.0.0-beta.1
+      - 'v*' # Trigger on version tags (both stable and beta)
 
 jobs:
   release:
