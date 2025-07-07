@@ -1,10 +1,34 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { TmuxEnhancer } from '../../../src/sessions/TmuxEnhancer';
 import type { StatusBarConfig } from '../../../src/sessions/TmuxEnhancer';
-import { TmuxDriver } from '../../../src/sessions/TmuxDriver';
+import { TmuxDriver, TmuxColor } from '../../../src/sessions/TmuxDriver';
 import { Logger } from '../../../src/core/utils/logger';
 
-vi.mock('../../../src/sessions/TmuxDriver');
+vi.mock('../../../src/sessions/TmuxDriver', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../src/sessions/TmuxDriver')>();
+  return {
+    ...actual,
+    TmuxDriver: {
+      setOption: vi.fn(),
+      setWindowOption: vi.fn(),
+      bindKey: vi.fn(),
+      unbindKey: vi.fn(),
+      setHook: vi.fn(),
+      enableViCopyMode: vi.fn(),
+      configureStatusBar: vi.fn(),
+      configureKeyBindings: vi.fn(),
+      configureMonitoring: vi.fn(),
+      configurePaneBorders: vi.fn(),
+      createMultiPaneWindow: vi.fn(),
+      createWindow: vi.fn(),
+      splitPane: vi.fn(),
+      setPaneTitle: vi.fn(),
+      sendKeys: vi.fn(),
+    },
+    // Keep TmuxColor as is
+    TmuxColor: actual.TmuxColor,
+  };
+});
 vi.mock('../../../src/core/utils/logger', () => ({
   Logger: {
     info: vi.fn(),
@@ -149,7 +173,7 @@ describe('TmuxEnhancer', () => {
           enabled: true,
           position: 'bottom',
           style: expect.objectContaining({
-            background: 'colour25', // Child color
+            background: expect.any(TmuxColor), // Child color (colour25)
           }),
           left: expect.stringContaining('WRK'),
         }),
@@ -180,7 +204,7 @@ describe('TmuxEnhancer', () => {
           enabled: true,
           position: 'bottom',
           style: expect.objectContaining({
-            background: 'colour32', // Supervisor color
+            background: expect.any(TmuxColor), // Supervisor color (colour32)
           }),
           left: expect.stringContaining('SUP'),
         }),

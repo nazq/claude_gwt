@@ -134,8 +134,8 @@ export class TmuxEnhancer {
 
     try {
       // Color scheme based on role
-      const bgColor = role === 'supervisor' ? TmuxColor.Colour32 : TmuxColor.Colour25;
-      const fgColor = TmuxColor.Colour255;
+      const bgColor = role === 'supervisor' ? TmuxColor.from(32) : TmuxColor.from(25);
+      const fgColor = TmuxColor.from(255);
 
       // Extract project name
       const sessionParts = sessionName.split('-');
@@ -152,7 +152,7 @@ export class TmuxEnhancer {
           background: bgColor,
           foreground: fgColor,
         },
-        left: `#[bg=${role === 'supervisor' ? TmuxColor.Colour196 : TmuxColor.Colour28},fg=${TmuxColor.Colour255},bold] ${role === 'supervisor' ? 'SUP' : 'WRK'} #[bg=${TmuxColor.Colour236},fg=${TmuxColor.Colour255}] ${projectName}${role !== 'supervisor' ? ':' + branchName : ''} #[bg=${bgColor},fg=${fgColor}] `,
+        left: `#[bg=${role === 'supervisor' ? TmuxColor.from(196).toString() : TmuxColor.from(28).toString()},fg=${TmuxColor.from(255).toString()},bold] ${role === 'supervisor' ? 'SUP' : 'WRK'} #[bg=${TmuxColor.from(236).toString()},fg=${TmuxColor.from(255).toString()}] ${projectName}${role !== 'supervisor' ? ':' + branchName : ''} #[bg=${bgColor.toString()},fg=${fgColor.toString()}] `,
       };
 
       // Apply configuration using SDK method
@@ -336,10 +336,10 @@ export class TmuxEnhancer {
       const borderConfig: TmuxPaneBorderConfig = {
         status: TmuxPaneBorderStatus.Top,
         style: {
-          inactive: `fg=${TmuxColor.Colour240}`,
-          active: `fg=${TmuxColor.Colour32},bold`,
+          inactive: `fg=${TmuxColor.from(240).toString()}`,
+          active: `fg=${TmuxColor.from(32).toString()},bold`,
         },
-        format: `#[fg=${TmuxColor.Colour255},bg=${TmuxColor.Colour32}] #{pane_title} #[fg=${TmuxColor.Colour240},bg=default]`,
+        format: `#[fg=${TmuxColor.from(255).toString()},bg=${TmuxColor.from(32).toString()}] #{pane_title} #[fg=${TmuxColor.from(240).toString()},bg=default]`,
       };
       await TmuxDriver.configurePaneBorders(`${sessionName}:compare`, borderConfig);
 
