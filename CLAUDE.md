@@ -299,6 +299,33 @@ When creating git commits:
 - **IMPORTANT**: Do NOT use "Co-Authored-By: Claude <noreply@anthropic.com>" - this project does not use co-authorship attribution for AI-generated commits
 - **IMPORTANT**: Never add the coauthored and built by claude git comment
 
+## Pull Request Workflow
+
+### Creating Changesets
+When making changes that should be included in the changelog:
+1. Run `npm run changeset` to create a changeset
+2. Select the type of change (patch/minor/major)
+3. Write a brief description of the changes
+4. Commit the changeset file along with your changes
+
+### After PR Merge
+**IMPORTANT**: After a PR is successfully merged:
+1. Delete the feature branch from both local and remote:
+   ```bash
+   git branch -D <branch-name>  # Delete local branch
+   git push origin --delete <branch-name>  # Delete remote branch
+   ```
+2. Or delete all merged branches at once:
+   ```bash
+   # Delete all local branches except master
+   git branch | grep -v master | xargs -n 1 git branch -D
+   
+   # Delete remote branches that have been merged
+   git branch -r --merged | grep -v master | sed 's/origin\///' | xargs -n 1 git push --delete origin
+   ```
+
+This keeps the repository clean and makes it easier to track active work.
+
 # Testing Best Practices
 
 ## Type Safety in Tests
