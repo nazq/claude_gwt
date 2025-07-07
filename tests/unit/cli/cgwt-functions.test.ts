@@ -17,15 +17,16 @@ branch refs/heads/feature
       const sessions = parseWorktreeOutput(output);
 
       expect(sessions).toHaveLength(2);
+      // Sessions are sorted alphabetically by branch name
       expect(sessions[0]).toEqual({
-        path: '/test/repo',
-        head: 'abc123',
-        branch: 'refs/heads/main',
-      });
-      expect(sessions[1]).toEqual({
         path: '/test/repo-feature',
         head: 'def456',
         branch: 'refs/heads/feature',
+      });
+      expect(sessions[1]).toEqual({
+        path: '/test/repo',
+        head: 'abc123',
+        branch: 'refs/heads/main',
       });
     });
 
@@ -41,8 +42,18 @@ branch refs/heads/feature
 
       const sessions = parseWorktreeOutput(output);
 
-      expect(sessions).toHaveLength(1);
-      expect(sessions[0].branch).toBe('refs/heads/feature');
+      expect(sessions).toHaveLength(2); // Both sessions are kept
+      // First session has no branch
+      expect(sessions[0]).toEqual({
+        path: '/test/repo',
+        head: 'abc123',
+      });
+      // Second session has branch
+      expect(sessions[1]).toEqual({
+        path: '/test/repo-detached',
+        head: 'def456',
+        branch: 'refs/heads/feature',
+      });
     });
 
     it('should handle empty output', () => {

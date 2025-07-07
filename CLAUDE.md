@@ -32,12 +32,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
    ```
    - Must pass or run `npm run format` to fix
 
+5. **git precommit fails**
+  - You must resolve these issues, if it's a build tool core dump just retry
+  - Only the user can force skip git precommits
+
 **One-liner to verify everything:**
 ```bash
 npm run format:check && npm run lint && npm run typecheck && npm test
 ```
 
 **NO EXCEPTIONS: If any check fails, fix it before pushing.**
+
+### Code Coverage Requirements
+
+**MANDATORY: No PR should reduce overall code coverage**
+- Run `npm run test:coverage` to check coverage
+- New code should maintain or improve the coverage percentage
+- If coverage drops, add tests to cover the new code
+- Aim for 100% coverage on new code additions
 
 ### When Tests Fail
 
@@ -90,20 +102,26 @@ node dist/src/cli/index.js [options]
 
 ### Project Structure
 - **`src/core/`** - Core business logic
-  - `git/` - Git operations (detector, repository, worktree manager)
-  - `errors/` - Custom error types
-  - `services/` - Service layer with adapters and factories
-  - `utils/` - Utility functions (async, logger, security)
-  - `di/` - Dependency injection container
-  - `drivers/` - External tool drivers (tmux)
+  - `git/` - Git operations (GitDetector, GitRepository, WorktreeManager)
+  - `errors/` - Custom error types (CustomErrors.ts)
+  - `services/` - Service layer with adapters, factories, and interfaces
+  - `utils/` - Utility functions (async, logger, security, type-guards)
+  - `di/` - Dependency injection container (Container.ts)
+  - `ConfigManager.ts` - Configuration management
 - **`src/cli/`** - CLI application
-  - `ui/` - Terminal UI components (prompts, spinner, theme)
-  - `index.ts` - Main CLI entry point (claude-gwt)
-  - `cgwt.ts` - Quick session switcher
-  - `ClaudeGWTApp.ts` - Main app orchestration
+  - `ui/` - Terminal UI components (prompts, spinner, theme, banner)
+  - `index.ts` - Main CLI entry point (claude-gwt command)
+  - `cgwt.ts` - Quick session switcher entry point
+  - `cgwt-program.ts` - Commander program for cgwt functionality
+  - `ClaudeGWTApp.ts` - Main application orchestration
 - **`src/sessions/`** - Session management
-  - `TmuxManager.ts` - Tmux session orchestration
-  - `TmuxEnhancer.ts` - Advanced tmux features
+  - `TmuxManager.ts` - High-level tmux session orchestration
+  - `TmuxDriver.ts` - Low-level tmux command execution
+  - `TmuxEnhancer.ts` - Advanced tmux features (layout management)
+  - `TmuxParser.ts` - Parse tmux list output
+  - `TmuxCommandParser.ts` - Parse tmux commands and args
+  - `TmuxHookParser.ts` - Parse tmux hook events
+  - `TmuxOperationResult.ts` - Result types for tmux operations
 - **`src/types/`** - TypeScript type definitions
 
 ### Key Design Patterns
@@ -326,6 +344,16 @@ When creating git commits:
 - **IMPORTANT**: Never add the coauthored and built by claude git comment
 
 ## Pull Request Workflow
+
+### PR Creation
+When a task is complete to create a PR we
+1. rebase master into the feature branch
+2. Resolve all conflicts
+3. Squash all commits in the feature branch to 1 commit with a summary message including the highlights of all changes
+4. Commit and push
+5. Create the PR reflecting the commits clearly
+6. Once the user has accepted the PR monitor github actions workflows and remediate any issues until successful completion
+7. Check all expected artifacts exist with the correct versions, in the expected places, ex, github releases, npmjs, etc.
 
 ### Creating Changesets
 When making changes that should be included in the changelog:
