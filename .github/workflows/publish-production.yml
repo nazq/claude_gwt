@@ -1,0 +1,81 @@
+name: Publish Production Release
+
+on:
+  push:
+    branches:
+      - master
+      - main
+    paths:
+      - 'package.json'
+      - 'CHANGELOG.md'
+
+jobs:
+  check-and-publish:
+    name: Check and Publish Production Release
+    runs-on: ubuntu-latest
+    # Only run if this is a version commit
+    if: |
+      contains(github.event.head_commit.message, 'chore: version packages') ||
+      contains(github.event.head_commit.message, 'Version Packages')
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Publish to npm (latest tag)
+        run: npm publish --tag latest
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Get version
+        id: version
+        run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          release_name: v${{ steps.version.outputs.version }}
+          body: |
+            ## 🎉 Production Release
+            
+            See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/master/CHANGELOG.md) for details.
+            
+            ### Installation
+            ```bash
+            npm install claude-gwt@latest
+            ```
+          draft: false
+          prerelease: false
+
+      - name: Create summary
+        run: |
+          echo "# 🎉 Production Release Published!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 📦 Version Information" >> $GITHUB_STEP_SUMMARY
+          echo "- Version: \`${{ steps.version.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Tag: \`latest\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 📥 Installation" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo 'npm install claude-gwt@latest' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
