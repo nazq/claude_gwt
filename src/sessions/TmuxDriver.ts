@@ -2,6 +2,7 @@ import type { ExecResult } from '../core/utils/async.js';
 import { execCommandSafe } from '../core/utils/async.js';
 import { sanitizePath, sanitizeSessionName } from '../core/utils/security.js';
 import { Logger } from '../core/utils/logger.js';
+import { TmuxParser } from './TmuxParser.js';
 
 /**
  * Tmux session information
@@ -122,20 +123,7 @@ export class TmuxDriver {
         return [];
       }
 
-      return result.stdout
-        .trim()
-        .split('\n')
-        .filter((line) => line.length > 0)
-        .map((line) => {
-          const [name, windows, created, attached, group] = line.split('|');
-          return {
-            name: name ?? '',
-            windows: parseInt(windows ?? '0', 10),
-            created: parseInt(created ?? '0', 10),
-            attached: attached === '1',
-            group: group?.trim() ? group.trim() : undefined,
-          };
-        });
+      return TmuxParser.parseSessions(result.stdout);
     } catch (error) {
       Logger.error('Failed to list tmux sessions', error);
       return [];
@@ -245,20 +233,7 @@ export class TmuxDriver {
         return [];
       }
 
-      return result.stdout
-        .trim()
-        .split('\n')
-        .filter((line) => line.length > 0)
-        .map((line) => {
-          const [session, index, name, active, panes] = line.split('|');
-          return {
-            sessionName: session ?? sessionName,
-            index: parseInt(index ?? '0', 10),
-            name: name ?? '',
-            active: active === '1',
-            panes: parseInt(panes ?? '0', 10),
-          };
-        });
+      return TmuxParser.parseWindows(result.stdout);
     } catch (error) {
       Logger.error('Failed to list windows', error);
       return [];
@@ -283,21 +258,7 @@ export class TmuxDriver {
         return [];
       }
 
-      return result.stdout
-        .trim()
-        .split('\n')
-        .filter((line) => line.length > 0)
-        .map((line) => {
-          const [id, session, windowIdx, paneIdx, command, title] = line.split('|');
-          return {
-            id: id ?? '',
-            sessionName: session ?? sessionName,
-            windowIndex: parseInt(windowIdx ?? '0', 10),
-            paneIndex: parseInt(paneIdx ?? '0', 10),
-            command: command ?? '',
-            title: title ?? undefined,
-          };
-        });
+      return TmuxParser.parsePanes(result.stdout);
     } catch (error) {
       Logger.error('Failed to list panes', error);
       return [];

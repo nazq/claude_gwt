@@ -218,6 +218,32 @@ You are an elite TypeScript developer with deep expertise in Node.js ecosystem, 
 - Use property-based testing for complex logic
 - Implement proper mocking strategies without over-mocking
 
+### ⚠️ CRITICAL: Error Path Coverage
+**Error paths are code too** - they must be tested with the same rigor as happy paths:
+
+- **Mock external failures**: Database errors, network failures, file system errors
+- **Test all catch blocks**: Every try/catch must have corresponding test coverage
+- **Verify error types**: Ensure proper error types are thrown (GitOperationError, etc.)
+- **Test error messages**: Verify error messages contain useful debugging information
+- **Non-Error rejections**: Test when promises reject with strings or other non-Error objects
+- **Edge case failures**: Invalid inputs, malformed data, missing dependencies
+
+**Example: Complete error path coverage**
+```typescript
+// ✅ GOOD - Tests all error scenarios
+it('should handle git command failure', async () => {
+  mockGit.raw.mockRejectedValue(new Error('Git command failed'));
+  await expect(manager.listWorktrees()).rejects.toThrow(GitOperationError);
+});
+
+it('should handle non-Error rejection', async () => {
+  mockGit.raw.mockRejectedValue('String error');
+  await expect(manager.listWorktrees()).rejects.toThrow('Unknown error');
+});
+```
+
+**HTML Coverage Reports**: Use `npm run test:coverage` to generate detailed HTML reports at `/coverage/` - visually inspect red/uncovered lines to identify missing error path tests.
+
 ## Code Quality Standards
 
 ### Naming Conventions
@@ -308,6 +334,23 @@ When making changes that should be included in the changelog:
 3. Write a brief description of the changes
 4. Commit the changeset file along with your changes
 
+### Release Process
+The project uses two automated release workflows:
+
+#### 1. Automatic Beta Releases
+- Triggered on every merge to master
+- Creates incremental beta versions (e.g., 0.2.3-beta.0, 0.2.3-beta.1)
+- Publishes to npm with `beta` tag
+- Creates GitHub pre-releases with changelog
+
+#### 2. Changeset Releases (for stable versions)
+- When changesets are present, creates a "Version Packages" PR
+- Merging this PR will:
+  - Update package version based on changesets
+  - Generate CHANGELOG.md entries
+  - Create GitHub release with full changelog
+  - Publish to npm with appropriate tag
+
 ### After PR Merge
 **IMPORTANT**: After a PR is successfully merged:
 1. Delete the feature branch from both local and remote:
@@ -327,6 +370,128 @@ When making changes that should be included in the changelog:
 This keeps the repository clean and makes it easier to track active work.
 
 # Testing Best Practices
+
+## Advanced Mocking Patterns
+
+### Vitest Module Mocking with vi.mock()
+
+When mocking modules with vitest, avoid hoisting issues by using factory functions:
+
+**❌ BAD - Will cause hoisting errors:**
+```typescript
+const mockLogger = { info: vi.fn() };
+vi.mock('pino', () => ({
+  default: vi.fn().mockReturnValue(mockLogger), // Error: Cannot access mockLogger before initialization
+}));
+```
+
+**✅ GOOD - Use factory function pattern:**
+```typescript
+vi.mock('pino', () => {
+  const mockLogger = {
+    info: vi.fn(),
+    error: vi.fn(),
+    // ... other methods
+  };
+  return {
+    default: vi.fn().mockReturnValue(mockLogger),
+  };
+});
+```
+
+### ESM Module Mocking Challenges
+
+For ES modules with circular dependencies or complex initialization:
+
+**Problem:** ESM modules can have caching issues that prevent proper mocking
+```typescript
+// This might not work for all ESM modules
+vi.mock('./complex-module');
+```
+
+**Solutions:**
+1. Use `vi.hoisted()` for variables that need to be available during mock setup
+2. Consider using `vi.doMock()` for dynamic mocking
+3. For stubborn modules, mock at a higher level (e.g., mock child_process instead of a wrapper)
+
+### Testing Different Environment Modes
+
+When testing code that behaves differently in development/production:
+
+```typescript
+it('should behave differently in production', () => {
+  const originalEnv = process.env['NODE_ENV'];
+  const originalVitest = process.env['VITEST'];
+  
+  // Force production mode
+  process.env['NODE_ENV'] = 'production';
+  delete process.env['VITEST'];
+  
+  try {
+    // Your test code here
+  } finally {
+    // ALWAYS restore environment
+    if (originalEnv) process.env['NODE_ENV'] = originalEnv;
+    if (originalVitest) process.env['VITEST'] = originalVitest;
+  }
+});
+```
+
+### Mocking Inquirer Prompts
+
+For testing interactive CLI prompts:
+
+```typescript
+vi.mock('inquirer', () => ({
+  default: {
+    prompt: vi.fn(),
+  },
+}));
+
+// In tests, access the validator function:
+const promptConfig = mockInquirer.prompt.mock.calls[0]?.[0] as PromptConfig[];
+const validator = promptConfig[0]?.validate;
+
+// Test all validation branches
+if (validator) {
+  expect(validator('valid-input')).toBe(true);
+  expect(validator('invalid-input')).toContain('error message');
+}
+```
+
+### Testing Singleton Patterns
+
+When testing singletons or lazy-initialized modules:
+
+```typescript
+// Force module reload to test initialization
+beforeEach(() => {
+  vi.resetModules(); // Clear module cache
+});
+
+// Or mock the singleton instance directly
+let mockInstance: any;
+vi.mock('./singleton', () => ({
+  get instance() {
+    return mockInstance;
+  },
+}));
+```
+
+### Common Testing Pitfalls to Avoid
+
+1. **Don't test implementation details** - Test behavior, not how it's achieved
+2. **Avoid over-mocking** - Mock external dependencies, not internal modules
+3. **Test edge cases** - Empty arrays, null values, error conditions
+4. **Consider test maintainability** - Complex mocks might indicate design issues
+
+### Coverage Improvement Strategies
+
+1. **Identify uncovered lines**: Use coverage reports to find gaps
+2. **Test all branches**: Ensure all if/else paths are covered
+3. **Test error handling**: Mock failures and exceptions
+4. **Test edge cases**: Empty inputs, boundary values, invalid data
+5. **Test async operations**: Both success and failure paths
 
 ## Type Safety in Tests
 - Use `vi.mocked()` instead of `as any` for mocked modules

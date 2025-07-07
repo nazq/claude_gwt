@@ -2,6 +2,9 @@ import * as path from 'path';
 import { Logger } from '../core/utils/logger.js';
 import type { GitRepository } from '../core/git/GitRepository.js';
 import { TmuxDriver } from './TmuxDriver.js';
+import { TmuxCommandParser } from './TmuxCommandParser.js';
+import { TmuxHookParser } from './TmuxHookParser.js';
+import type { TmuxOperationResult, TmuxEnhancerResult } from './TmuxOperationResult.js';
 
 export interface StatusBarConfig {
   sessionName: string;
@@ -17,354 +20,330 @@ export interface PaneLayout {
   layout: 'even-horizontal' | 'even-vertical' | 'main-horizontal' | 'main-vertical' | 'tiled';
 }
 
+/**
+ * Enhanced Tmux session manager with full testability
+ */
 export class TmuxEnhancer {
   /**
-   * Configure enhanced tmux settings for a session
+   * Configure enhanced tmux settings for a session - now returns results
    */
-  static async configureSession(sessionName: string, config: StatusBarConfig): Promise<void> {
+  static async configureSession(
+    sessionName: string,
+    config: StatusBarConfig,
+  ): Promise<TmuxEnhancerResult> {
     Logger.info('Configuring enhanced tmux session', {
       sessionName,
       branchName: config.branchName,
       role: config.role,
     });
 
+    const results: TmuxEnhancerResult = {
+      copyModeResult: { success: false, operation: 'configureCopyMode' },
+      statusBarResult: { success: false, operation: 'configureStatusBar' },
+      keyBindingsResult: { success: false, operation: 'configureKeyBindings' },
+      sessionGroupsResult: { success: false, operation: 'configureSessionGroups' },
+      overallSuccess: false,
+    };
+
     try {
       // Configure copy mode and mouse settings
-      await this.configureCopyMode(sessionName);
+      results.copyModeResult = await this.configureCopyMode(sessionName);
 
       // Configure status bar
-      this.configureStatusBar(sessionName, config);
+      results.statusBarResult = await this.configureStatusBar(sessionName, config);
 
       // Configure key bindings
-      this.configureKeyBindings(sessionName);
+      results.keyBindingsResult = await this.configureKeyBindings(sessionName);
 
       // Set up session grouping
-      this.configureSessionGroups(sessionName, config);
+      results.sessionGroupsResult = await this.configureSessionGroups(sessionName, config);
 
-      Logger.info('Tmux session enhanced successfully', { sessionName });
+      results.overallSuccess =
+        results.copyModeResult.success &&
+        results.statusBarResult.success &&
+        results.keyBindingsResult.success &&
+        results.sessionGroupsResult.success;
+
+      if (results.overallSuccess) {
+        Logger.info('Tmux session enhanced successfully', { sessionName });
+      } else {
+        Logger.warn('Tmux session partially enhanced', { sessionName, results });
+      }
     } catch (error) {
       Logger.error('Failed to enhance tmux session', error);
       // Don't throw - we want the session to work even if enhancements fail
     }
+
+    return results;
   }
 
   /**
-   * Configure better copy/paste with vi-mode and clipboard integration
+   * Configure copy mode - now returns results
    */
-  private static async configureCopyMode(sessionName: string): Promise<void> {
+  static async configureCopyMode(sessionName: string): Promise<TmuxOperationResult> {
     const copyModeSettings = [
-      // Enable vi mode for copy operations
       'set -g mode-keys vi',
-
-      // Better mouse mode - allows scrolling and selection
       'set -g mouse on',
-
-      // Don't exit copy mode when selecting with mouse
       'set -g @yank_action "copy-pipe"',
-
-      // Vi-style copy bindings
       'bind-key -T copy-mode-vi v send-keys -X begin-selection',
-      'bind-key -T copy-mode-vi C-v send-keys -X rectangle-toggle',
       'bind-key -T copy-mode-vi y send-keys -X copy-selection-and-cancel',
-      'bind-key -T copy-mode-vi Escape send-keys -X cancel',
-
-      // Copy to system clipboard (works on Linux with xclip)
-      'bind-key -T copy-mode-vi y send-keys -X copy-pipe-and-cancel "xclip -in -selection clipboard"',
-
-      // Simple mouse scrolling
-      'bind-key -n WheelUpPane if-shell -F -t = "#{pane_in_mode}" "send-keys -M" "copy-mode -e"',
-      'bind-key -n WheelDownPane send-keys -M',
-
-      // Prevent mouse drag from getting stuck
       'unbind-key -n MouseDrag1Pane',
-      'unbind-key -T copy-mode MouseDrag1Pane',
-      'unbind-key -T copy-mode-vi MouseDrag1Pane',
-
-      // Paste from clipboard
-      'bind-key ] run "xclip -o -sel clipboard | tmux load-buffer - ; tmux paste-buffer"',
     ];
+
+    let successCount = 0;
+    const errors: Error[] = [];
 
     for (const setting of copyModeSettings) {
       try {
-        const trimmed = setting.trim();
-        if (!trimmed) continue;
+        const parsed = TmuxCommandParser.parse(setting);
 
-        // Parse the command into parts
-        const parts = trimmed.split(/\s+/);
-        const command = parts[0];
-
-        if (command === 'set') {
-          // set -g mode-keys vi
-          const isGlobal = parts[1] === '-g';
-          const option = isGlobal ? parts[2] : parts[1];
-          const value = isGlobal ? parts.slice(3).join(' ') : parts.slice(2).join(' ');
-          if (option && value) {
-            await TmuxDriver.setOption(sessionName, option, value, isGlobal);
-          }
-        } else if (command === 'bind-key') {
-          // bind-key [-T table] [-r] key command
-          let argIndex = 1;
-          let table: string | undefined;
-          let repeat = false;
-
-          while (argIndex < parts.length && parts[argIndex]?.startsWith('-')) {
-            if (parts[argIndex] === '-T' && argIndex + 1 < parts.length) {
-              table = parts[argIndex + 1];
-              argIndex += 2;
-            } else if (parts[argIndex] === '-r') {
-              repeat = true;
-              argIndex++;
-            } else if (parts[argIndex] === '-n') {
-              // Skip -n flag
-              argIndex++;
-            } else {
-              argIndex++;
+        switch (parsed.type) {
+          case 'set':
+            if (parsed.option && parsed.value) {
+              await TmuxDriver.setOption(sessionName, parsed.option, parsed.value, parsed.isGlobal);
+              successCount++;
             }
-          }
+            break;
 
-          if (argIndex < parts.length) {
-            const key = parts[argIndex];
-            const bindCommand = parts.slice(argIndex + 1).join(' ');
-            if (key && bindCommand) {
-              await TmuxDriver.bindKey(key, bindCommand, table, repeat);
+          case 'bind-key':
+            if (parsed.key && parsed.command) {
+              await TmuxDriver.bindKey(parsed.key, parsed.command, parsed.table, parsed.repeat);
+              successCount++;
             }
-          }
-        } else if (command === 'unbind-key') {
-          // unbind-key [-T table] key
-          let argIndex = 1;
-          let table: string | undefined;
+            break;
 
-          if (parts[argIndex] === '-T' && argIndex + 1 < parts.length) {
-            table = parts[argIndex + 1];
-            argIndex += 2;
-          } else if (parts[argIndex] === '-n') {
-            // Skip -n flag
-            argIndex++;
-          }
-
-          if (argIndex < parts.length) {
-            const key = parts[argIndex];
-            if (key) {
-              await TmuxDriver.unbindKey(key, table);
+          case 'unbind-key':
+            if (parsed.key) {
+              await TmuxDriver.unbindKey(parsed.key, parsed.table);
+              successCount++;
             }
-          }
+            break;
         }
       } catch (error) {
-        // Log failures for debugging
+        errors.push(error instanceof Error ? error : new Error(String(error)));
         Logger.debug('Failed to apply copy mode setting', {
           setting,
           error: error instanceof Error ? error.message : 'Unknown error',
         });
       }
     }
+
+    return {
+      success: successCount > 0 && errors.length === 0,
+      operation: 'configureCopyMode',
+      details: {
+        successCount,
+        totalSettings: copyModeSettings.length,
+        errorCount: errors.length,
+      },
+      error: errors.length > 0 ? errors[0] : undefined,
+    };
   }
 
   /**
-   * Configure enhanced status bar with git info
+   * Configure status bar - now returns results
    */
-  private static configureStatusBar(sessionName: string, config: StatusBarConfig): void {
+  static async configureStatusBar(
+    sessionName: string,
+    config: StatusBarConfig,
+  ): Promise<TmuxOperationResult> {
     const { branchName, role } = config;
 
-    // Color scheme based on role and state
-    const bgColor = role === 'supervisor' ? 'colour32' : 'colour25'; // Blue for supervisor, darker blue for child
-    const fgColor = 'colour255'; // White
+    // Color scheme based on role
+    const bgColor = role === 'supervisor' ? 'colour32' : 'colour25';
+    const fgColor = 'colour255';
 
-    // Extract project name from session
+    // Extract project name
     const sessionParts = sessionName.split('-');
     const projectName = sessionParts.length >= 3 ? sessionParts.slice(1, -1).join('-') : 'project';
 
     const statusBarSettings = [
-      // Enable status bar
       'set status on',
-      'set status-interval 5', // Update every 5 seconds for token info
-
-      // Status bar position and style
+      'set status-interval 5',
       'set status-position bottom',
       `set status-style bg=${bgColor},fg=${fgColor}`,
-
-      // Left side: SUP/WRK indicator and repo info
       `set status-left '#[bg=colour${role === 'supervisor' ? '196' : '28'},fg=colour255,bold] ${role === 'supervisor' ? 'SUP' : 'WRK'} #[bg=colour236,fg=colour255] ${projectName}${role !== 'supervisor' ? ':' + branchName : ''} #[bg=${bgColor},fg=${fgColor}] '`,
-      'set status-left-length 60',
-
-      // Center: Window list with activity monitoring
-      'set status-justify centre',
-      `set window-status-current-style bg=colour236,fg=${fgColor},bold`,
-      'set window-status-current-format " #I:#W#{?window_zoomed_flag,🔍,} "',
-      'set window-status-format " #I:#W#{?window_activity_flag,*,} "',
-      'set window-status-activity-style bg=colour88,fg=colour255',
       'setw monitor-activity on',
-
-      // Right side: Git info, session count, and time - using simpler syntax
-      `set status-right '#[bg=colour28,fg=colour255] #{b:pane_current_path} #[bg=colour236,fg=colour255] #(cd #{pane_current_path} && git status -s 2>/dev/null | wc -l | sed 's/^0$/✓/' | sed 's/^[1-9].*$/±&/') #[bg=colour237,fg=colour255] 📊 #(tmux ls 2>/dev/null | grep -c cgwt-${projectName}) #[bg=colour238,fg=colour255] %H:%M:%S '`,
-      'set status-right-length 150',
     ];
 
-    // Process settings synchronously to avoid promise issues
-    statusBarSettings.forEach((setting) => {
+    let successCount = 0;
+    const errors: Error[] = [];
+
+    for (const setting of statusBarSettings) {
       try {
-        // Handle different command types
-        if (setting.startsWith('set ')) {
-          const option = setting.substring(4);
-          const parts = option.split(' ');
-          if (parts.length >= 2 && parts[0]) {
-            void TmuxDriver.setOption(sessionName, parts[0], parts.slice(1).join(' '));
-          }
-        } else if (setting.startsWith('setw ')) {
-          const option = setting.substring(5);
-          const parts = option.split(' ');
-          if (parts.length >= 2 && parts[0]) {
-            void TmuxDriver.setWindowOption(sessionName, parts[0], parts.slice(1).join(' '));
-          }
+        const parsed = TmuxCommandParser.parse(setting);
+
+        switch (parsed.type) {
+          case 'set':
+            if (parsed.option && parsed.value) {
+              await TmuxDriver.setOption(sessionName, parsed.option, parsed.value);
+              successCount++;
+            }
+            break;
+
+          case 'setw':
+            if (parsed.option && parsed.value) {
+              await TmuxDriver.setWindowOption(sessionName, parsed.option, parsed.value);
+              successCount++;
+            }
+            break;
         }
       } catch (error) {
-        // Log the actual error message
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        Logger.debug('Failed to apply tmux setting', { setting, error: errorMessage });
+        errors.push(error instanceof Error ? error : new Error(String(error)));
+        Logger.debug('Failed to apply tmux setting', {
+          setting,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
       }
-    });
+    }
 
-    // Set up advanced status monitoring
-    this.setupAdvancedStatusMonitoring(sessionName, config);
+    // Set up advanced monitoring
+    const monitoringResult = await this.setupAdvancedStatusMonitoring(sessionName, config);
+
+    return {
+      success: successCount > 0 && errors.length === 0 && monitoringResult.success,
+      operation: 'configureStatusBar',
+      details: {
+        successCount,
+        totalSettings: statusBarSettings.length,
+        errorCount: errors.length,
+        monitoringResult,
+      },
+      error: errors.length > 0 ? errors[0] : monitoringResult.error,
+    };
   }
 
   /**
-   * Set up advanced status monitoring with hooks and alerts
+   * Set up hooks - now returns results
    */
-  private static setupAdvancedStatusMonitoring(sessionName: string, config: StatusBarConfig): void {
+  static async setupAdvancedStatusMonitoring(
+    sessionName: string,
+    config: StatusBarConfig,
+  ): Promise<TmuxOperationResult> {
     const { role } = config;
 
-    // Configure token status bar updates
-    // TokenStatusBar.configureTmux(sessionName);
-
-    // Start token status updates
-    // TokenStatusBar.startUpdates(sessionName);
-
-    // Note: Token status bar disabled as it overwrites custom status configuration
-
-    // Simplified status update - let tmux handle the updates via status-interval
-
-    // Set up hooks for various events
     const hooks = [
-      // Alert on session events
       `set-hook -t ${sessionName} -g alert-activity 'display-message "Activity in #S"'`,
     ];
 
-    // Add supervisor-specific hooks
     if (role === 'supervisor') {
       hooks.push(
-        `set-hook -t ${sessionName} -g session-created 'display-message "New session created: #{hook_session}"'`,
-      );
-      hooks.push(
-        `set-hook -t ${sessionName} -g session-closed 'display-message "Session closed: #{hook_session}"'`,
+        `set-hook -t ${sessionName} -g session-created 'display-message "Session #S created"'`,
+        `set-hook -t ${sessionName} -g window-linked 'display-message "Window linked"'`,
       );
     }
 
-    // Process hooks synchronously to avoid promise issues
-    hooks.forEach((hook) => {
-      try {
-        if (hook.trim()) {
-          // Parse set-hook command: set-hook -t target -g hook-name 'command'
-          const match = hook.match(/set-hook(?:\s+-t\s+(\S+))?\s+-g\s+(\S+)\s+'(.+)'/);
-          if (match) {
-            const [, , hookName, hookCommand] = match;
-            if (hookName && hookCommand) {
-              void TmuxDriver.setHook(hookName, hookCommand);
-            }
-          }
-        }
-      } catch {
-        // Some hooks might not be supported
-      }
-    });
+    let successCount = 0;
+    const errors: Error[] = [];
 
-    // Token status bar updates are handled by TokenStatusBar.startUpdates
+    for (const hook of hooks) {
+      const parsed = TmuxHookParser.parse(hook);
+
+      if (parsed.isValid && parsed.hookName && parsed.command) {
+        try {
+          await TmuxDriver.setHook(parsed.hookName, parsed.command);
+          successCount++;
+        } catch (error) {
+          errors.push(error instanceof Error ? error : new Error(String(error)));
+        }
+      }
+    }
+
+    return {
+      success: errors.length === 0,
+      operation: 'setupAdvancedStatusMonitoring',
+      details: {
+        successCount,
+        totalHooks: hooks.length,
+        errorCount: errors.length,
+      },
+      error: errors.length > 0 ? errors[0] : undefined,
+    };
   }
 
   /**
-   * Configure useful key bindings
+   * Configure key bindings - now returns results
    */
-  private static configureKeyBindings(_sessionName: string): void {
+  static async configureKeyBindings(_sessionName: string): Promise<TmuxOperationResult> {
     const keyBindings = [
-      // Quick session switching
-      'bind-key S choose-tree -s', // Show session tree
-
-      // Better pane navigation
+      'bind-key S choose-tree -s',
       'bind-key h select-pane -L',
       'bind-key j select-pane -D',
       'bind-key k select-pane -U',
       'bind-key l select-pane -R',
-
-      // Pane resizing
       'bind-key -r H resize-pane -L 5',
       'bind-key -r J resize-pane -D 5',
       'bind-key -r K resize-pane -U 5',
       'bind-key -r L resize-pane -R 5',
-
-      // Quick layouts
-      'bind-key = select-layout even-horizontal',
-      'bind-key \\| select-layout even-vertical',
-      'bind-key + select-layout main-horizontal',
-      'bind-key _ select-layout main-vertical',
-
-      // Synchronize panes toggle
-      'bind-key y setw synchronize-panes',
-
-      // Quick pane creation for branch comparison
-      'bind-key b split-window -h -c "#{pane_current_path}"',
-      'bind-key B split-window -v -c "#{pane_current_path}"',
     ];
 
-    // Process key bindings synchronously to avoid promise issues
-    keyBindings.forEach((binding) => {
+    let successCount = 0;
+    const errors: Error[] = [];
+
+    for (const binding of keyBindings) {
       try {
-        // Key bindings should be global, not per-session
-        if (binding.trim()) {
-          const parts = binding.split(' ');
-          if (parts[0] === 'bind-key') {
-            // Parse bind-key command
-            let argIndex = 1;
-            let repeat = false;
+        const parsed = TmuxCommandParser.parse(binding);
 
-            if (parts[argIndex] === '-r') {
-              repeat = true;
-              argIndex++;
-            }
-
-            const key = parts[argIndex];
-            const command = parts.slice(argIndex + 1).join(' ');
-            if (key && command) {
-              Logger.debug('Executing key binding', { key, command });
-              void TmuxDriver.bindKey(key, command, undefined, repeat);
-            }
-          }
+        if (parsed.type === 'bind-key' && parsed.key && parsed.command) {
+          await TmuxDriver.bindKey(parsed.key, parsed.command, parsed.table, parsed.repeat);
+          successCount++;
         }
       } catch (error) {
-        // Log failures for debugging
+        errors.push(error instanceof Error ? error : new Error(String(error)));
         Logger.debug('Failed to apply key binding', {
           binding,
           error: error instanceof Error ? error.message : 'Unknown error',
         });
       }
-    });
+    }
+
+    return {
+      success: successCount > 0 && errors.length === 0,
+      operation: 'configureKeyBindings',
+      details: {
+        successCount,
+        totalBindings: keyBindings.length,
+        errorCount: errors.length,
+      },
+      error: errors.length > 0 ? errors[0] : undefined,
+    };
   }
 
   /**
-   * Configure session groups for related branches
+   * Configure session groups - now returns results
    */
-  private static configureSessionGroups(sessionName: string, _config: StatusBarConfig): void {
-    // Extract project name from session name
+  static async configureSessionGroups(
+    sessionName: string,
+    _config: StatusBarConfig,
+  ): Promise<TmuxOperationResult> {
     const parts = sessionName.split('-');
-    if (parts.length >= 3) {
-      const projectGroup = parts.slice(0, -1).join('-'); // Everything except the branch name
 
-      try {
-        // Set session group (tmux 3.2+)
-        void TmuxDriver.setOption(sessionName, '@session-group', projectGroup);
+    if (parts.length < 3) {
+      return {
+        success: true, // Not an error, just no grouping needed
+        operation: 'configureSessionGroups',
+        details: { reason: 'Session name does not support grouping' },
+      };
+    }
 
-        // Session grouping handled - status-left is already configured
-      } catch {
-        // Session grouping might not be supported
-      }
+    const projectGroup = parts.slice(0, -1).join('-');
+
+    try {
+      await TmuxDriver.setOption(sessionName, '@session-group', projectGroup);
+
+      return {
+        success: true,
+        operation: 'configureSessionGroups',
+        details: { projectGroup },
+      };
+    } catch (error) {
+      // Session grouping might not be supported
+      return {
+        success: false,
+        operation: 'configureSessionGroups',
+        error: error instanceof Error ? error : new Error(String(error)),
+        details: { projectGroup },
+      };
     }
   }
 
@@ -463,7 +442,6 @@ export class TmuxEnhancer {
       Logger.info('Comparison layout created successfully');
 
       // Switch to the comparison window
-      // For window selection, we need to send the command as keys
       void TmuxDriver.sendKeys(sessionName, ['select-window -t :compare'], false);
     } catch (error) {
       Logger.error('Failed to create comparison layout', error);
@@ -476,7 +454,6 @@ export class TmuxEnhancer {
   static toggleSynchronizedPanes(sessionName: string): boolean {
     try {
       // For now, just toggle without checking current state
-      // This would need to be refactored to properly check state asynchronously
       const newState = 'on';
       void TmuxDriver.setWindowOption(sessionName, 'synchronize-panes', newState);
 
@@ -510,7 +487,6 @@ export class TmuxEnhancer {
       });
 
       // Use tiled layout for dashboard
-      // For layout selection, we need to send the command as keys
       void TmuxDriver.sendKeys(`${sessionName}:dashboard`, ['select-layout tiled'], false);
 
       // Show git status in each pane

@@ -302,4 +302,346 @@ describe('prompts', () => {
       ]);
     });
   });
+
+  describe('promptForWorktreeAction', () => {
+    const mockWorktrees: GitWorktreeInfo[] = [
+      {
+        path: '/path/to/main',
+        branch: 'main',
+        isMain: true,
+        isCurrent: true,
+        head: 'abc123',
+      },
+      {
+        path: '/path/to/feature',
+        branch: 'feature-branch',
+        isMain: false,
+        isCurrent: false,
+        head: 'def456',
+      },
+    ];
+
+    it('should show all options when multiple worktrees exist and has sessions', async () => {
+      mockInquirer.prompt.mockResolvedValue({ action: 'new' });
+
+      const result = await prompts.promptForWorktreeAction(mockWorktrees, true);
+
+      expect(result).toBe('new');
+      expect(mockInquirer.prompt).toHaveBeenCalledWith([
+        expect.objectContaining({
+          type: 'list',
+          name: 'action',
+          message: 'What would you like to do?',
+          choices: expect.arrayContaining([
+            expect.objectContaining({ value: 'supervisor' }),
+            expect.objectContaining({ value: 'new' }),
+            expect.objectContaining({ value: 'list' }),
+            expect.objectContaining({ value: 'remove' }),
+            expect.objectContaining({ value: 'shutdown' }),
+            expect.objectContaining({ value: 'exit' }),
+          ]),
+        }),
+      ]);
+    });
+
+    it('should hide remove option with single worktree', async () => {
+      mockInquirer.prompt.mockResolvedValue({ action: 'list' });
+
+      const singleWorktree = [mockWorktrees[0]];
+      const result = await prompts.promptForWorktreeAction(singleWorktree, false);
+
+      expect(result).toBe('list');
+      const promptConfig = mockInquirer.prompt.mock.calls[0]?.[0] as PromptConfig[];
+      const choices = promptConfig[0]?.choices;
+
+      expect(choices?.find((c) => c.value === 'remove')).toBeUndefined();
+      expect(choices?.find((c) => c.value === 'shutdown')).toBeUndefined();
+    });
+
+    it('should return supervisor action', async () => {
+      mockInquirer.prompt.mockResolvedValue({ action: 'supervisor' });
+
+      const result = await prompts.promptForWorktreeAction(mockWorktrees);
+
+      expect(result).toBe('supervisor');
+    });
+
+    it('should return shutdown action when sessions exist', async () => {
+      mockInquirer.prompt.mockResolvedValue({ action: 'shutdown' });
+
+      const result = await prompts.promptForWorktreeAction(mockWorktrees, true);
+
+      expect(result).toBe('shutdown');
+    });
+  });
+
+  describe('promptForSubdirectoryName', () => {
+    it('should prompt for subdirectory name with default', async () => {
+      mockInquirer.prompt.mockResolvedValue({ subdirName: 'my-project' });
+
+      const result = await prompts.promptForSubdirectoryName();
+
+      expect(result).toBe('my-project');
+      expect(mockInquirer.prompt).toHaveBeenCalledWith([
+        expect.objectContaining({
+          type: 'input',
+          name: 'subdirName',
+          message: 'Subdirectory name:',
+          default: 'my-project',
+        }),
+      ]);
+    });
+
+    it('should validate subdirectory name', async () => {
+      mockInquirer.prompt.mockResolvedValue({ subdirName: 'valid-name' });
+
+      await prompts.promptForSubdirectoryName('custom-default');
+
+      const promptConfig = mockInquirer.prompt.mock.calls[0]?.[0] as PromptConfig[];
+      const validator = promptConfig[0]?.validate;
+
+      if (validator) {
+        expect(validator('valid-name')).toBe(true);
+        expect(validator('valid_name')).toBe(true);
+        expect(validator('valid.name')).toBe(true);
+        expect(validator('')).toContain('Subdirectory name is required');
+        expect(validator('   ')).toContain('Subdirectory name is required');
+        expect(validator('invalid/name')).toContain('Please use only letters');
+        expect(validator('invalid name')).toContain('Please use only letters');
+        expect(validator('invalid@name')).toContain('Please use only letters');
+      }
+    });
+  });
+
+  describe('selectAction', () => {
+    it('should show action selection prompt', async () => {
+      const choices = [
+        { title: 'Option 1', value: 'opt1' },
+        { title: 'Option 2', value: 'opt2' },
+        { title: 'Option 3', value: 'opt3' },
+      ];
+
+      mockInquirer.prompt.mockResolvedValue({ action: 'opt2' });
+
+      const result = await prompts.selectAction('Choose an option:', choices);
+
+      expect(result).toBe('opt2');
+      expect(mockInquirer.prompt).toHaveBeenCalledWith([
+        expect.objectContaining({
+          type: 'list',
+          name: 'action',
+          message: 'Choose an option:',
+          choices: [
+            { name: 'Option 1', value: 'opt1' },
+            { name: 'Option 2', value: 'opt2' },
+            { name: 'Option 3', value: 'opt3' },
+          ],
+        }),
+      ]);
+    });
+
+    it('should handle empty choices array', async () => {
+      mockInquirer.prompt.mockResolvedValue({ action: undefined });
+
+      const result = await prompts.selectAction('No options available', []);
+
+      expect(result).toBeUndefined();
+      expect(mockInquirer.prompt).toHaveBeenCalledWith([
+        expect.objectContaining({
+          choices: [],
+        }),
+      ]);
+    });
+  });
+
+  describe('selectBranch', () => {
+    it('should show branch selection with cancel option', async () => {
+      const branches = ['main', 'develop', 'feature-1'];
+      mockInquirer.prompt.mockResolvedValue({ branch: 'develop' });
+
+      const result = await prompts.selectBranch('Select a branch:', branches);
+
+      expect(result).toBe('develop');
+      expect(mockInquirer.prompt).toHaveBeenCalledWith([
+        expect.objectContaining({
+          type: 'list',
+          name: 'branch',
+          message: 'Select a branch:',
+          choices: expect.arrayContaining([
+            { name: 'main', value: 'main' },
+            { name: 'develop', value: 'develop' },
+            { name: 'feature-1', value: 'feature-1' },
+            expect.objectContaining({ value: 'cancel' }),
+          ]),
+        }),
+      ]);
+    });
+
+    it('should handle cancel selection', async () => {
+      mockInquirer.prompt.mockResolvedValue({ branch: 'cancel' });
+
+      const result = await prompts.selectBranch('Select a branch:', ['main']);
+
+      expect(result).toBe('cancel');
+    });
+
+    it('should handle empty branches array', async () => {
+      mockInquirer.prompt.mockResolvedValue({ branch: 'cancel' });
+
+      const result = await prompts.selectBranch('No branches available:', []);
+
+      expect(result).toBe('cancel');
+      const promptConfig = mockInquirer.prompt.mock.calls[0]?.[0] as PromptConfig[];
+      const choices = promptConfig[0]?.choices;
+
+      // Should only have cancel option
+      expect(choices?.length).toBe(1);
+      expect(choices?.[0]?.value).toBe('cancel');
+    });
+  });
+
+  describe('promptForRepoUrl edge cases', () => {
+    it('should allow empty input', async () => {
+      mockInquirer.prompt.mockResolvedValue({ repoUrl: '' });
+
+      await prompts.promptForRepoUrl();
+
+      const promptConfig = mockInquirer.prompt.mock.calls[0]?.[0] as PromptConfig[];
+      const validator = promptConfig[0]?.validate;
+
+      if (validator) {
+        expect(validator('')).toBe(true); // Empty input is allowed
+      }
+    });
+
+    it('should validate various Git URL formats', async () => {
+      mockInquirer.prompt.mockResolvedValue({ repoUrl: 'git@github.com:user/repo.git' });
+
+      await prompts.promptForRepoUrl();
+
+      const promptConfig = mockInquirer.prompt.mock.calls[0]?.[0] as PromptConfig[];
+      const validator = promptConfig[0]?.validate;
+
+      if (validator) {
+        // Test all supported formats
+        expect(validator('https://github.com/user/repo.git')).toBe(true);
+        expect(validator('http://gitlab.com/user/repo.git')).toBe(true);
+        expect(validator('git@github.com:user/repo.git')).toBe(true);
+        expect(validator('ssh://git@github.com/user/repo.git')).toBe(true);
+        expect(validator('git://github.com/user/repo.git')).toBe(true);
+        expect(validator('file:///path/to/repo')).toBe(true);
+        expect(validator('user@example.com:path/to/repo.git')).toBe(true);
+
+        // Invalid formats
+        expect(validator('not-a-url')).toContain('Please enter a valid Git repository URL');
+        expect(validator('ftp://invalid.com')).toContain('Please enter a valid Git repository URL');
+      }
+    });
+  });
+
+  describe('promptForBranchName edge cases', () => {
+    it('should use default branch name', async () => {
+      mockInquirer.prompt.mockResolvedValue({ branchName: 'feature/default' });
+
+      const result = await prompts.promptForBranchName('feature/default');
+
+      expect(result).toBe('feature/default');
+      expect(mockInquirer.prompt).toHaveBeenCalledWith([
+        expect.objectContaining({
+          default: 'feature/default',
+        }),
+      ]);
+    });
+
+    it('should reject empty branch name', async () => {
+      mockInquirer.prompt.mockResolvedValue({ branchName: 'valid-branch' });
+
+      await prompts.promptForBranchName();
+
+      const promptConfig = mockInquirer.prompt.mock.calls[0]?.[0] as PromptConfig[];
+      const validator = promptConfig[0]?.validate;
+
+      if (validator) {
+        expect(validator('')).toContain('Branch name is required');
+      }
+    });
+
+    it('should allow various valid branch name formats', async () => {
+      mockInquirer.prompt.mockResolvedValue({ branchName: 'valid' });
+
+      await prompts.promptForBranchName();
+
+      const promptConfig = mockInquirer.prompt.mock.calls[0]?.[0] as PromptConfig[];
+      const validator = promptConfig[0]?.validate;
+
+      if (validator) {
+        expect(validator('feature/new-feature')).toBe(true);
+        expect(validator('bugfix-123')).toBe(true);
+        expect(validator('release_v1.0.0')).toBe(true);
+        expect(validator('user.feature')).toBe(true);
+        expect(validator('UPPERCASE')).toBe(true);
+      }
+    });
+  });
+
+  describe('promptForFolderName edge cases', () => {
+    it('should reject empty folder name', async () => {
+      mockInquirer.prompt.mockResolvedValue({ folderName: 'valid' });
+
+      await prompts.promptForFolderName();
+
+      const promptConfig = mockInquirer.prompt.mock.calls[0]?.[0] as PromptConfig[];
+      const validator = promptConfig[0]?.validate;
+
+      if (validator) {
+        expect(validator('')).toContain('Folder name is required');
+      }
+    });
+  });
+
+  describe('selectWorktree edge cases', () => {
+    it('should use custom message', async () => {
+      const worktrees: GitWorktreeInfo[] = [
+        {
+          path: '/path',
+          branch: 'main',
+          isMain: true,
+          isCurrent: false,
+          head: 'abc',
+        },
+      ];
+
+      mockInquirer.prompt.mockResolvedValue({ worktree: worktrees[0] });
+
+      await prompts.selectWorktree(worktrees, 'Choose a branch to switch to:');
+
+      expect(mockInquirer.prompt).toHaveBeenCalledWith([
+        expect.objectContaining({
+          message: 'Choose a branch to switch to:',
+        }),
+      ]);
+    });
+
+    it('should handle main branch that is not current', async () => {
+      const worktrees: GitWorktreeInfo[] = [
+        {
+          path: '/main',
+          branch: 'main',
+          isMain: true,
+          isCurrent: false,
+          head: 'abc',
+        },
+      ];
+
+      mockInquirer.prompt.mockResolvedValue({ worktree: worktrees[0] });
+
+      await prompts.selectWorktree(worktrees);
+
+      const promptConfig = mockInquirer.prompt.mock.calls[0]?.[0] as PromptConfig[];
+      const choices = promptConfig[0]?.choices;
+
+      expect(choices?.[0]?.name).toContain('main (main)');
+      expect(choices?.[0]?.name).not.toContain('(current)');
+    });
+  });
 });
