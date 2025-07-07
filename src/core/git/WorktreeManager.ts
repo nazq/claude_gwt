@@ -3,6 +3,7 @@ import { existsSync } from 'fs';
 import { simpleGit, type SimpleGit } from 'simple-git';
 import type { GitWorktreeInfo } from '../../types/index.js';
 import { GitOperationError } from '../errors/CustomErrors.js';
+import { Logger } from '../utils/logger.js';
 
 export class WorktreeManager {
   private git: SimpleGit;
@@ -95,6 +96,31 @@ export class WorktreeManager {
         `Failed to prune worktrees: ${error instanceof Error ? error.message : 'Unknown error'}`,
         'pruneWorktrees',
       );
+    }
+  }
+
+  async getBranchesWithoutWorktrees(): Promise<string[]> {
+    try {
+      // Get all branches
+      const branchOutput = await this.git.branch();
+      const allBranches = branchOutput.all;
+
+      // Get all worktrees
+      const worktrees = await this.listWorktrees();
+      const worktreeBranches = new Set(worktrees.map((wt) => wt.branch).filter(Boolean));
+
+      // Filter out branches that already have worktrees
+      // Also filter out the current branch (which is the main worktree)
+      const branchesWithoutWorktrees = allBranches.filter((branch) => {
+        // Remove refs/heads/ prefix if present
+        const cleanBranch = branch.startsWith('refs/heads/') ? branch.substring(11) : branch;
+        return !worktreeBranches.has(cleanBranch);
+      });
+
+      return branchesWithoutWorktrees;
+    } catch (error) {
+      Logger.error('Failed to get branches without worktrees', error);
+      throw new GitOperationError('Failed to list branches', 'getBranchesWithoutWorktrees');
     }
   }
 
