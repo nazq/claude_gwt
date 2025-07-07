@@ -85,11 +85,12 @@ git stash pop # Conflicts!
 # with full context awareness!
 
 # Switch instantly, no stashing
-cgwt 1  # → feature-a + Claude
-cgwt 2  # → feature-b + Claude
+cgwt -a 1  # → feature-a + Claude
+cgwt -a 2  # → feature-b + Claude
 
-# Supervisor Claude sees everything
-cgwt 0  # → Overview of all branches
+# List and switch with simple commands
+cgwt -l    # List all projects
+cgwt -la   # List only active sessions
 ```
 
 </td>
@@ -277,59 +278,63 @@ npm link
 ### 1️⃣ Initialize a New Project
 
 ```bash
-# Create a new directory and initialize
+# Create a new directory and run guided setup
 mkdir my-project && cd my-project
-claude-gwt
+cgwt app
 
-# Or clone an existing repository
-claude-gwt --url https://github.com/user/repo.git
+# Or use specific commands for power users
+cgwt app init --url https://github.com/user/repo.git
 ```
 
-### 2️⃣ Create Feature Branches
+### 2️⃣ Guided Experience
+
+The `cgwt app` command provides a guided experience that detects your environment:
 
 ```bash
-# Interactive menu appears:
-? What would you like to do?
-  ❯ Create new worktree
-    List branches
-    Switch to supervisor mode
-    Remove worktree
-    Shutdown all sessions
+# Auto-detects your situation and guides you
+cgwt app
+
+# Examples of what it detects:
+# • Empty directory → Offers to clone a repository
+# • Git repository → Offers to convert to worktree setup
+# • Existing worktrees → Shows management options
 ```
 
-The interactive CLI will guide you:
-1. Select **"Create new worktree"**
-2. Enter branch name (e.g., `feature-auth`)
-3. Claude launches with branch context
+### 3️⃣ Quick Navigation
 
-### 3️⃣ Switch Between Branches
-
-Use the `cgwt` command for quick navigation:
+Use `cgwt` for instant switching between projects and branches:
 
 ```bash
-# List all sessions
-cgwt l
+# List all projects and branches
+cgwt -l
 
-# Switch by index
-cgwt 1  # Switch to first session
-cgwt 2  # Switch to second session
+# List only active sessions  
+cgwt -la
 
-# Switch by branch name
-cgwt s feature-auth
-cgwt s main
+# Switch by index (supports x.y format for multi-project)
+cgwt -a 1      # Switch to first session
+cgwt -a 2.1    # Switch to project 2, branch 1
 
-# Or use the interactive menu
-claude-gwt
+# Direct commands for power users
+cgwt app new feature-auth    # Create new worktree
+cgwt app launch main         # Launch specific branch
+cgwt app setup               # Initial repository setup
 ```
 
-### 4️⃣ Supervisor Overview
+### 4️⃣ Full Application Management
+
+For complete control, use the `cgwt app` commands:
 
 ```bash
-# Launch supervisor Claude
-cgwt 0
+# Interactive guided experience
+cgwt app
 
-# Or start with supervisor mode
-claude-gwt --supervisor
+# Specific actions
+cgwt app init           # Initialize new project
+cgwt app new <branch>   # Create new worktree
+cgwt app launch <branch> # Launch existing branch
+cgwt app setup          # Setup existing repository
+cgwt app logs           # View session logs
 ```
 
 ---
@@ -344,30 +349,36 @@ claude-gwt --supervisor
 ### Real-World Workflow Example
 
 ```bash
-# Start working on authentication
-$ claude-gwt
-? What would you like to do? › Create new worktree
-? Enter branch name: › feature-auth
-✓ Created worktree at ~/project/feature-auth
+# Start with guided experience
+$ cgwt app
+? Directory detected: Git repository
+? What would you like to do? › Convert to worktree setup
+✓ Converted to worktree structure
+✓ Main branch available at ~/project/main
+
+# Create authentication feature
+$ cgwt app new feature-auth
+✓ Created worktree at ~/project/feature-auth  
 ✓ Launching Claude...
 
 # Claude (feature-auth): "I see we're implementing authentication. 
 # Based on the project structure, I'll help you set up JWT..."
 
-# Meanwhile, start API development in parallel
-$ claude-gwt
-? What would you like to do? › Create new worktree
-? Enter branch name: › feature-api
+# Meanwhile, start API development in parallel  
+$ cgwt app new feature-api
 ✓ Created worktree at ~/project/feature-api
 ✓ Launching Claude...
 
 # Claude (feature-api): "I notice we're building the API layer.
 # I can see the auth branch is implementing JWT..."
 
-# Supervisor can coordinate
-$ cgwt 0
-# Claude (supervisor): "I can see both features progressing.
-# The auth system should expose these endpoints for the API..."
+# Quick switching between features
+$ cgwt -l              # List all branches
+$ cgwt -a 1            # Switch to feature-auth
+$ cgwt -a 2            # Switch to feature-api
+
+# Overview of all active work
+$ cgwt -la             # Show only active sessions
 ```
 
 ---
@@ -376,39 +387,51 @@ $ cgwt 0
 
 ### Command Reference
 
-#### Main CLI: `claude-gwt`
+#### Unified CLI: `cgwt`
+
+The main command now handles both quick operations and full application management:
+
+##### Quick Commands (for instant switching)
 
 ```bash
-claude-gwt [options]
+# List projects and branches
+cgwt -l [project]         # List all or specific project
+cgwt -la                  # List only active sessions
 
+# Switch by index  
+cgwt -a <index>           # Switch to session by index
+cgwt -a 1                 # Switch to first session
+cgwt -a 2.1               # Switch to project 2, branch 1
+
+# Show version
+cgwt -V, --version        # Show version information
+```
+
+##### App Commands (for full management)
+
+```bash
+# Guided experience (detects your environment)
+cgwt app [options]
+
+# Specific actions
+cgwt app init [options]          # Initialize new project
+cgwt app new <branch>            # Create new worktree
+cgwt app launch <branch>         # Launch existing branch
+cgwt app setup                   # Setup existing repository
+cgwt app logs                    # View session logs
+
+# App command options
 Options:
-  -V, --version          Show version
-  -u, --url <url>       Git repository URL
-  -b, --branch <name>   Initial branch name  
-  -q, --quiet           Non-interactive mode
-  -v, --verbose         Verbose output
-  -s, --supervisor      Start in supervisor mode
-  -h, --help           Show help
+  -u, --url <url>               Git repository URL
+  -b, --branch <name>           Initial branch name  
+  -q, --quiet                   Non-interactive mode
+  -v, --verbose                 Verbose output (-v, -vv, -vvv)
+  -h, --help                    Show help
 ```
 
-#### Quick Switcher: `cgwt`
+#### Legacy Command: `claude-gwt` (deprecated)
 
-```bash
-# List all sessions
-cgwt l
-cgwt list
-
-# Switch by index (1-based)
-cgwt <number>
-cgwt 1    # Switch to first session
-cgwt 2    # Switch to second session
-
-# Switch by branch name
-cgwt s <branch>
-cgwt switch <branch>
-cgwt s main
-cgwt s feature-auth
-```
+The original `claude-gwt` command is still available but deprecated. It now redirects to `cgwt app` with a deprecation warning.
 
 ### Architecture
 
@@ -448,15 +471,19 @@ Configuration is stored in `~/.config/claude-gwt/`:
   "ui": {
     "theme": "ocean",
     "showBanner": true,
-    "defaultAction": "list"
+    "defaultAction": "guided"
   },
   "git": {
     "defaultBranch": "main",
     "autoFetch": true
   },
-  "claude": {
-    "autoLaunchSupervisor": true,
-    "sessionPrefix": "cgwt"
+  "tmux": {
+    "sessionPrefix": "cgwt",
+    "defaultLayout": "main-vertical"
+  },
+  "app": {
+    "guidedExperience": true,
+    "autoDetectEnvironment": true
   }
 }
 ```
