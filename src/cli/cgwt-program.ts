@@ -120,7 +120,7 @@ export async function listSessions(): Promise<Session[]> {
       const activeIndicator = isActive ? chalk.green(' ⬤ (active)') : '';
 
       console.log(`${indexStr} ${branchStr}${activeIndicator}`);
-      console.log(chalk.dim(`    Path: ${session.path}`));
+      console.log(chalk.dim(`    Path: ${branchName}`));
       console.log(chalk.dim(`    HEAD: ${shortCommit}`));
       console.log();
     });
@@ -188,7 +188,7 @@ export async function switchSession(target: string): Promise<void> {
     });
 
     console.log(chalk.green(`✓ Switched to ${chalk.bold(branchName)}`));
-    console.log(chalk.dim(`  Path: ${targetSession.path}`));
+    console.log(chalk.dim(`  Path: ${branchName}`));
 
     // List tmux sessions in the new directory
     await listTmuxSessions();
