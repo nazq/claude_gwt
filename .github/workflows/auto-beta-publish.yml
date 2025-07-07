@@ -67,6 +67,8 @@ jobs:
           # Get the new version
           NEW_VERSION=$(node -p "require('./package.json').version")
           echo "NEW_VERSION=${NEW_VERSION}" >> $GITHUB_ENV
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Bump patch version (if no changesets)
         if: steps.changesets-check.outputs.has-changesets == 'false'
