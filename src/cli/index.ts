@@ -1,17 +1,28 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 import { ClaudeGWTApp } from './ClaudeGWTApp.js';
 import { theme } from './ui/theme.js';
 import { Logger } from '../core/utils/logger.js';
 import type { CLIOptions } from '../types/index.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Read version from package.json dynamically
+const packageJsonPath = join(__dirname, '../../../package.json');
+const packageJsonContent = readFileSync(packageJsonPath, 'utf-8');
+const packageJson = JSON.parse(packageJsonContent) as { version: string };
 
 const program = new Command();
 
 program
   .name('claude-gwt')
   .description('Git Worktree Manager with Claude Code Orchestration')
-  .version('0.2.3-beta.1');
+  .version(packageJson.version);
 
 // Main command
 program
