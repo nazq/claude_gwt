@@ -72,6 +72,37 @@ describe('TmuxManager', () => {
     vi.mocked(TmuxDriver.getOption).mockResolvedValue(null);
     vi.mocked(TmuxDriver.sendKeys).mockResolvedValue({ code: 0, stdout: '', stderr: '' });
     vi.mocked(TmuxDriver.switchClient).mockResolvedValue({ code: 0, stdout: '', stderr: '' });
+
+    // Mock TmuxEnhancerV2 methods
+    vi.mocked(TmuxEnhancer.createComparisonLayout).mockImplementation(() => {});
+    vi.mocked(TmuxEnhancer.toggleSynchronizedPanes).mockReturnValue(true);
+    vi.mocked(TmuxEnhancer.createDashboardWindow).mockImplementation(() => {});
+    vi.mocked(TmuxEnhancer.getPredefinedLayouts).mockReturnValue([
+      {
+        name: 'main-feature',
+        description: 'Main branch and feature branch side by side',
+        branches: ['main', 'feature/*'],
+        layout: 'even-horizontal',
+      },
+      {
+        name: 'triple-review',
+        description: 'Three branches for code review',
+        branches: ['main', 'develop', 'feature/*'],
+        layout: 'even-horizontal',
+      },
+      {
+        name: 'quad-split',
+        description: 'Four branches in grid layout',
+        branches: ['*', '*', '*', '*'],
+        layout: 'tiled',
+      },
+      {
+        name: 'main-develop',
+        description: 'Main branch with develop branch below',
+        branches: ['main', 'develop'],
+        layout: 'main-horizontal',
+      },
+    ]);
     vi.mocked(TmuxDriver.attachSession).mockResolvedValue({ code: 0, stdout: '', stderr: '' });
   });
 
@@ -443,14 +474,34 @@ describe('TmuxManager', () => {
 
   describe('getPredefinedLayouts', () => {
     it('should return predefined layouts from TmuxEnhancer', () => {
-      const mockLayouts = [
-        { name: 'test', description: 'test layout', branches: [], layout: 'tiled' as const },
-      ];
-      (TmuxEnhancer.getPredefinedLayouts as vi.Mock).mockReturnValue(mockLayouts);
-
       const layouts = TmuxManager.getPredefinedLayouts();
 
-      expect(layouts).toEqual(mockLayouts);
+      expect(layouts).toEqual([
+        {
+          name: 'main-feature',
+          description: 'Main branch and feature branch side by side',
+          branches: ['main', 'feature/*'],
+          layout: 'even-horizontal',
+        },
+        {
+          name: 'triple-review',
+          description: 'Three branches for code review',
+          branches: ['main', 'develop', 'feature/*'],
+          layout: 'even-horizontal',
+        },
+        {
+          name: 'quad-split',
+          description: 'Four branches in grid layout',
+          branches: ['*', '*', '*', '*'],
+          layout: 'tiled',
+        },
+        {
+          name: 'main-develop',
+          description: 'Main branch with develop branch below',
+          branches: ['main', 'develop'],
+          layout: 'main-horizontal',
+        },
+      ]);
     });
   });
 

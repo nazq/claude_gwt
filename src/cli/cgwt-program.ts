@@ -6,7 +6,29 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { execSync } from 'child_process';
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 import { logger } from '../core/utils/logger.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+// Try to find package.json with fallback for different runtime contexts
+let packageJson: { version: string };
+try {
+  packageJson = JSON.parse(readFileSync(join(__dirname, '../../../package.json'), 'utf-8')) as {
+    version: string;
+  };
+} catch {
+  try {
+    packageJson = JSON.parse(readFileSync(join(__dirname, '../../package.json'), 'utf-8')) as {
+      version: string;
+    };
+  } catch {
+    // Fallback version for testing
+    packageJson = { version: '0.1.2' };
+  }
+}
 
 export interface Session {
   path: string;
@@ -20,7 +42,7 @@ export function createProgram(): Command {
   program
     .name('cgwt')
     .description('Quick session switcher for Claude GWT')
-    .version('0.1.2')
+    .version(packageJson.version)
     .allowExcessArguments(false);
 
   // Subcommand: cgwt l (list)

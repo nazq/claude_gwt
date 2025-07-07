@@ -317,4 +317,195 @@ HEAD abc123
       expect(errorThrown).toBe(true);
     });
   });
+
+  describe('command actions', () => {
+    it('should execute listSessions when l command is called', async () => {
+      vi.mocked(execSync).mockReturnValue('');
+      const program = createProgram();
+      program.exitOverride();
+
+      try {
+        await program.parseAsync(['node', 'cgwt', 'l']);
+      } catch (error: any) {
+        // Command will exit after execution
+        expect(error.code).toBe(0);
+      }
+
+      expect(mockConsoleLog).toHaveBeenCalledWith(
+        expect.stringContaining('No Git worktree sessions found.'),
+      );
+    });
+
+    it('should execute switchSession when s command is called', async () => {
+      const mockSessions =
+        'worktree /test/main\nHEAD abc123\nbranch refs/heads/main\n\n' +
+        'worktree /test/feature\nHEAD def456\nbranch refs/heads/feature\n';
+
+      vi.mocked(execSync).mockImplementation((command: string) => {
+        if (command.includes('git worktree')) {
+          return mockSessions;
+        }
+        if (command.includes('tmux')) {
+          throw new Error('no tmux');
+        }
+        return '';
+      });
+
+      const program = createProgram();
+      program.exitOverride();
+
+      try {
+        await program.parseAsync(['node', 'cgwt', 's', 'main']);
+      } catch (error: any) {
+        // Command will exit after execution
+        expect(error.code).toBe(0);
+      }
+
+      expect(mockProcessChdir).toHaveBeenCalledWith('/test/main');
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Switched to'));
+    });
+
+    it('should show help when no arguments provided', async () => {
+      const program = createProgram();
+      program.exitOverride();
+      const mockOutputHelp = vi.spyOn(program, 'outputHelp').mockImplementation(() => {});
+
+      try {
+        await program.parseAsync(['node', 'cgwt']);
+      } catch (error: any) {
+        // Command may exit after help
+        expect(error.code).toBe(0);
+      }
+
+      expect(mockOutputHelp).toHaveBeenCalled();
+    });
+
+    it('should handle numeric index in default action', async () => {
+      const mockSessions =
+        'worktree /test/main\nHEAD abc123\nbranch refs/heads/main\n\n' +
+        'worktree /test/feature\nHEAD def456\nbranch refs/heads/feature\n';
+
+      vi.mocked(execSync).mockImplementation((command: string) => {
+        if (command.includes('git worktree')) {
+          return mockSessions;
+        }
+        if (command.includes('tmux')) {
+          throw new Error('no tmux');
+        }
+        return '';
+      });
+
+      const program = createProgram();
+      program.exitOverride();
+
+      try {
+        await program.parseAsync(['node', 'cgwt', '2']);
+      } catch (error: any) {
+        // Command will exit after execution
+        expect(error.code).toBe(0);
+      }
+
+      expect(mockProcessChdir).toHaveBeenCalledWith('/test/feature');
+    });
+
+    it('should handle invalid argument in default action', async () => {
+      const program = createProgram();
+      program.exitOverride();
+
+      try {
+        await program.parseAsync(['node', 'cgwt', 'invalid-arg']);
+      } catch (error: any) {
+        expect(error.message).toContain('process.exit(1)');
+      }
+
+      expect(mockConsoleLog).toHaveBeenCalledWith(
+        expect.stringContaining('Invalid argument: invalid-arg'),
+      );
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Usage:'));
+    });
+  });
+
+  describe('parseWorktreeOutput edge cases', () => {
+    it('should handle multiple worktrees with partial data', () => {
+      const output = `worktree /test/first
+HEAD abc123
+branch refs/heads/first
+
+worktree /test/second
+HEAD def456
+
+worktree /test/third
+HEAD ghi789
+branch refs/heads/third
+`;
+      const sessions = parseWorktreeOutput(output);
+
+      // Should only return sessions with branches (first and third)
+      expect(sessions).toHaveLength(2);
+      expect(sessions[0]).toEqual({
+        path: '/test/first',
+        head: 'abc123',
+        branch: 'refs/heads/first',
+      });
+      expect(sessions[1]).toEqual({
+        path: '/test/third',
+        head: 'ghi789',
+        branch: 'refs/heads/third',
+      });
+    });
+
+    it('should handle parsing with existing current session', () => {
+      const output = `worktree /test/existing
+HEAD existing123
+
+worktree /test/main
+HEAD abc123
+branch refs/heads/main
+`;
+      const sessions = parseWorktreeOutput(output);
+
+      expect(sessions).toHaveLength(1);
+      expect(sessions[0].path).toBe('/test/main');
+    });
+  });
+
+  describe('switchSession additional coverage', () => {
+    it('should handle index at range boundary (index 1)', () => {
+      const mockSessions = 'worktree /test/main\nHEAD abc123\nbranch refs/heads/main\n';
+
+      vi.mocked(execSync).mockImplementation((command: string) => {
+        if (command.includes('git worktree')) {
+          return mockSessions;
+        }
+        if (command.includes('tmux')) {
+          throw new Error('no tmux');
+        }
+        return '';
+      });
+
+      switchSession('1');
+
+      expect(mockProcessChdir).toHaveBeenCalledWith('/test/main');
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Switched to'));
+    });
+
+    it('should handle branch search by exact branch match', () => {
+      const mockSessions = 'worktree /test/main\nHEAD abc123\nbranch refs/heads/main\n';
+
+      vi.mocked(execSync).mockImplementation((command: string) => {
+        if (command.includes('git worktree')) {
+          return mockSessions;
+        }
+        if (command.includes('tmux')) {
+          throw new Error('no tmux');
+        }
+        return '';
+      });
+
+      switchSession('refs/heads/main');
+
+      expect(mockProcessChdir).toHaveBeenCalledWith('/test/main');
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Switched to'));
+    });
+  });
 });

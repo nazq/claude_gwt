@@ -129,6 +129,33 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Get the commit message that triggered this workflow
+          TRIGGER_MESSAGE="${{ github.event.head_commit.message }}"
+          
+          # Create release notes
+          RELEASE_NOTES="## 🚀 Beta Release v${{ steps.next_version.outputs.next_version }}
+
+### What's Changed
+- $TRIGGER_MESSAGE
+
+### Installation
+\`\`\`bash
+npm install -g claude-gwt@beta
+\`\`\`
+
+**Full Changelog**: https://github.com/${{ github.repository }}/compare/v${{ steps.current_version.outputs.version }}...v${{ steps.next_version.outputs.next_version }}"
+
+          # Create the release
+          gh release create "v${{ steps.next_version.outputs.next_version }}" \
+            --title "Release ${{ steps.next_version.outputs.next_version }}" \
+            --notes "$RELEASE_NOTES" \
+            --prerelease \
+            --target "${{ github.sha }}"
+      
       - name: Create summary
         run: |
           echo "# 🚀 Beta Release Published!" >> $GITHUB_STEP_SUMMARY
