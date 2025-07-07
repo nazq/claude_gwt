@@ -970,8 +970,8 @@ describe('TmuxDriver', () => {
           interval: 5,
           justify: TmuxStatusJustify.Centre,
           style: {
-            background: TmuxColor.Colour32,
-            foreground: TmuxColor.Colour255,
+            background: TmuxColor.from(32),
+            foreground: TmuxColor.from(255),
           },
           left: 'left content',
           right: 'right content',
@@ -1257,6 +1257,43 @@ describe('TmuxDriver', () => {
         expect(builder).toBeDefined();
         expect(builder.addPane).toBeDefined();
         expect(builder.build).toBeDefined();
+      });
+    });
+
+    describe('TmuxColor', () => {
+      it('should create colors from numbers', () => {
+        expect(TmuxColor.from(0).toString()).toBe('colour0');
+        expect(TmuxColor.from(42).toString()).toBe('colour42');
+        expect(TmuxColor.from(128).toString()).toBe('colour128');
+        expect(TmuxColor.from(255).toString()).toBe('colour255');
+      });
+
+      it('should throw error for invalid color numbers', () => {
+        expect(() => TmuxColor.from(-1)).toThrow('Color number must be between 0 and 255');
+        expect(() => TmuxColor.from(256)).toThrow('Color number must be between 0 and 255');
+        expect(() => TmuxColor.from(1000)).toThrow('Color number must be between 0 and 255');
+      });
+
+      it('should work with decimal numbers by truncating', () => {
+        expect(TmuxColor.from(42.7).toString()).toBe('colour42');
+        expect(TmuxColor.from(128.1).toString()).toBe('colour128');
+      });
+
+      it('should have standard color constants', () => {
+        expect(TmuxColor.Black.toString()).toBe('black');
+        expect(TmuxColor.Red.toString()).toBe('red');
+        expect(TmuxColor.Green.toString()).toBe('green');
+        expect(TmuxColor.Yellow.toString()).toBe('yellow');
+        expect(TmuxColor.Blue.toString()).toBe('blue');
+        expect(TmuxColor.Magenta.toString()).toBe('magenta');
+        expect(TmuxColor.Cyan.toString()).toBe('cyan');
+        expect(TmuxColor.White.toString()).toBe('white');
+        expect(TmuxColor.Default.toString()).toBe('default');
+      });
+
+      it('should create colors from strings', () => {
+        expect(TmuxColor.fromString('custom').toString()).toBe('custom');
+        expect(TmuxColor.fromString('colour100').toString()).toBe('colour100');
       });
     });
 

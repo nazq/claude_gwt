@@ -18,27 +18,53 @@ export enum TmuxLayout {
 }
 
 /**
- * Tmux colors (standard terminal colors)
+ * Tmux color representation with static factory methods
  */
-export enum TmuxColor {
-  Black = 'black',
-  Red = 'red',
-  Green = 'green',
-  Yellow = 'yellow',
-  Blue = 'blue',
-  Magenta = 'magenta',
-  Cyan = 'cyan',
-  White = 'white',
-  Default = 'default',
-  // Numbered colors
-  Colour0 = 'colour0',
-  Colour25 = 'colour25',
-  Colour28 = 'colour28',
-  Colour32 = 'colour32',
-  Colour196 = 'colour196',
-  Colour236 = 'colour236',
-  Colour240 = 'colour240',
-  Colour255 = 'colour255',
+export class TmuxColor {
+  private constructor(private readonly value: string) {}
+
+  /**
+   * Get the string value for tmux
+   */
+  toString(): string {
+    return this.value;
+  }
+
+  /**
+   * Create a color from a number (0-255)
+   * @param colorNumber The color number (0-255)
+   * @returns A TmuxColor instance
+   * @example
+   * const purple = TmuxColor.from(135);
+   * const orange = TmuxColor.from(208);
+   */
+  static from(colorNumber: number): TmuxColor {
+    const intColor = Math.floor(colorNumber);
+    if (intColor < 0 || intColor > 255) {
+      throw new Error('Color number must be between 0 and 255');
+    }
+    return new TmuxColor(`colour${intColor}`);
+  }
+
+  /**
+   * Create a color from a string value
+   * @param value The color string (e.g., 'red', 'colour42')
+   * @returns A TmuxColor instance
+   */
+  static fromString(value: string): TmuxColor {
+    return new TmuxColor(value);
+  }
+
+  // Standard colors
+  static readonly Black = new TmuxColor('black');
+  static readonly Red = new TmuxColor('red');
+  static readonly Green = new TmuxColor('green');
+  static readonly Yellow = new TmuxColor('yellow');
+  static readonly Blue = new TmuxColor('blue');
+  static readonly Magenta = new TmuxColor('magenta');
+  static readonly Cyan = new TmuxColor('cyan');
+  static readonly White = new TmuxColor('white');
+  static readonly Default = new TmuxColor('default');
 }
 
 /**
@@ -168,8 +194,8 @@ export interface TmuxStatusBarConfig {
   interval?: number;
   justify?: TmuxStatusJustify;
   style?: {
-    background?: TmuxColor | string;
-    foreground?: TmuxColor | string;
+    background?: TmuxColor;
+    foreground?: TmuxColor;
   };
   left?: string;
   right?: string;
@@ -682,7 +708,9 @@ export class TmuxDriver {
 
     // Set style
     if (config.style) {
-      const styleString = `bg=${config.style.background ?? 'default'},fg=${config.style.foreground ?? 'default'}`;
+      const bg = config.style.background?.toString() ?? 'default';
+      const fg = config.style.foreground?.toString() ?? 'default';
+      const styleString = `bg=${bg},fg=${fg}`;
       await this.setOption(sessionName, TmuxOption.StatusStyle, styleString);
     }
 
