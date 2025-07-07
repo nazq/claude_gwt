@@ -1,6 +1,6 @@
 {
   "name": "claude-gwt",
-  "version": "0.3.0-beta.1751891532",
+  "version": "0.3.0",
   "description": "[BETA] A beautiful Git Worktree manager with integrated Claude Code orchestration - Experimental software under active development",
   "type": "module",
   "main": "dist/index.js",
