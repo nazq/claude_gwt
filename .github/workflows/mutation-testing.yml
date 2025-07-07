@@ -1,0 +1,81 @@
+name: Mutation Testing
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'src/**/*.ts'
+      - 'tests/**/*.ts'
+      - 'stryker.config.json'
+      - '.github/workflows/mutation-testing.yml'
+  schedule:
+    - cron: '0 2 * * 0' # Weekly on Sunday at 2 AM
+
+jobs:
+  mutation-test:
+    name: Run Mutation Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build project
+        run: npm run build
+
+      - name: Run mutation tests
+        run: npm run test:mutation:quick
+        continue-on-error: true
+
+      - name: Upload mutation report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mutation-report
+          path: reports/mutation/
+          retention-days: 30
+
+      - name: Comment PR with mutation score
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            
+            // Try to read mutation report
+            const reportPath = path.join(process.env.GITHUB_WORKSPACE, 'reports/mutation/index.html');
+            let mutationScore = 'Unknown';
+            
+            if (fs.existsSync(reportPath)) {
+              const report = fs.readFileSync(reportPath, 'utf8');
+              const scoreMatch = report.match(/Mutation score[:\s]*(\d+\.?\d*)%/i);
+              if (scoreMatch) {
+                mutationScore = scoreMatch[1] + '%';
+              }
+            }
+            
+            const comment = `## 🧬 Mutation Testing Report
+            
+            **Mutation Score**: ${mutationScore}
+            
+            [View detailed report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            
+            > Note: Mutation testing helps identify untested code paths by introducing small changes (mutations) to the code and checking if tests catch them.`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });

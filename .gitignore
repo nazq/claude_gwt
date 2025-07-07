@@ -56,3 +56,8 @@ test-cgwt/
 
 # Claude GWT log file
 .claude-gwt.log
+
+# Stryker mutation testing
+.stryker-tmp/
+reports/mutation/
+stryker.log

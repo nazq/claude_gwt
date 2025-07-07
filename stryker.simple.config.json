@@ -1,0 +1,13 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "packageManager": "npm",
+  "reporters": ["html", "clear-text"],
+  "testRunner": "command",
+  "mutate": ["src/core/utils/security.ts"],
+  "commandRunner": {
+    "command": "npm test tests/unit/core/utils/security.test.ts"
+  },
+  "htmlReporter": {
+    "fileName": "reports/mutation/index.html"
+  }
+}

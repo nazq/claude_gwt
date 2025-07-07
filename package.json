@@ -34,7 +34,12 @@
     "changeset": "changeset",
     "changeset:version": "changeset version && npm install --package-lock-only",
     "changeset:publish": "npm run build:clean && changeset publish",
-    "release:prod": "./scripts/release-prod.sh"
+    "release:prod": "./scripts/release-prod.sh",
+    "test:ui": "vitest --ui",
+    "reports": "./scripts/generate-reports.sh",
+    "lint:report": "eslint src/**/*.ts tests/**/*.ts --format html --output-file reports/lint/eslint-report.html",
+    "test:mutation": "stryker run",
+    "test:mutation:quick": "stryker run --mutate 'src/core/utils/**/*.ts' --concurrency 2"
   },
   "keywords": [
     "git",
