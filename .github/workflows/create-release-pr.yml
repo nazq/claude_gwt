@@ -1,10 +1,17 @@
-name: Changeset Release
+name: Create Release PR
 
 on:
-  push:
-    branches:
-      - master
-      - main
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Release type'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
 
 concurrency: ${{ github.workflow }}-${{ github.ref }}
 
