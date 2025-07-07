@@ -1,5 +1,6 @@
 import * as path from 'path';
 import { Logger } from '../core/utils/logger.js';
+import { execCommandSafe } from '../core/utils/async.js';
 import type { GitRepository } from '../core/git/GitRepository.js';
 import {
   TmuxDriver,
@@ -248,11 +249,27 @@ export class TmuxEnhancer {
         { key: 'J', command: 'resize-pane -D 5', repeat: true },
         { key: 'K', command: 'resize-pane -U 5', repeat: true },
         { key: 'L', command: 'resize-pane -R 5', repeat: true },
+        // Quick pane splitting
+        { key: '|', command: 'split-window -h -c "#{pane_current_path}" bash' },
+        { key: '-', command: 'split-window -v -c "#{pane_current_path}" bash' },
       ];
 
-      // Apply bindings using SDK method
+      // Apply regular bindings using SDK method
       await TmuxDriver.configureKeyBindings(keyBindings);
       successCount = keyBindings.length;
+
+      // Also add no-prefix bindings for quick access (Alt+key)
+      // These need to be applied manually with -n flag
+      const noPrefixBindings = [
+        { key: 'M-\\', command: 'split-window -h -c "#{pane_current_path}" bash' },
+        { key: 'M--', command: 'split-window -v -c "#{pane_current_path}" bash' },
+      ];
+
+      // Apply no-prefix bindings manually
+      for (const binding of noPrefixBindings) {
+        await execCommandSafe('tmux', ['bind-key', '-n', binding.key, binding.command]);
+        successCount++;
+      }
     } catch (error) {
       errors.push(error instanceof Error ? error : new Error(String(error)));
       Logger.debug('Failed to configure key bindings', {
@@ -265,7 +282,7 @@ export class TmuxEnhancer {
       operation: 'configureKeyBindings',
       details: {
         successCount,
-        totalBindings: 9,
+        totalBindings: 13, // 11 regular + 2 no-prefix bindings
         errorCount: errors.length,
       },
       error: errors.length > 0 ? errors[0] : undefined,

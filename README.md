@@ -162,6 +162,46 @@ Connect to **Claude GWT** from anywhere
 
 ---
 
+## ⚡ Keyboard Shortcuts & Productivity Tips
+
+### Tmux Pane Management
+
+After starting a cgwt session, use these shortcuts for lightning-fast workflow:
+
+**Quick Splits (no prefix needed):**
+- `Alt+\` - Split vertically
+- `Alt+-` - Split horizontally
+
+**Standard Tmux (after Ctrl+B):**
+- `|` - Split vertically
+- `-` - Split horizontally  
+- `h/j/k/l` - Navigate panes (vim-style)
+- `H/J/K/L` - Resize panes (hold to repeat)
+- `z` - Toggle pane zoom
+- `x` - Close current pane
+
+### Power User Tips
+
+```bash
+# Inside Claude, use ! prefix for commands
+!cgwt split main      # Split and open main branch
+!cgwt -l             # List all sessions
+!cgwt tips           # Show all shortcuts
+
+# Quick session switching
+cgwt -a 1            # Jump to session 1
+cgwt -a 2.1          # Jump to project 2, branch 1
+```
+
+### Multi-Branch Workflow
+
+1. Start with your feature: `cgwt -a 1`
+2. Split for reference: `cgwt split main` 
+3. Compare implementations side-by-side
+4. Claude in each pane maintains separate context!
+
+---
+
 ## 📊 Code Quality & Test Coverage
 
 <div align="center">
@@ -429,6 +469,20 @@ Options:
   -h, --help                    Show help
 ```
 
+##### Utility Commands
+
+```bash
+# Split current tmux pane
+cgwt split [target] [options]   # Split pane and launch another session
+cgwt split                       # Split with bash and helper text
+cgwt split main                  # Split and launch main branch
+cgwt split -h                    # Split horizontally (top/bottom)
+cgwt split -p 30                 # Split with 30% size
+
+# Show tips and keyboard shortcuts
+cgwt tips                        # Display all tips and tmux shortcuts
+```
+
 #### Legacy Command: `claude-gwt` (deprecated)
 
 The original `claude-gwt` command is still available but deprecated. It now redirects to `cgwt app` with a deprecation warning.
@@ -503,6 +557,26 @@ cd claude_gwt
 npm install
 npm run dev
 ```
+
+### 📊 Code Quality Reports
+
+Generate comprehensive code quality reports:
+
+```bash
+# Generate all reports
+npm run reports
+
+# View reports in browser
+npm run reports:serve
+```
+
+This creates a beautiful dashboard at `reports/index.html` with:
+- 📊 **Test Coverage** - Interactive coverage maps
+- 🔧 **ESLint Analysis** - Code quality issues and statistics
+- 🧪 **Test Results** - Execution timing and metrics
+- 🕸️ **Dependency Graphs** - Visual architecture analysis
+- 📝 **TypeScript Diagnostics** - Type checking results
+- 🧬 **Mutation Testing** - Test quality analysis (optional)
 
 ---
 

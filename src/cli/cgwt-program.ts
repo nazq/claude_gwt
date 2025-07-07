@@ -11,6 +11,7 @@ import path, { dirname, join } from 'path';
 import { logger } from '../core/utils/logger.js';
 import { execCommandSafe } from '../core/utils/async.js';
 import { simpleGit } from 'simple-git';
+import { SplitCommand, TipsCommand } from './commands/index.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -47,6 +48,12 @@ interface CLIOptions {
   create?: boolean;
   supervisor?: boolean;
   interactive?: boolean;
+}
+
+interface SplitCommandOptions {
+  horizontal?: boolean;
+  vertical?: boolean;
+  percentage?: string;
 }
 
 interface AppCommandOptions {
@@ -228,6 +235,26 @@ export function createProgram(): Command {
         }
       },
     );
+
+  // Split command: cgwt split
+  program
+    .command('split')
+    .description('Split current tmux pane and launch another cgwt session')
+    .option('-h, --horizontal', 'Split horizontally (top/bottom)')
+    .option('-v, --vertical', 'Split vertically (left/right)', true)
+    .option('-p, --percentage <size>', 'Size percentage for new pane', '50')
+    .argument('[target]', 'Branch name or session index to launch')
+    .action(async (target: string | undefined, options: SplitCommandOptions) => {
+      await splitPane(target, options);
+    });
+
+  // Tips command: cgwt tips
+  program
+    .command('tips')
+    .description('Show tmux tips and keyboard shortcuts')
+    .action(() => {
+      showTips();
+    });
 
   return program;
 }
@@ -1101,6 +1128,16 @@ async function guideEmptyDirectory(options: CLIOptions): Promise<void> {
   const { ClaudeGWTApp } = await import('./ClaudeGWTApp.js');
   const app = new ClaudeGWTApp(process.cwd(), { ...options, interactive: true });
   await app.run();
+}
+
+async function splitPane(target: string | undefined, options: SplitCommandOptions): Promise<void> {
+  // Delegate to the SplitCommand class - preserving exact same behavior
+  await SplitCommand.execute(target, options, getSessionsQuietly);
+}
+
+function showTips(): void {
+  // Delegate to the TipsCommand class - preserving exact same behavior
+  TipsCommand.execute();
 }
 
 async function guideClaudeGWTParent(_options: AppCommandOptions): Promise<void> {

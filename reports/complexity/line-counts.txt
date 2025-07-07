@@ -1,27 +1,27 @@
-  4298 total
-   591 dist/src/cli/ClaudeGWTApp.js
+  5265 total
+  1127 dist/src/cli/cgwt-program.js
+   623 dist/src/cli/ClaudeGWTApp.js
    468 dist/src/sessions/TmuxDriver.js
-   364 dist/src/sessions/TmuxManager.js
-   307 dist/src/sessions/TmuxEnhancer.js
+   391 dist/src/sessions/TmuxManager.js
+   318 dist/src/sessions/TmuxEnhancer.js
    288 dist/src/core/ConfigManager.js
-   237 dist/src/cli/cgwt-program.js
+   249 dist/src/cli/ui/prompts.js
    226 dist/src/core/utils/logger.js
-   218 dist/src/cli/ui/prompts.js
    180 dist/src/core/git/GitRepository.js
    159 dist/src/core/services/adapters.js
    146 dist/src/core/utils/async.js
    136 dist/src/core/git/GitDetector.js
-   113 dist/src/core/git/WorktreeManager.js
+   131 dist/src/core/git/WorktreeManager.js
    106 dist/src/sessions/TmuxCommandParser.js
    102 dist/src/core/services/factories.js
     88 dist/src/core/utils/security.js
     87 dist/src/core/di/Container.js
     84 dist/src/sessions/TmuxParser.js
-    77 dist/src/cli/index.js
     68 dist/src/core/utils/type-guards.js
     65 dist/src/core/errors/CustomErrors.js
     59 dist/src/core/services/ErrorBoundary.js
     38 dist/src/cli/ui/spinner.js
+    35 dist/src/cli/index.js
     28 dist/src/cli/ui/theme.js
     25 dist/src/cli/ui/banner.js
     22 dist/src/sessions/TmuxHookParser.js
