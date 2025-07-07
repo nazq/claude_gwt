@@ -4,6 +4,127 @@ import { sanitizePath, sanitizeSessionName } from '../core/utils/security.js';
 import { Logger } from '../core/utils/logger.js';
 import { TmuxParser } from './TmuxParser.js';
 
+// ===== ENUMS FOR TMUX CONCEPTS =====
+
+/**
+ * Tmux layout presets
+ */
+export enum TmuxLayout {
+  EvenHorizontal = 'even-horizontal',
+  EvenVertical = 'even-vertical',
+  MainHorizontal = 'main-horizontal',
+  MainVertical = 'main-vertical',
+  Tiled = 'tiled',
+}
+
+/**
+ * Tmux colors (standard terminal colors)
+ */
+export enum TmuxColor {
+  Black = 'black',
+  Red = 'red',
+  Green = 'green',
+  Yellow = 'yellow',
+  Blue = 'blue',
+  Magenta = 'magenta',
+  Cyan = 'cyan',
+  White = 'white',
+  Default = 'default',
+  // Numbered colors
+  Colour0 = 'colour0',
+  Colour25 = 'colour25',
+  Colour28 = 'colour28',
+  Colour32 = 'colour32',
+  Colour196 = 'colour196',
+  Colour236 = 'colour236',
+  Colour240 = 'colour240',
+  Colour255 = 'colour255',
+}
+
+/**
+ * Tmux status bar positions
+ */
+export enum TmuxStatusPosition {
+  Top = 'top',
+  Bottom = 'bottom',
+}
+
+/**
+ * Tmux status bar justification
+ */
+export enum TmuxStatusJustify {
+  Left = 'left',
+  Centre = 'centre',
+  Right = 'right',
+}
+
+/**
+ * Tmux pane border status positions
+ */
+export enum TmuxPaneBorderStatus {
+  Off = 'off',
+  Top = 'top',
+  Bottom = 'bottom',
+}
+
+/**
+ * Common tmux options
+ */
+export enum TmuxOption {
+  // General options
+  Status = 'status',
+  StatusInterval = 'status-interval',
+  StatusPosition = 'status-position',
+  StatusStyle = 'status-style',
+  StatusLeft = 'status-left',
+  StatusRight = 'status-right',
+  StatusJustify = 'status-justify',
+
+  // Mouse and keyboard
+  Mouse = 'mouse',
+  ModeKeys = 'mode-keys',
+
+  // Pane options
+  PaneBorderStatus = 'pane-border-status',
+  PaneBorderStyle = 'pane-border-style',
+  PaneActiveBorderStyle = 'pane-active-border-style',
+  PaneBorderFormat = 'pane-border-format',
+
+  // Window options
+  MonitorActivity = 'monitor-activity',
+  SynchronizePanes = 'synchronize-panes',
+  RemainOnExit = 'remain-on-exit',
+  AggressiveResize = 'aggressive-resize',
+
+  // Custom options
+  SessionGroup = '@session-group',
+  YankAction = '@yank_action',
+}
+
+/**
+ * Tmux key tables
+ */
+export enum TmuxKeyTable {
+  Root = 'root',
+  Prefix = 'prefix',
+  CopyModeVi = 'copy-mode-vi',
+  CopyMode = 'copy-mode',
+}
+
+/**
+ * Tmux hooks
+ */
+export enum TmuxHook {
+  AlertActivity = 'alert-activity',
+  SessionCreated = 'session-created',
+  SessionClosed = 'session-closed',
+  WindowLinked = 'window-linked',
+  WindowUnlinked = 'window-unlinked',
+  PaneExited = 'pane-exited',
+}
+
+// ===== INTERFACES FOR STRUCTURED DATA =====
+
 /**
  * Tmux session information
  */
@@ -36,6 +157,44 @@ export interface TmuxWindowInfo {
   name: string;
   active: boolean;
   panes: number;
+}
+
+/**
+ * Configuration for tmux status bar
+ */
+export interface TmuxStatusBarConfig {
+  enabled?: boolean;
+  position?: TmuxStatusPosition;
+  interval?: number;
+  justify?: TmuxStatusJustify;
+  style?: {
+    background?: TmuxColor | string;
+    foreground?: TmuxColor | string;
+  };
+  left?: string;
+  right?: string;
+}
+
+/**
+ * Configuration for tmux key bindings
+ */
+export interface TmuxKeyBindingConfig {
+  key: string;
+  command: string;
+  table?: TmuxKeyTable;
+  repeat?: boolean;
+}
+
+/**
+ * Configuration for tmux pane borders
+ */
+export interface TmuxPaneBorderConfig {
+  status?: TmuxPaneBorderStatus;
+  style?: {
+    inactive?: string;
+    active?: string;
+  };
+  format?: string;
 }
 
 /**
@@ -493,5 +652,222 @@ export class TmuxDriver {
     }
 
     return execCommandSafe('tmux', args);
+  }
+
+  // ===== HIGH-LEVEL SDK METHODS =====
+
+  /**
+   * Configure the status bar with structured options
+   */
+  static async configureStatusBar(sessionName: string, config: TmuxStatusBarConfig): Promise<void> {
+    // Enable/disable status bar
+    if (config.enabled !== undefined) {
+      await this.setOption(sessionName, TmuxOption.Status, config.enabled ? 'on' : 'off');
+    }
+
+    // Set position
+    if (config.position) {
+      await this.setOption(sessionName, TmuxOption.StatusPosition, config.position);
+    }
+
+    // Set interval
+    if (config.interval !== undefined) {
+      await this.setOption(sessionName, TmuxOption.StatusInterval, config.interval.toString());
+    }
+
+    // Set justification
+    if (config.justify) {
+      await this.setOption(sessionName, TmuxOption.StatusJustify, config.justify);
+    }
+
+    // Set style
+    if (config.style) {
+      const styleString = `bg=${config.style.background ?? 'default'},fg=${config.style.foreground ?? 'default'}`;
+      await this.setOption(sessionName, TmuxOption.StatusStyle, styleString);
+    }
+
+    // Set left and right content
+    if (config.left !== undefined) {
+      await this.setOption(sessionName, TmuxOption.StatusLeft, config.left);
+    }
+    if (config.right !== undefined) {
+      await this.setOption(sessionName, TmuxOption.StatusRight, config.right);
+    }
+  }
+
+  /**
+   * Configure multiple key bindings at once
+   */
+  static async configureKeyBindings(bindings: TmuxKeyBindingConfig[]): Promise<void> {
+    for (const binding of bindings) {
+      await this.bindKey(binding.key, binding.command, binding.table, binding.repeat);
+    }
+  }
+
+  /**
+   * Configure pane borders with structured options
+   */
+  static async configurePaneBorders(
+    sessionName: string,
+    config: TmuxPaneBorderConfig,
+  ): Promise<void> {
+    if (config.status) {
+      await this.setOption(sessionName, TmuxOption.PaneBorderStatus, config.status);
+    }
+
+    if (config.style?.inactive) {
+      await this.setOption(sessionName, TmuxOption.PaneBorderStyle, config.style.inactive);
+    }
+
+    if (config.style?.active) {
+      await this.setOption(sessionName, TmuxOption.PaneActiveBorderStyle, config.style.active);
+    }
+
+    if (config.format) {
+      await this.setOption(sessionName, TmuxOption.PaneBorderFormat, config.format);
+    }
+  }
+
+  /**
+   * Enable vi copy mode with standard bindings
+   */
+  static async enableViCopyMode(sessionName: string): Promise<void> {
+    // Set vi mode
+    await this.setOption(sessionName, TmuxOption.ModeKeys, 'vi', true);
+
+    // Enable mouse
+    await this.setOption(sessionName, TmuxOption.Mouse, 'on', true);
+
+    // Configure copy mode bindings
+    const copyBindings: TmuxKeyBindingConfig[] = [
+      {
+        key: 'v',
+        command: 'send-keys -X begin-selection',
+        table: TmuxKeyTable.CopyModeVi,
+      },
+      {
+        key: 'y',
+        command: 'send-keys -X copy-selection-and-cancel',
+        table: TmuxKeyTable.CopyModeVi,
+      },
+    ];
+
+    await this.configureKeyBindings(copyBindings);
+
+    // Unbind mouse drag
+    await this.unbindKey('MouseDrag1Pane');
+  }
+
+  /**
+   * Create a layout builder for fluent API
+   */
+  static createLayoutBuilder(sessionName: string): TmuxLayoutBuilder {
+    return new TmuxLayoutBuilder(sessionName);
+  }
+
+  /**
+   * Set up monitoring hooks
+   */
+  static async configureMonitoring(
+    _sessionName: string,
+    hooks: { [key in TmuxHook]?: string },
+  ): Promise<void> {
+    for (const [hook, command] of Object.entries(hooks)) {
+      if (command) {
+        await this.setHook(hook, command);
+      }
+    }
+  }
+
+  /**
+   * Apply a layout preset to a window
+   */
+  static async applyLayout(target: string, layout: TmuxLayout): Promise<ExecResult> {
+    return this.sendKeys(target, [`select-layout ${layout}`], false);
+  }
+
+  /**
+   * Create a multi-pane window with a specific layout
+   */
+  static async createMultiPaneWindow(
+    sessionName: string,
+    windowName: string,
+    paneCount: number,
+    layout: TmuxLayout,
+  ): Promise<void> {
+    // Create window
+    await this.createWindow({ sessionName, windowName });
+
+    // Create additional panes
+    for (let i = 1; i < paneCount; i++) {
+      await this.splitPane({
+        target: `${sessionName}:${windowName}`,
+        horizontal: i % 2 === 0,
+      });
+    }
+
+    // Apply layout
+    await this.applyLayout(`${sessionName}:${windowName}`, layout);
+  }
+}
+
+/**
+ * Fluent builder for creating tmux layouts
+ */
+export class TmuxLayoutBuilder {
+  private sessionName: string;
+  private panes: Array<{
+    command?: string;
+    workingDirectory?: string;
+    title?: string;
+  }> = [];
+
+  constructor(sessionName: string) {
+    this.sessionName = sessionName;
+  }
+
+  addPane(options: {
+    command?: string;
+    workingDirectory?: string;
+    title?: string;
+  }): TmuxLayoutBuilder {
+    this.panes.push(options);
+    return this;
+  }
+
+  async build(windowName: string, layout: TmuxLayout): Promise<void> {
+    if (this.panes.length === 0) return;
+
+    // Create window with first pane
+    const firstPane = this.panes[0];
+    if (!firstPane) return; // Safety check
+
+    await TmuxDriver.createWindow({
+      sessionName: this.sessionName,
+      windowName,
+      workingDirectory: firstPane.workingDirectory,
+      command: firstPane.command,
+    });
+
+    // Add remaining panes
+    for (let i = 1; i < this.panes.length; i++) {
+      const pane = this.panes[i];
+      if (!pane) continue; // Safety check
+
+      await TmuxDriver.splitPane({
+        target: `${this.sessionName}:${windowName}`,
+        horizontal: i % 2 === 0,
+        workingDirectory: pane.workingDirectory,
+        command: pane.command,
+      });
+
+      // Set title if provided
+      if (pane.title) {
+        await TmuxDriver.setPaneTitle(`${this.sessionName}:${windowName}.${i}`, pane.title);
+      }
+    }
+
+    // Apply layout
+    await TmuxDriver.applyLayout(`${this.sessionName}:${windowName}`, layout);
   }
 }

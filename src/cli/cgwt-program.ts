@@ -5,11 +5,11 @@
 
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { execSync } from 'child_process';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { logger } from '../core/utils/logger.js';
+import { execCommandSafe } from '../core/utils/async.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -50,8 +50,8 @@ export function createProgram(): Command {
     .command('l')
     .alias('list')
     .description('List all Claude GWT sessions')
-    .action(() => {
-      listSessions();
+    .action(async () => {
+      await listSessions();
     });
 
   // Subcommand: cgwt s <branch/index> (switch)
@@ -59,43 +59,46 @@ export function createProgram(): Command {
     .command('s <target>')
     .alias('switch')
     .description('Switch to a branch by name or index')
-    .action((target: string) => {
-      switchSession(target);
+    .action(async (target: string) => {
+      await switchSession(target);
     });
 
   // Default action for direct index (cgwt 1, cgwt 2, etc.)
-  program.argument('[index]', 'Session index to switch to').action((index: string | undefined) => {
-    if (index === undefined) {
-      // No arguments, show usage
-      program.outputHelp();
-    } else if (!isNaN(Number(index))) {
-      // Numeric index, switch to it
-      switchSession(index);
-    } else {
-      // Invalid argument
-      logger.warn('Invalid argument provided', { argument: index });
-      console.log(chalk.red(`Invalid argument: ${index}`));
-      console.log(chalk.yellow('\nUsage:'));
-      console.log('  cgwt              - Show this help');
-      console.log('  cgwt l            - List sessions');
-      console.log('  cgwt s <branch>   - Switch to branch');
-      console.log('  cgwt <index>      - Switch by index');
-      process.exit(1);
-    }
-  });
+  program
+    .argument('[index]', 'Session index to switch to')
+    .action(async (index: string | undefined) => {
+      if (index === undefined) {
+        // No arguments, show usage
+        program.outputHelp();
+      } else if (!isNaN(Number(index))) {
+        // Numeric index, switch to it
+        await switchSession(index);
+      } else {
+        // Invalid argument
+        logger.warn('Invalid argument provided', { argument: index });
+        console.log(chalk.red(`Invalid argument: ${index}`));
+        console.log(chalk.yellow('\nUsage:'));
+        console.log('  cgwt              - Show this help');
+        console.log('  cgwt l            - List sessions');
+        console.log('  cgwt s <branch>   - Switch to branch');
+        console.log('  cgwt <index>      - Switch by index');
+        process.exit(1);
+      }
+    });
 
   return program;
 }
 
-export function listSessions(): Session[] {
+export async function listSessions(): Promise<Session[]> {
   logger.info('Listing sessions');
   try {
-    const output = execSync('git worktree list --porcelain', {
-      encoding: 'utf8',
-      cwd: process.cwd(),
-    });
+    const result = await execCommandSafe('git', ['worktree', 'list', '--porcelain']);
 
-    const sessions = parseWorktreeOutput(output);
+    if (result.code !== 0) {
+      throw new Error(result.stderr || 'Failed to list worktrees');
+    }
+
+    const sessions = parseWorktreeOutput(result.stdout);
     logger.info('Sessions listed', { sessionCount: sessions.length });
 
     if (sessions.length === 0) {
@@ -130,10 +133,10 @@ export function listSessions(): Session[] {
   }
 }
 
-export function switchSession(target: string): void {
+export async function switchSession(target: string): Promise<void> {
   logger.info('Switching session', { target });
   try {
-    const sessions = getSessionsQuietly();
+    const sessions = await getSessionsQuietly();
 
     if (sessions.length === 0) {
       console.log(chalk.red('No Git worktree sessions found.'));
@@ -188,7 +191,7 @@ export function switchSession(target: string): void {
     console.log(chalk.dim(`  Path: ${targetSession.path}`));
 
     // List tmux sessions in the new directory
-    listTmuxSessions();
+    await listTmuxSessions();
   } catch (error) {
     logger.error('Failed to switch session', error);
     handleGitError(error);
@@ -223,13 +226,13 @@ export function parseWorktreeOutput(output: string): Session[] {
   return sessions.filter((s) => s.branch); // Only return sessions with branches
 }
 
-export function getSessionsQuietly(): Session[] {
+export async function getSessionsQuietly(): Promise<Session[]> {
   try {
-    const output = execSync('git worktree list --porcelain', {
-      encoding: 'utf8',
-      cwd: process.cwd(),
-    });
-    return parseWorktreeOutput(output);
+    const result = await execCommandSafe('git', ['worktree', 'list', '--porcelain']);
+    if (result.code === 0) {
+      return parseWorktreeOutput(result.stdout);
+    }
+    return [];
   } catch {
     return [];
   }
@@ -243,23 +246,22 @@ export function isSessionActive(sessionPath: string): boolean {
   }
 }
 
-export function listTmuxSessions(): void {
+export async function listTmuxSessions(): Promise<void> {
   try {
-    const output = execSync('tmux list-sessions', {
-      encoding: 'utf8',
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
+    const result = await execCommandSafe('tmux', ['list-sessions']);
 
-    const cgwtSessions = output
-      .split('\n')
-      .filter((line) => line.includes('cgwt-'))
-      .map((line) => line.split(':')[0]);
+    if (result.code === 0) {
+      const cgwtSessions = result.stdout
+        .split('\n')
+        .filter((line) => line.includes('cgwt-'))
+        .map((line) => line.split(':')[0]);
 
-    if (cgwtSessions.length > 0) {
-      console.log(chalk.cyan('\nTmux Sessions:'));
-      cgwtSessions.forEach((session) => {
-        console.log(chalk.dim(`  - ${session}`));
-      });
+      if (cgwtSessions.length > 0) {
+        console.log(chalk.cyan('\nTmux Sessions:'));
+        cgwtSessions.forEach((session) => {
+          console.log(chalk.dim(`  - ${session}`));
+        });
+      }
     }
   } catch {
     // Tmux not running or no sessions
