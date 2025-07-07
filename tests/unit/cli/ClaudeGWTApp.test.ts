@@ -1438,4 +1438,187 @@ describe('ClaudeGWTApp', () => {
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('No branches found'));
     });
   });
+
+  describe('createWorktreeFromExistingBranch', () => {
+    it('should handle existing branch worktree creation successfully', async () => {
+      const mockDetectState = vi.fn().mockResolvedValue({
+        type: 'git-worktree',
+        path: '/test/worktree',
+        gitInfo: {
+          isWorktree: true,
+          isBareRepo: true,
+          branch: 'main',
+        },
+      } as DirectoryState);
+
+      mockGitDetector.prototype.detectState = mockDetectState;
+
+      const worktrees = [
+        {
+          path: '/test/worktree',
+          branch: 'main',
+          isLocked: false,
+          prunable: false,
+          HEAD: 'abc123',
+        },
+      ];
+
+      const mockListWorktrees = vi.fn().mockResolvedValue(worktrees);
+      mockWorktreeManager.prototype.listWorktrees = mockListWorktrees;
+
+      const mockGetBranchesWithoutWorktrees = vi
+        .fn()
+        .mockResolvedValue(['feature/test', 'bugfix/issue-123']);
+      mockWorktreeManager.prototype.getBranchesWithoutWorktrees = mockGetBranchesWithoutWorktrees;
+
+      const mockAddWorktree = vi.fn().mockResolvedValue('/test/worktree/feature/test');
+      mockWorktreeManager.prototype.addWorktree = mockAddWorktree;
+
+      vi.spyOn(prompts, 'promptForWorktreeAction')
+        .mockResolvedValueOnce('existing')
+        .mockResolvedValueOnce('exit');
+      vi.spyOn(prompts, 'selectExistingBranch').mockResolvedValue('feature/test');
+
+      const app = new ClaudeGWTApp('/test/worktree', { interactive: true });
+      await app.run();
+
+      expect(mockGetBranchesWithoutWorktrees).toHaveBeenCalled();
+      expect(prompts.selectExistingBranch).toHaveBeenCalledWith([
+        'feature/test',
+        'bugfix/issue-123',
+      ]);
+      expect(mockAddWorktree).toHaveBeenCalledWith('feature/test');
+      expect(mockConsoleLog).toHaveBeenCalledWith(
+        expect.stringContaining('🎉 Worktree for branch feature/test created!'),
+      );
+    });
+
+    it('should handle existing branch worktree creation when user cancels', async () => {
+      const mockDetectState = vi.fn().mockResolvedValue({
+        type: 'git-worktree',
+        path: '/test/worktree',
+        gitInfo: {
+          isWorktree: true,
+          isBareRepo: true,
+          branch: 'main',
+        },
+      } as DirectoryState);
+
+      mockGitDetector.prototype.detectState = mockDetectState;
+
+      const worktrees = [
+        {
+          path: '/test/worktree',
+          branch: 'main',
+          isLocked: false,
+          prunable: false,
+          HEAD: 'abc123',
+        },
+      ];
+
+      const mockListWorktrees = vi.fn().mockResolvedValue(worktrees);
+      mockWorktreeManager.prototype.listWorktrees = mockListWorktrees;
+
+      const mockGetBranchesWithoutWorktrees = vi.fn().mockResolvedValue(['feature/test']);
+      mockWorktreeManager.prototype.getBranchesWithoutWorktrees = mockGetBranchesWithoutWorktrees;
+
+      vi.spyOn(prompts, 'promptForWorktreeAction')
+        .mockResolvedValueOnce('existing')
+        .mockResolvedValueOnce('exit');
+      vi.spyOn(prompts, 'selectExistingBranch').mockResolvedValue(null); // User cancelled
+
+      const mockAddWorktree = vi.fn();
+      mockWorktreeManager.prototype.addWorktree = mockAddWorktree;
+
+      const app = new ClaudeGWTApp('/test/worktree', { interactive: true });
+      await app.run();
+
+      expect(mockGetBranchesWithoutWorktrees).toHaveBeenCalled();
+      expect(prompts.selectExistingBranch).toHaveBeenCalledWith(['feature/test']);
+      expect(mockAddWorktree).not.toHaveBeenCalled();
+    });
+
+    it('should handle existing branch worktree creation failure', async () => {
+      const mockDetectState = vi.fn().mockResolvedValue({
+        type: 'git-worktree',
+        path: '/test/worktree',
+        gitInfo: {
+          isWorktree: true,
+          isBareRepo: true,
+          branch: 'main',
+        },
+      } as DirectoryState);
+
+      mockGitDetector.prototype.detectState = mockDetectState;
+
+      const worktrees = [
+        {
+          path: '/test/worktree',
+          branch: 'main',
+          isLocked: false,
+          prunable: false,
+          HEAD: 'abc123',
+        },
+      ];
+
+      const mockListWorktrees = vi.fn().mockResolvedValue(worktrees);
+      mockWorktreeManager.prototype.listWorktrees = mockListWorktrees;
+
+      const mockGetBranchesWithoutWorktrees = vi.fn().mockResolvedValue(['feature/test']);
+      mockWorktreeManager.prototype.getBranchesWithoutWorktrees = mockGetBranchesWithoutWorktrees;
+
+      const mockAddWorktree = vi.fn().mockRejectedValue(new Error('Worktree creation failed'));
+      mockWorktreeManager.prototype.addWorktree = mockAddWorktree;
+
+      vi.spyOn(prompts, 'promptForWorktreeAction').mockResolvedValueOnce('existing');
+      vi.spyOn(prompts, 'selectExistingBranch').mockResolvedValue('feature/test');
+
+      const app = new ClaudeGWTApp('/test/worktree', { interactive: true });
+
+      await expect(app.run()).rejects.toThrow('process.exit called');
+
+      expect(mockGetBranchesWithoutWorktrees).toHaveBeenCalled();
+      expect(mockAddWorktree).toHaveBeenCalledWith('feature/test');
+    });
+
+    it('should handle getBranchesWithoutWorktrees failure', async () => {
+      const mockDetectState = vi.fn().mockResolvedValue({
+        type: 'git-worktree',
+        path: '/test/worktree',
+        gitInfo: {
+          isWorktree: true,
+          isBareRepo: true,
+          branch: 'main',
+        },
+      } as DirectoryState);
+
+      mockGitDetector.prototype.detectState = mockDetectState;
+
+      const worktrees = [
+        {
+          path: '/test/worktree',
+          branch: 'main',
+          isLocked: false,
+          prunable: false,
+          HEAD: 'abc123',
+        },
+      ];
+
+      const mockListWorktrees = vi.fn().mockResolvedValue(worktrees);
+      mockWorktreeManager.prototype.listWorktrees = mockListWorktrees;
+
+      const mockGetBranchesWithoutWorktrees = vi
+        .fn()
+        .mockRejectedValue(new Error('Failed to get branches'));
+      mockWorktreeManager.prototype.getBranchesWithoutWorktrees = mockGetBranchesWithoutWorktrees;
+
+      vi.spyOn(prompts, 'promptForWorktreeAction').mockResolvedValueOnce('existing');
+
+      const app = new ClaudeGWTApp('/test/worktree', { interactive: true });
+
+      await expect(app.run()).rejects.toThrow('process.exit called');
+
+      expect(mockGetBranchesWithoutWorktrees).toHaveBeenCalled();
+    });
+  });
 });

@@ -53,7 +53,7 @@ export async function promptForBranchName(defaultBranch?: string): Promise<strin
 export async function promptForWorktreeAction(
   worktrees: GitWorktreeInfo[],
   hasSessions: boolean = false,
-): Promise<'new' | 'list' | 'remove' | 'supervisor' | 'shutdown' | 'exit'> {
+): Promise<'new' | 'existing' | 'list' | 'remove' | 'supervisor' | 'shutdown' | 'exit'> {
   const choices = [];
 
   // Add supervisor mode option
@@ -61,6 +61,7 @@ export async function promptForWorktreeAction(
 
   choices.push(
     { name: `${theme.success('➕')} Create new branch`, value: 'new' },
+    { name: `${theme.success('🔗')} Add worktree for existing branch`, value: 'existing' },
     { name: `${theme.info('📋')} List all branches`, value: 'list' },
   );
 
@@ -75,7 +76,7 @@ export async function promptForWorktreeAction(
   choices.push({ name: `${theme.muted('🚪')} Exit`, value: 'exit' });
 
   const { action } = await inquirer.prompt<{
-    action: 'new' | 'list' | 'remove' | 'supervisor' | 'shutdown' | 'exit';
+    action: 'new' | 'existing' | 'list' | 'remove' | 'supervisor' | 'shutdown' | 'exit';
   }>([
     {
       type: 'list',
@@ -198,6 +199,41 @@ export async function selectBranch(message: string, branches: string[]): Promise
   ]);
 
   return branch;
+}
+
+export async function selectExistingBranch(branches: string[]): Promise<string | null> {
+  if (branches.length === 0) {
+    console.log(theme.warning('\nNo existing branches without worktrees found.'));
+    console.log(theme.muted('All branches already have worktrees or there are no other branches.'));
+    await inquirer.prompt([
+      {
+        type: 'input',
+        name: 'continue',
+        message: 'Press Enter to continue...',
+      },
+    ]);
+    return null;
+  }
+
+  const choices = [
+    ...branches.map((b) => ({
+      name: `${theme.branch(b)}`,
+      value: b,
+    })),
+    { name: theme.muted('Cancel'), value: 'cancel' },
+  ];
+
+  const { branch } = await inquirer.prompt<{ branch: string }>([
+    {
+      type: 'list',
+      name: 'branch',
+      message: 'Select an existing branch to create a worktree for:',
+      choices,
+      pageSize: 15,
+    },
+  ]);
+
+  return branch === 'cancel' ? null : branch;
 }
 
 // Legacy menu functions for backward compatibility

@@ -358,6 +358,9 @@ export class ClaudeGWTApp {
         case 'new':
           await this.createNewWorktree(worktreeManager);
           break;
+        case 'existing':
+          await this.createWorktreeFromExistingBranch(worktreeManager);
+          break;
         case 'list':
           this.listBranches(worktrees);
           break;
@@ -421,6 +424,47 @@ export class ClaudeGWTApp {
       );
     } catch (error) {
       spinner.fail('Failed to create branch');
+      throw error;
+    }
+  }
+
+  private async createWorktreeFromExistingBranch(worktreeManager: WorktreeManager): Promise<void> {
+    // Get branches without worktrees
+    const spinner = new Spinner('Fetching existing branches...');
+    spinner.start();
+
+    let branchesWithoutWorktrees: string[];
+    try {
+      branchesWithoutWorktrees = await worktreeManager.getBranchesWithoutWorktrees();
+      spinner.stop();
+    } catch (error) {
+      spinner.fail('Failed to fetch branches');
+      throw error;
+    }
+
+    // Let user select a branch
+    const selectedBranch = await prompts.selectExistingBranch(branchesWithoutWorktrees);
+
+    if (!selectedBranch) {
+      return; // User cancelled or no branches available
+    }
+
+    // Create worktree for the selected branch
+    const createSpinner = new Spinner(
+      `Creating worktree for branch ${theme.branch(selectedBranch)}...`,
+    );
+    createSpinner.start();
+
+    try {
+      const worktreePath = await worktreeManager.addWorktree(selectedBranch);
+      createSpinner.succeed(`Worktree created at ${theme.info(worktreePath)}`);
+
+      console.log(
+        theme.success(`\n🎉 Worktree for branch ${theme.branch(selectedBranch)} created!`),
+      );
+      console.log(theme.info(`\nYou can now switch to this branch to start working.`));
+    } catch (error) {
+      createSpinner.fail('Failed to create worktree');
       throw error;
     }
   }
