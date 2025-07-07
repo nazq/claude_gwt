@@ -3,7 +3,7 @@
   <!-- Logo placeholder - add logo.svg to docs/images/ -->
   <h1>🌳</h1>
   
-  <h1>🌳 Claude GWT</h1>
+  <h1>🌳 Claude GWT 🚀</h1>
   
   <p><strong>Git Worktree Manager with Integrated Claude Code Orchestration</strong></p>
   
