@@ -379,6 +379,14 @@ The project uses two automated release workflows:
   - Create GitHub release with full changelog
   - Publish to npm with appropriate tag
 
+### Post-PR Coverage Analysis
+**MANDATORY**: After creating a PR, check the Codecov GitHub comment for coverage analysis:
+- **If coverage is adequate** (80%+): Proceed with review/merge
+- **If coverage is inadequate** (<80%): Add more tests to cover missing lines
+- **If patch coverage is low**: Focus on testing the new/changed code
+- Use `npm run test:coverage` locally to identify specific uncovered lines
+- Prioritize testing error paths and edge cases in new code
+
 ### After PR Merge
 **IMPORTANT**: After a PR is successfully merged:
 1. Delete the feature branch from both local and remote:
