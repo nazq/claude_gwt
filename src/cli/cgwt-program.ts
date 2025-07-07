@@ -7,7 +7,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import path, { dirname, join } from 'path';
 import { logger } from '../core/utils/logger.js';
 import { execCommandSafe } from '../core/utils/async.js';
 
@@ -34,6 +34,7 @@ export interface Session {
   path: string;
   branch: string;
   head: string;
+  isSupervisor?: boolean;
 }
 
 export function createProgram(): Command {
@@ -61,6 +62,14 @@ export function createProgram(): Command {
     .description('Switch to a branch by name or index')
     .action(async (target: string) => {
       await switchSession(target);
+    });
+
+  // Hidden killall command - not shown in help
+  program
+    .command('killall', { hidden: true })
+    .description('Kill all Claude GWT tmux sessions')
+    .action(async () => {
+      await killAllSessions();
     });
 
   // Default action for direct index (cgwt 1, cgwt 2, etc.)
@@ -110,19 +119,48 @@ export async function listSessions(): Promise<Session[]> {
     console.log(chalk.cyan('\nGit Worktree Sessions:'));
     console.log(chalk.dim('─'.repeat(50)));
 
-    sessions.forEach((session, index) => {
-      const branchName = session.branch.replace('refs/heads/', '');
-      const shortCommit = session.head.substring(0, 7);
-      const isActive = isSessionActive(session.path);
+    // Get current tmux session if in tmux
+    const currentTmuxSession = await getCurrentTmuxSession();
+    const repoName = await getRepoName();
 
-      const indexStr = chalk.yellow(`[${index + 1}]`);
-      const branchStr = isActive ? chalk.green.bold(branchName) : chalk.white(branchName);
-      const activeIndicator = isActive ? chalk.green(' ⬤ (active)') : '';
+    let branchIndex = 0;
+    sessions.forEach((session) => {
+      const actualIndex = session.isSupervisor ? 0 : ++branchIndex;
+      const branchName = session.branch ? session.branch.replace('refs/heads/', '') : '';
 
-      console.log(`${indexStr} ${branchStr}${activeIndicator}`);
-      console.log(chalk.dim(`    Path: ${branchName}`));
-      console.log(chalk.dim(`    HEAD: ${shortCommit}`));
-      console.log();
+      // Determine if this session is active
+      const tmuxSessionName = session.isSupervisor
+        ? `cgwt-${repoName}-supervisor`
+        : `cgwt-${repoName}-${branchName}`;
+      const isActive = currentTmuxSession === tmuxSessionName || isSessionActive(session.path);
+
+      // Format index
+      const indexStr = `[${actualIndex}]`;
+
+      // Format branch name or [SUP] for supervisor
+      let displayName: string;
+      if (session.isSupervisor) {
+        displayName = chalk.magenta('[SUP]');
+      } else if (branchName === 'main' || branchName === 'master') {
+        displayName = chalk.yellow(branchName);
+      } else {
+        displayName = chalk.hex('#00D9FF')(branchName);
+      }
+
+      // Active marker
+      const marker = isActive ? chalk.green('●') : chalk.gray('○');
+
+      // Build the display line - one row per session
+      const displayLine = `${marker} ${indexStr} ${displayName}`;
+
+      // Apply background color if active
+      if (isActive) {
+        const paddedLine =
+          displayLine + ' '.repeat(Math.max(0, 50 - stripAnsi(displayLine).length));
+        console.log(chalk.bgGreen.black(paddedLine));
+      } else {
+        console.log(displayLine);
+      }
     });
 
     return sessions;
@@ -144,26 +182,48 @@ export async function switchSession(target: string): Promise<void> {
     }
 
     let targetSession: Session | undefined;
+    let targetIndex: number = -1;
 
     // Check if target is a number (index)
     const index = parseInt(target, 10);
     if (!isNaN(index)) {
-      if (index < 1 || index > sessions.length) {
-        logger.error('Index out of range', { index, sessionCount: sessions.length });
-        console.log(chalk.red(`Index ${index} is out of range. Valid range: 1-${sessions.length}`));
-        process.exit(1);
+      if (index === 0) {
+        // Supervisor session
+        targetSession = sessions.find((s) => s.isSupervisor);
+        targetIndex = 0;
+      } else {
+        const branchSessions = sessions.filter((s) => !s.isSupervisor);
+        if (index < 1 || index > branchSessions.length) {
+          logger.error('Index out of range', { index, sessionCount: branchSessions.length });
+          console.log(
+            chalk.red(`Index ${index} is out of range. Valid range: 0-${branchSessions.length}`),
+          );
+          process.exit(1);
+        }
+        targetSession = branchSessions[index - 1];
+        targetIndex = index;
       }
-      targetSession = sessions[index - 1];
     } else {
       // Target is a branch name
       targetSession = sessions.find((s) => {
-        const branchName = s.branch.replace('refs/heads/', '');
+        if (s.isSupervisor && (target === 'supervisor' || target === 'sup')) {
+          return true;
+        }
+        const branchName = s.branch?.replace('refs/heads/', '') || '';
         return branchName === target || s.branch === target;
       });
 
+      if (targetSession) {
+        targetIndex = targetSession.isSupervisor
+          ? 0
+          : sessions.filter((s) => !s.isSupervisor).indexOf(targetSession) + 1;
+      } else {
+        targetIndex = -1;
+      }
+
       if (!targetSession) {
         const availableBranches = sessions
-          .map((s) => s.branch.replace('refs/heads/', ''))
+          .map((s) => (s.isSupervisor ? 'supervisor' : s.branch?.replace('refs/heads/', '') || ''))
           .join(', ');
         logger.error('Branch not found', { target, availableBranches });
         console.log(chalk.red(`Branch '${target}' not found.`));
@@ -178,20 +238,45 @@ export async function switchSession(target: string): Promise<void> {
       process.exit(1);
     }
 
-    // Change directory to the worktree
+    // Get repo name for tmux session naming
+    const repoName = await getRepoName();
+    const branchName = targetSession.isSupervisor
+      ? 'supervisor'
+      : targetSession.branch?.replace('refs/heads/', '') || '';
+    const tmuxSessionName = targetSession.isSupervisor
+      ? `cgwt-${repoName}-supervisor`
+      : `cgwt-${repoName}-${branchName}`;
+
+    // Try to switch/attach to tmux session
+    const inTmux = !!process.env['TMUX'];
+
+    if (inTmux) {
+      // If we're in tmux, switch to the session
+      const switchResult = await execCommandSafe('tmux', ['switch-client', '-t', tmuxSessionName]);
+      if (switchResult.code === 0) {
+        logger.info('Switched tmux session', { session: tmuxSessionName });
+        return;
+      }
+    } else {
+      // If we're not in tmux, try to attach
+      const attachResult = await execCommandSafe('tmux', ['attach-session', '-t', tmuxSessionName]);
+      if (attachResult.code === 0) {
+        return;
+      }
+    }
+
+    // If tmux switch/attach failed, just change directory
     process.chdir(targetSession.path);
-    const branchName = targetSession.branch.replace('refs/heads/', '');
 
     logger.info('Session switched', {
       branch: branchName,
       path: targetSession.path,
+      index: targetIndex,
     });
 
     console.log(chalk.green(`✓ Switched to ${chalk.bold(branchName)}`));
-    console.log(chalk.dim(`  Path: ${branchName}`));
-
-    // List tmux sessions in the new directory
-    await listTmuxSessions();
+    console.log(chalk.dim(`  Path: ${targetSession.path}`));
+    console.log(chalk.yellow(`  Note: Tmux session not found. Run 'claude-gwt' to create it.`));
   } catch (error) {
     logger.error('Failed to switch session', error);
     handleGitError(error);
@@ -213,6 +298,8 @@ export function parseWorktreeOutput(output: string): Session[] {
       current.head = line.substring(5);
     } else if (line.startsWith('branch ')) {
       current.branch = line.substring(7);
+    } else if (line.startsWith('bare')) {
+      current.isSupervisor = true;
     } else if (line.trim() === '' && current.path) {
       sessions.push(current as Session);
       current = {};
@@ -223,7 +310,14 @@ export function parseWorktreeOutput(output: string): Session[] {
     sessions.push(current as Session);
   }
 
-  return sessions.filter((s) => s.branch); // Only return sessions with branches
+  // Sort sessions: supervisor first, then by branch name
+  return sessions.sort((a, b) => {
+    if (a.isSupervisor) return -1;
+    if (b.isSupervisor) return 1;
+    const aBranch = a.branch?.replace('refs/heads/', '') || '';
+    const bBranch = b.branch?.replace('refs/heads/', '') || '';
+    return aBranch.localeCompare(bBranch);
+  });
 }
 
 export async function getSessionsQuietly(): Promise<Session[]> {
@@ -286,4 +380,89 @@ export function handleGitError(error: unknown): void {
     console.log(chalk.red('Unknown error occurred'));
   }
   process.exit(1);
+}
+
+async function getCurrentTmuxSession(): Promise<string | null> {
+  if (!process.env['TMUX']) {
+    return null;
+  }
+
+  try {
+    const result = await execCommandSafe('tmux', ['display-message', '-p', '#S']);
+    return result.code === 0 ? result.stdout.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
+async function getRepoName(): Promise<string> {
+  try {
+    // Try to get repo name from git remote
+    const result = await execCommandSafe('git', ['remote', 'get-url', 'origin']);
+    if (result.code === 0) {
+      const url = result.stdout.trim();
+      // Extract repo name from URL
+      const match = url.match(/([^/]+?)(?:\.git)?$/);
+      if (match?.[1]) {
+        return match[1];
+      }
+    }
+  } catch {
+    // Fallback to directory name
+  }
+
+  // Fallback to current directory name
+  const dirName = path.basename(process.cwd());
+  return dirName || 'unknown';
+}
+
+function stripAnsi(str: string): string {
+  // eslint-disable-next-line no-control-regex
+  return str.replace(/\x1B[[(?);]{0,2}(;?\d)*./g, '');
+}
+
+export async function killAllSessions(): Promise<void> {
+  logger.info('Killing all Claude GWT sessions');
+
+  try {
+    const repoName = await getRepoName();
+
+    // Get list of all tmux sessions
+    const result = await execCommandSafe('tmux', ['list-sessions', '-F', '#{session_name}']);
+
+    if (result.code !== 0) {
+      console.log(chalk.yellow('No tmux sessions found'));
+      return;
+    }
+
+    const sessions = result.stdout
+      .split('\n')
+      .filter((session) => session.trim() && session.startsWith(`cgwt-${repoName}-`));
+
+    if (sessions.length === 0) {
+      console.log(chalk.yellow('No Claude GWT sessions found for this repository'));
+      return;
+    }
+
+    console.log(chalk.red(`Killing ${sessions.length} Claude GWT session(s)...`));
+
+    // Kill each session
+    for (const session of sessions) {
+      const killResult = await execCommandSafe('tmux', ['kill-session', '-t', session]);
+      if (killResult.code === 0) {
+        console.log(chalk.dim(`  ✓ Killed ${session}`));
+      } else {
+        console.log(chalk.yellow(`  ⚠ Failed to kill ${session}`));
+      }
+    }
+
+    console.log(chalk.green('\n✓ All Claude GWT sessions terminated'));
+  } catch (error) {
+    logger.error('Failed to kill sessions', error);
+    console.log(
+      chalk.red('Error killing sessions:'),
+      error instanceof Error ? error.message : String(error),
+    );
+    process.exit(1);
+  }
 }
