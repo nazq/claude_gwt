@@ -96,7 +96,7 @@ export function isValidBranchName(name: string): boolean {
   if (name.startsWith('.')) return false;
   if (name.includes('..')) return false;
   if (name.endsWith('/')) return false;
-  if (name.endsWith('.lock')) return false;
+  if (name.includes('.lock')) return false;
 
   const invalidChars = /[\s~^:?*[\\\]@{]/;
   if (invalidChars.test(name)) return false;
