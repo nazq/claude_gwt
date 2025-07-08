@@ -40,7 +40,8 @@
     "reports:serve": "./scripts/serve-reports.sh",
     "lint:report": "biome check src/ tests/ --reporter=json > reports/lint/biome-report.json || true",
     "test:mutation": "stryker run",
-    "test:mutation:quick": "stryker run --mutate 'src/core/utils/**/*.ts' --concurrency 2"
+    "test:mutation:quick": "stryker run --mutate 'src/core/utils/**/*.ts' --concurrency 2",
+    "test:mutation:local": "stryker run --mutate 'src/core/utils/**/*.ts' --concurrency 8"
   },
   "keywords": [
     "git",
