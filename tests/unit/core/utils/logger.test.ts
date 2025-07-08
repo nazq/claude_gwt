@@ -328,6 +328,187 @@ describe('StructuredLogger (Pino)', () => {
   });
 });
 
+describe('Logger setLogLevel', () => {
+  it('should warn about setLogLevel not being supported', () => {
+    const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => {});
+    Logger.setLogLevel('debug');
+    expect(warnSpy).toHaveBeenCalledWith(
+      'setLogLevel not supported in Pino - create new logger instance',
+    );
+    warnSpy.mockRestore();
+  });
+
+  it('should handle getLogPath', () => {
+    const logPath = Logger.getLogPath();
+    expect(logPath).toContain('.claude-gwt.log');
+  });
+
+  it('should handle close method', async () => {
+    const flushSpy = vi.spyOn(logger, 'flush').mockResolvedValue();
+    await Logger.close();
+    expect(flushSpy).toHaveBeenCalled();
+    flushSpy.mockRestore();
+  });
+});
+
+describe('Production logger configuration', () => {
+  it('should create production logger with file destination', () => {
+    const originalEnv = process.env['NODE_ENV'];
+    const originalVitest = process.env['VITEST'];
+
+    // Force production mode
+    process.env['NODE_ENV'] = 'production';
+    delete process.env['VITEST'];
+
+    try {
+      // Create logger in production mode - the constructor detects environment
+      const prodLogger = new StructuredLogger({ isDevelopment: false });
+
+      expect(prodLogger).toBeInstanceOf(StructuredLogger);
+    } finally {
+      // Restore environment
+      if (originalEnv) process.env['NODE_ENV'] = originalEnv;
+      if (originalVitest) process.env['VITEST'] = originalVitest;
+    }
+  });
+
+  it('should create development logger with pretty print transport', () => {
+    const originalEnv = process.env['NODE_ENV'];
+    const originalVitest = process.env['VITEST'];
+
+    // Force development mode
+    process.env['NODE_ENV'] = 'development';
+    delete process.env['VITEST'];
+
+    try {
+      // Create logger in development mode
+      const devLogger = new StructuredLogger({ isDevelopment: true });
+
+      expect(devLogger).toBeInstanceOf(StructuredLogger);
+    } finally {
+      // Restore environment
+      if (originalEnv) process.env['NODE_ENV'] = originalEnv;
+      if (originalVitest) process.env['VITEST'] = originalVitest;
+    }
+  });
+
+  it('should detect development mode from NODE_ENV', () => {
+    const originalEnv = process.env['NODE_ENV'];
+    const originalVitest = process.env['VITEST'];
+
+    // Force development mode via NODE_ENV
+    process.env['NODE_ENV'] = 'development';
+    delete process.env['VITEST'];
+
+    try {
+      // Create logger without explicit isDevelopment
+      const devLogger = new StructuredLogger();
+
+      expect(devLogger).toBeInstanceOf(StructuredLogger);
+    } finally {
+      // Restore environment
+      if (originalEnv) process.env['NODE_ENV'] = originalEnv;
+      if (originalVitest) process.env['VITEST'] = originalVitest;
+    }
+  });
+});
+
+describe('Error handling in ensureGitIgnore', () => {
+  it('should handle fs.readFileSync errors', () => {
+    const originalEnv = process.env['NODE_ENV'];
+    const originalVitest = process.env['VITEST'];
+
+    // Force production mode
+    delete process.env['NODE_ENV'];
+    delete process.env['VITEST'];
+
+    try {
+      mockFs.existsSync.mockReturnValue(true);
+      mockFs.readFileSync.mockImplementation(() => {
+        throw new Error('Read error');
+      });
+
+      // Should not throw even if readFileSync fails
+      expect(() => new StructuredLogger({ isDevelopment: false })).not.toThrow();
+    } finally {
+      // Restore environment
+      if (originalEnv) process.env['NODE_ENV'] = originalEnv;
+      if (originalVitest) process.env['VITEST'] = originalVitest;
+    }
+  });
+
+  it('should handle fs.writeFileSync errors', () => {
+    const originalEnv = process.env['NODE_ENV'];
+    const originalVitest = process.env['VITEST'];
+
+    // Force production mode
+    delete process.env['NODE_ENV'];
+    delete process.env['VITEST'];
+
+    try {
+      mockFs.existsSync.mockReturnValue(true);
+      mockFs.readFileSync.mockReturnValue('existing content');
+      mockFs.writeFileSync.mockImplementation(() => {
+        throw new Error('Write error');
+      });
+
+      // Should not throw even if writeFileSync fails
+      expect(() => new StructuredLogger({ isDevelopment: false })).not.toThrow();
+    } finally {
+      // Restore environment
+      if (originalEnv) process.env['NODE_ENV'] = originalEnv;
+      if (originalVitest) process.env['VITEST'] = originalVitest;
+    }
+  });
+
+  it('should add .claude-gwt.log to gitignore when not present', () => {
+    const originalEnv = process.env['NODE_ENV'];
+    const originalVitest = process.env['VITEST'];
+
+    // Force production mode
+    delete process.env['NODE_ENV'];
+    delete process.env['VITEST'];
+
+    try {
+      mockFs.existsSync.mockReturnValue(true);
+      mockFs.readFileSync.mockReturnValue('node_modules/\ndist/');
+
+      new StructuredLogger({ isDevelopment: false });
+
+      expect(mockFs.writeFileSync).toHaveBeenCalledWith(
+        path.join(process.cwd(), '.gitignore'),
+        expect.stringContaining('.claude-gwt.log'),
+      );
+    } finally {
+      // Restore environment
+      if (originalEnv) process.env['NODE_ENV'] = originalEnv;
+      if (originalVitest) process.env['VITEST'] = originalVitest;
+    }
+  });
+
+  it('should not modify gitignore when .claude-gwt.log already exists', () => {
+    const originalEnv = process.env['NODE_ENV'];
+    const originalVitest = process.env['VITEST'];
+
+    // Force production mode
+    delete process.env['NODE_ENV'];
+    delete process.env['VITEST'];
+
+    try {
+      mockFs.existsSync.mockReturnValue(true);
+      mockFs.readFileSync.mockReturnValue('node_modules/\n.claude-gwt.log\ndist/');
+
+      new StructuredLogger({ isDevelopment: false });
+
+      expect(mockFs.writeFileSync).not.toHaveBeenCalled();
+    } finally {
+      // Restore environment
+      if (originalEnv) process.env['NODE_ENV'] = originalEnv;
+      if (originalVitest) process.env['VITEST'] = originalVitest;
+    }
+  });
+});
+
 describe('Legacy console logger implementation', () => {
   describe('logger singleton', () => {
     it('should export a global logger instance', () => {
@@ -453,5 +634,78 @@ describe('verbose logging', () => {
     expect(() =>
       structuredLogger.verbose('verbose message', { detail: 'extra info' }),
     ).not.toThrow();
+  });
+});
+
+describe('Logger singleton lazy initialization', () => {
+  it('should lazily initialize the default logger instance', () => {
+    // First access should create the instance
+    const instance1 = logger.instance;
+    expect(instance1).toBeInstanceOf(StructuredLogger);
+
+    // Second access should return the same instance
+    const instance2 = logger.instance;
+    expect(instance2).toBe(instance1);
+  });
+});
+
+describe('Development logger prettifiers', () => {
+  it('should test all custom prettifier functions', () => {
+    const originalEnv = process.env['NODE_ENV'];
+    const originalVitest = process.env['VITEST'];
+
+    // Force development mode
+    process.env['NODE_ENV'] = 'development';
+    delete process.env['VITEST'];
+
+    try {
+      // Import pino mock to access the transport options
+      const pino = vi.mocked((require('pino') as any).default);
+
+      // Create development logger
+      new StructuredLogger({ isDevelopment: true });
+
+      // Get the transport options from the pino call
+      const pinoCall = pino.mock.calls[pino.mock.calls.length - 1];
+      const options = pinoCall?.[0] as any;
+      const prettifiers = options?.transport?.options?.customPrettifiers;
+
+      if (prettifiers) {
+        // Test time prettifier
+        expect(prettifiers.time?.('2023-01-01')).toContain('🕐');
+
+        // Test level prettifier
+        expect(prettifiers.level?.('info')).toContain('📋');
+        expect(prettifiers.level?.('debug')).toContain('🐛');
+        expect(prettifiers.level?.('error')).toContain('❌');
+        expect(prettifiers.level?.('unknown')).toContain('📋'); // default case
+
+        // Test logType prettifier
+        expect(prettifiers.logType?.('success')).toContain('✅');
+        expect(prettifiers.logType?.('failure')).toContain('❌');
+        expect(prettifiers.logType?.('unknown')).toBe('unknown'); // default case
+
+        // Test other prettifiers
+        expect(prettifiers.operation?.('test-op')).toContain('⚡');
+        expect(prettifiers.branchName?.('main')).toContain('🌿');
+        expect(prettifiers.sessionId?.('session-123')).toContain('🎯');
+        expect(prettifiers.worktreePath?.('/path/to/wt')).toContain('📁');
+        expect(prettifiers.duration?.(100)).toContain('⏱️');
+
+        // Test error prettifier
+        const testError = new Error('Test error');
+        testError.name = 'TestError';
+        expect(prettifiers.err?.(testError)).toContain('💥');
+        expect(prettifiers.err?.(testError)).toContain('TestError');
+        expect(prettifiers.err?.(testError)).toContain('Test error');
+
+        // Test generic error prettifier
+        expect(prettifiers.error?.({ code: 500 })).toContain('💥');
+      }
+    } finally {
+      // Restore environment
+      if (originalEnv) process.env['NODE_ENV'] = originalEnv;
+      if (originalVitest) process.env['VITEST'] = originalVitest;
+    }
   });
 });

@@ -644,4 +644,59 @@ describe('prompts', () => {
       expect(choices?.[0]?.name).not.toContain('(current)');
     });
   });
+
+  describe('selectExistingBranch', () => {
+    it('should handle empty branches array', async () => {
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      mockInquirer.prompt.mockResolvedValue({ continue: '' });
+
+      const result = await prompts.selectExistingBranch([]);
+
+      expect(result).toBeNull();
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('No existing branches without worktrees found'),
+      );
+      expect(mockInquirer.prompt).toHaveBeenCalledWith([
+        expect.objectContaining({
+          type: 'input',
+          name: 'continue',
+          message: 'Press Enter to continue...',
+        }),
+      ]);
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should show branch selection list', async () => {
+      const branches = ['feature-1', 'feature-2', 'develop'];
+      mockInquirer.prompt.mockResolvedValue({ branch: 'feature-2' });
+
+      const result = await prompts.selectExistingBranch(branches);
+
+      expect(result).toBe('feature-2');
+      expect(mockInquirer.prompt).toHaveBeenCalledWith([
+        expect.objectContaining({
+          type: 'list',
+          name: 'branch',
+          message: 'Select an existing branch to create a worktree for:',
+          choices: expect.arrayContaining([
+            expect.objectContaining({ value: 'feature-1' }),
+            expect.objectContaining({ value: 'feature-2' }),
+            expect.objectContaining({ value: 'develop' }),
+            expect.objectContaining({ value: 'cancel' }),
+          ]),
+          pageSize: 15,
+        }),
+      ]);
+    });
+
+    it('should return null when cancel is selected', async () => {
+      const branches = ['feature-1', 'feature-2'];
+      mockInquirer.prompt.mockResolvedValue({ branch: 'cancel' });
+
+      const result = await prompts.selectExistingBranch(branches);
+
+      expect(result).toBeNull();
+    });
+  });
 });

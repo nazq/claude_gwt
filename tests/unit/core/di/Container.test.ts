@@ -208,4 +208,151 @@ describe('Container', () => {
       expect(service.name).toBe('test');
     });
   });
+
+  describe('registerClass', () => {
+    it('should register class constructor as factory', () => {
+      class TestService {
+        constructor(public name: string = 'default') {}
+      }
+
+      container.registerClass(TestService);
+      const instance = container.resolve(TestService);
+
+      expect(instance).toBeInstanceOf(TestService);
+      expect(instance.name).toBe('default');
+    });
+
+    it('should register class with dependencies', () => {
+      class Config {
+        public value = 'test-config';
+      }
+
+      class Service {
+        constructor(public config: Config) {}
+      }
+
+      container.registerClass(Config);
+      container.registerClass(Service, [Config]);
+
+      const service = container.resolve(Service);
+      expect(service).toBeInstanceOf(Service);
+      expect(service.config).toBeInstanceOf(Config);
+      expect(service.config.value).toBe('test-config');
+    });
+
+    it('should register class as singleton', () => {
+      class SingletonService {
+        public id = Math.random();
+      }
+
+      container.registerClass(SingletonService, [], true);
+
+      const instance1 = container.resolve(SingletonService);
+      const instance2 = container.resolve(SingletonService);
+
+      expect(instance1).toBe(instance2);
+      expect(instance1.id).toBe(instance2.id);
+    });
+
+    it('should handle class with multiple dependencies', () => {
+      class Logger {
+        log(msg: string): void {
+          // Mock logger
+        }
+      }
+
+      class Database {
+        constructor(public logger: Logger) {}
+      }
+
+      class UserService {
+        constructor(
+          public logger: Logger,
+          public database: Database,
+        ) {}
+      }
+
+      container.registerClass(Logger, [], true);
+      container.registerClass(Database, [Logger], true);
+      container.registerClass(UserService, [Logger, Database]);
+
+      const userService = container.resolve(UserService);
+      expect(userService).toBeInstanceOf(UserService);
+      expect(userService.logger).toBeInstanceOf(Logger);
+      expect(userService.database).toBeInstanceOf(Database);
+      expect(userService.database.logger).toBe(userService.logger); // Same singleton instance
+    });
+  });
+
+  describe('has method', () => {
+    it('should return true for registered services', () => {
+      container.factory('test', () => ({ value: 'test' }));
+      expect(container.has('test')).toBe(true);
+    });
+
+    it('should return false for unregistered services', () => {
+      expect(container.has('nonexistent')).toBe(false);
+    });
+  });
+
+  describe('clear method', () => {
+    it('should clear all registrations', () => {
+      container.factory('test1', () => ({ value: 'test1' }));
+      container.singleton('test2', () => ({ value: 'test2' }));
+
+      // Resolve singleton to cache it
+      container.resolve('test2');
+
+      expect(container.has('test1')).toBe(true);
+      expect(container.has('test2')).toBe(true);
+
+      container.clear();
+
+      expect(container.has('test1')).toBe(false);
+      expect(container.has('test2')).toBe(false);
+
+      // Should throw when trying to resolve after clear
+      expect(() => container.resolve('test1')).toThrow('Service not registered: test1');
+    });
+  });
+
+  describe('createChild method', () => {
+    it('should create child container with parent services', () => {
+      container.transient('parent', () => ({ source: 'parent' }));
+
+      const child = container.createChild();
+      child.transient('child', () => ({ source: 'child' }));
+
+      // Child can resolve parent services
+      const parentService = child.resolve<{ source: string }>('parent');
+      expect(parentService.source).toBe('parent');
+
+      // Child has its own services
+      const childService = child.resolve<{ source: string }>('child');
+      expect(childService.source).toBe('child');
+
+      // Parent cannot resolve child services
+      expect(() => container.resolve('child')).toThrow('Service not registered: child');
+    });
+
+    it('should maintain separate singleton caches', () => {
+      container.singleton('shared', () => ({ id: Math.random() }));
+
+      const child = container.createChild();
+
+      const parentInstance = container.resolve<{ id: number }>('shared');
+      const childInstance = child.resolve<{ id: number }>('shared');
+
+      // Different instances in parent and child
+      expect(parentInstance).not.toBe(childInstance);
+      expect(parentInstance.id).not.toBe(childInstance.id);
+
+      // But each maintains its own singleton
+      const parentInstance2 = container.resolve<{ id: number }>('shared');
+      const childInstance2 = child.resolve<{ id: number }>('shared');
+
+      expect(parentInstance).toBe(parentInstance2);
+      expect(childInstance).toBe(childInstance2);
+    });
+  });
 });

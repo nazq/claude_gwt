@@ -458,4 +458,137 @@ describe('cgwt-program guided experience helpers', () => {
       expect(true).toBe(true);
     });
   });
+
+  describe('guideRegularGitRepository', () => {
+    beforeEach(() => {
+      vi.resetModules();
+    });
+
+    it('should handle launch action in regular git repository', async () => {
+      const { runGuidedExperience } = await import('../../../src/cli/cgwt-program.js');
+
+      const mockDetector = {
+        detectState: vi.fn().mockResolvedValue({
+          type: 'regular-git',
+          repo: { currentBranch: 'main' },
+        }),
+      };
+      const mockInquirer = {
+        default: {
+          prompt: vi.fn().mockResolvedValue({ action: 'launch' }),
+        },
+      };
+      const mockLogger = {
+        setLogLevel: vi.fn(),
+        info: vi.fn(),
+      };
+
+      vi.doMock('../../../src/core/git/GitDetector.js', () => ({
+        GitDetector: vi.fn().mockImplementation(() => mockDetector),
+      }));
+      vi.doMock('inquirer', () => mockInquirer);
+      vi.doMock('../../../src/core/utils/logger.js', () => ({
+        Logger: mockLogger,
+      }));
+
+      // Mock launchClaude function
+      vi.doMock('../../../src/cli/cgwt-program.js', async () => {
+        const actual = await vi.importActual('../../../src/cli/cgwt-program.js');
+        return {
+          ...actual,
+          launchClaude: vi.fn().mockResolvedValue(undefined),
+        };
+      });
+
+      await runGuidedExperience({});
+
+      expect(mockInquirer.default.prompt).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({
+            type: 'list',
+            choices: expect.arrayContaining([expect.objectContaining({ value: 'launch' })]),
+          }),
+        ]),
+      );
+    });
+
+    it('should handle exit action in regular git repository', async () => {
+      const { runGuidedExperience } = await import('../../../src/cli/cgwt-program.js');
+
+      const mockDetector = {
+        detectState: vi.fn().mockResolvedValue({
+          type: 'regular-git',
+          repo: { currentBranch: 'main' },
+        }),
+      };
+      const mockInquirer = {
+        default: {
+          prompt: vi.fn().mockResolvedValue({ action: 'exit' }),
+        },
+      };
+      const mockLogger = {
+        setLogLevel: vi.fn(),
+        info: vi.fn(),
+      };
+
+      vi.doMock('../../../src/core/git/GitDetector.js', () => ({
+        GitDetector: vi.fn().mockImplementation(() => mockDetector),
+      }));
+      vi.doMock('inquirer', () => mockInquirer);
+      vi.doMock('../../../src/core/utils/logger.js', () => ({
+        Logger: mockLogger,
+      }));
+
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      await runGuidedExperience({});
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('You can run "cgwt app setup" to convert'),
+      );
+
+      consoleSpy.mockRestore();
+    });
+  });
+
+  describe('guideNonGitDirectory', () => {
+    beforeEach(() => {
+      vi.resetModules();
+    });
+
+    it('should handle exit action in non-git directory', async () => {
+      const { runGuidedExperience } = await import('../../../src/cli/cgwt-program.js');
+
+      const mockDetector = {
+        detectState: vi.fn().mockResolvedValue({ type: 'non-git' }),
+      };
+      const mockInquirer = {
+        default: {
+          prompt: vi.fn().mockResolvedValue({ action: 'exit' }),
+        },
+      };
+      const mockLogger = {
+        setLogLevel: vi.fn(),
+        info: vi.fn(),
+      };
+
+      vi.doMock('../../../src/core/git/GitDetector.js', () => ({
+        GitDetector: vi.fn().mockImplementation(() => mockDetector),
+      }));
+      vi.doMock('inquirer', () => mockInquirer);
+      vi.doMock('../../../src/core/utils/logger.js', () => ({
+        Logger: mockLogger,
+      }));
+
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      await runGuidedExperience({});
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Navigate to a Git repository or run "cgwt app init"'),
+      );
+
+      consoleSpy.mockRestore();
+    });
+  });
 });
