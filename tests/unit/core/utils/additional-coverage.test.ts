@@ -29,12 +29,13 @@ describe('Additional coverage for uncovered functions', () => {
     });
 
     it('should test safeEnvValue', () => {
-      expect(safeEnvValue('')).toBe("''");
+      expect(safeEnvValue('')).toBe('');
       expect(safeEnvValue('normal')).toBe("'normal'");
 
       // Test control character removal
       const withControl = 'test\x00\x01\x1F\x7F';
       const result = safeEnvValue(withControl);
+      expect(result).toBe("'test'"); // Control chars removed, then shell escaped
       expect(result).not.toContain('\x00');
       expect(result).not.toContain('\x01');
       expect(result).not.toContain('\x1F');

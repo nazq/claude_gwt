@@ -286,7 +286,7 @@ describe('Container', () => {
 
   describe('has method', () => {
     it('should return true for registered services', () => {
-      container.factory('test', () => ({ value: 'test' }));
+      container.transient('test', () => ({ value: 'test' }));
       expect(container.has('test')).toBe(true);
     });
 
@@ -297,7 +297,7 @@ describe('Container', () => {
 
   describe('clear method', () => {
     it('should clear all registrations', () => {
-      container.factory('test1', () => ({ value: 'test1' }));
+      container.transient('test1', () => ({ value: 'test1' }));
       container.singleton('test2', () => ({ value: 'test2' }));
 
       // Resolve singleton to cache it
