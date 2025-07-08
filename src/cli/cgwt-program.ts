@@ -18,17 +18,26 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 // Try to find package.json with fallback for different runtime contexts
 let packageJson: { version: string };
 try {
+  // When running from dist/src/cli/cgwt-program.js, package.json is at ../../../package.json
   packageJson = JSON.parse(readFileSync(join(__dirname, '../../../package.json'), 'utf-8')) as {
     version: string;
   };
 } catch {
   try {
+    // Alternative path for different build structures
     packageJson = JSON.parse(readFileSync(join(__dirname, '../../package.json'), 'utf-8')) as {
       version: string;
     };
   } catch {
-    // Fallback version for testing
-    packageJson = { version: '0.1.2' };
+    try {
+      // For development mode running from src/
+      packageJson = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf-8')) as {
+        version: string;
+      };
+    } catch {
+      // Fallback version - should match current package.json
+      packageJson = { version: '0.3.0' };
+    }
   }
 }
 

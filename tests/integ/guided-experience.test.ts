@@ -65,7 +65,9 @@ describe('Guided Experience Interactive Tests', () => {
     );
 
     // Should detect the directory and start guided experience
-    expect(result.stdout).toMatch(/directory detected/);
+    expect(result.stdout).toMatch(
+      /directory detected|Regular Git repository detected|Empty directory detected/,
+    );
     expect(result.stdout).toMatch(/What would you like to do/);
   });
 
@@ -100,7 +102,7 @@ describe('Guided Experience Interactive Tests', () => {
     );
 
     expect(result.code).toBe(0);
-    expect(result.stdout).toContain('Guided setup experience');
+    expect(result.stdout).toContain('Guided setup experience or explicit app commands');
     expect(result.stdout).toContain('init [options] [path]');
     expect(result.stdout).toContain('new [options] <branch>');
   });
@@ -146,7 +148,9 @@ describe('Guided Experience Interactive Tests', () => {
 
     // With --quiet flag, should not show the banner but should show directory detection
     expect(result.stdout).not.toMatch(/🎯 Claude GWT Guided Setup/);
-    expect(result.stdout).toMatch(/directory detected/);
+    expect(result.stdout).toMatch(
+      /directory detected|Regular Git repository detected|Empty directory detected/,
+    );
   });
 
   it('should handle process interruption gracefully', async () => {

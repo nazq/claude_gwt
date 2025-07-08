@@ -49,7 +49,7 @@ describe('CLI Debug Tests', () => {
       console.log('STDOUT:', JSON.stringify(result.stdout));
       console.log('STDERR:', JSON.stringify(result.stderr));
 
-      expect(result.stdout).toContain('Guided setup experience');
+      expect(result.stdout).toContain('Guided setup experience or explicit app commands');
     } finally {
       process.chdir(originalCwd);
       await rm(testDir, { recursive: true }).catch(() => {});
@@ -111,7 +111,7 @@ describe('CLI Debug Tests', () => {
       console.log('Final STDERR:', JSON.stringify(result.stderr));
 
       // At minimum, should start the guided experience
-      expect(result.stdout).toMatch(/Claude GWT|directory/);
+      expect(result.stdout).toMatch(/Claude GWT|directory detected|Regular Git repository/);
     } finally {
       process.chdir(originalCwd);
       await rm(testDir, { recursive: true }).catch(() => {});

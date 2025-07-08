@@ -432,8 +432,8 @@ describe('TmuxEnhancer', () => {
       const worktreeBase = '/test/worktrees';
 
       const mockBuilder = {
-        addPane: vi.fn(),
-        build: vi.fn().mockResolvedValue(),
+        addPane: vi.fn().mockReturnThis(),
+        build: vi.fn().mockResolvedValue(undefined),
       };
       mockTmuxDriver.createLayoutBuilder.mockReturnValue(mockBuilder);
 
@@ -441,7 +441,32 @@ describe('TmuxEnhancer', () => {
 
       expect(mockTmuxDriver.createLayoutBuilder).toHaveBeenCalledWith('test-session');
       expect(mockBuilder.addPane).toHaveBeenCalledTimes(4); // 4 branches
-      expect(mockBuilder.build).toHaveBeenCalledWith('dashboard', expect.anything());
+      expect(mockBuilder.build).toHaveBeenCalledWith('dashboard', 'tiled');
+    });
+
+    it('should handle limited branches for dashboard (max 6)', async () => {
+      const branches = [
+        'main',
+        'feature-1',
+        'feature-2',
+        'feature-3',
+        'feature-4',
+        'feature-5',
+        'feature-6',
+        'feature-7',
+      ];
+      const worktreeBase = '/test/worktrees';
+
+      const mockBuilder = {
+        addPane: vi.fn().mockReturnThis(),
+        build: vi.fn().mockResolvedValue(undefined),
+      };
+      mockTmuxDriver.createLayoutBuilder.mockReturnValue(mockBuilder);
+
+      await TmuxEnhancer.createDashboardWindow('test-session', branches, worktreeBase);
+
+      expect(mockBuilder.addPane).toHaveBeenCalledTimes(6); // Limited to 6 branches
+      expect(mockBuilder.build).toHaveBeenCalledWith('dashboard', 'tiled');
     });
 
     it('should handle errors when creating dashboard window', async () => {
@@ -460,15 +485,52 @@ describe('TmuxEnhancer', () => {
   });
 
   describe('createComparisonLayout', () => {
+    it('should create comparison layout for 2 branches', async () => {
+      const branches = ['main', 'feature'];
+
+      await TmuxEnhancer.createComparisonLayout('test-session', branches, 'project');
+
+      expect(mockTmuxDriver.createMultiPaneWindow).toHaveBeenCalledWith(
+        'test-session',
+        'compare',
+        2,
+        'even-horizontal',
+      );
+      expect(mockTmuxDriver.configurePaneBorders).toHaveBeenCalledWith(
+        'test-session:compare',
+        expect.any(Object),
+      );
+      expect(mockTmuxDriver.setPaneTitle).toHaveBeenCalledTimes(2);
+      expect(mockTmuxDriver.sendKeys).toHaveBeenCalledTimes(3); // 2 panes + 1 select-window
+    });
+
+    it('should create comparison layout for 3+ branches with tiled layout', async () => {
+      const branches = ['main', 'feature1', 'feature2'];
+
+      await TmuxEnhancer.createComparisonLayout('test-session', branches, 'project');
+
+      expect(mockTmuxDriver.createMultiPaneWindow).toHaveBeenCalledWith(
+        'test-session',
+        'compare',
+        3,
+        'tiled',
+      );
+    });
+
+    it('should warn and return early when fewer than 2 branches provided', async () => {
+      await TmuxEnhancer.createComparisonLayout('test-session', ['main'], 'project');
+
+      expect(mockTmuxDriver.createMultiPaneWindow).not.toHaveBeenCalled();
+    });
+
     it('should handle errors when creating comparison layout', async () => {
       const branches = ['main', 'feature'];
-      const worktreeBase = '/test/worktrees';
 
-      mockTmuxDriver.createWindow.mockRejectedValue(new Error('Window creation failed'));
+      mockTmuxDriver.createMultiPaneWindow.mockRejectedValue(new Error('Window creation failed'));
 
       // Should not throw, just log error
       await expect(
-        TmuxEnhancer.createComparisonLayout('test-session', branches, worktreeBase),
+        TmuxEnhancer.createComparisonLayout('test-session', branches, 'project'),
       ).resolves.not.toThrow();
     });
   });
