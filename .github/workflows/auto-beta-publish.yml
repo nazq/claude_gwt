@@ -94,12 +94,10 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Create GitHub Release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ env.BETA_VERSION }}
-          release_name: v${{ env.BETA_VERSION }}
+          name: v${{ env.BETA_VERSION }}
           body: |
             ## 🚀 Beta Release
             
@@ -114,6 +112,7 @@ jobs:
             ${{ github.event.head_commit.message }}
           draft: false
           prerelease: true
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create summary
         run: |
