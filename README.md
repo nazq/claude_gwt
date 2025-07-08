@@ -191,6 +191,12 @@ After starting a cgwt session, use these shortcuts for lightning-fast workflow:
 # Quick session switching
 cgwt -a 1            # Jump to session 1
 cgwt -a 2.1          # Jump to project 2, branch 1
+
+# Split current pane with another branch
+cgwt split            # Split with bash and helper text
+cgwt split main       # Split vertically with main branch
+cgwt split main -h    # Split horizontally with main branch
+cgwt split main -p 30 # Split with 30% size for new pane
 ```
 
 ### Multi-Branch Workflow
@@ -199,6 +205,17 @@ cgwt -a 2.1          # Jump to project 2, branch 1
 2. Split for reference: `cgwt split main` 
 3. Compare implementations side-by-side
 4. Claude in each pane maintains separate context!
+
+**Advanced Split Workflows:**
+```bash
+# Create a 4-pane comparison layout
+cgwt -a 1                    # Start in feature branch
+cgwt split main              # Add main branch (vertical)
+cgwt split develop -h        # Add develop branch (horizontal)
+cgwt split staging -h -p 33  # Add staging branch (33% height)
+
+# Each pane has its own Claude instance with isolated context!
+```
 
 ---
 
@@ -472,12 +489,13 @@ Options:
 ##### Utility Commands
 
 ```bash
-# Split current tmux pane
-cgwt split [target] [options]   # Split pane and launch another session
+# Split current tmux pane with another branch
+cgwt split [target] [options]    # Split pane and launch another session
 cgwt split                       # Split with bash and helper text
 cgwt split main                  # Split and launch main branch
 cgwt split -h                    # Split horizontally (top/bottom)
 cgwt split -p 30                 # Split with 30% size
+cgwt split feature-api -h -p 25  # Split horizontally, 25% size
 
 # Show tips and keyboard shortcuts
 cgwt tips                        # Display all tips and tmux shortcuts
