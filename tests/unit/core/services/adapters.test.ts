@@ -101,6 +101,62 @@ describe('Service Adapters', () => {
           'GitService.fetch',
         );
       });
+
+      it('should delegate getDefaultBranch with error boundary', async () => {
+        const expectedBranch = 'main';
+        mockErrorBoundary.handle.mockImplementation(async (fn) => fn());
+        mockGitRepo.getDefaultBranch.mockResolvedValue(expectedBranch);
+
+        const result = await adapter.getDefaultBranch();
+
+        expect(result).toBe(expectedBranch);
+        expect(mockErrorBoundary.handle).toHaveBeenCalledWith(
+          expect.any(Function) as () => Promise<string>,
+          'GitService.getDefaultBranch',
+        );
+      });
+
+      it('should delegate convertToWorktreeSetup with logging', async () => {
+        const expected = { defaultBranch: 'main' };
+        mockErrorBoundary.handle.mockImplementation(async (fn) => fn());
+        mockGitRepo.convertToWorktreeSetup.mockResolvedValue(expected);
+
+        const result = await adapter.convertToWorktreeSetup();
+
+        expect(result).toEqual(expected);
+        expect(mockLogger.info).toHaveBeenCalledWith('Converting repository to worktree setup');
+        expect(mockErrorBoundary.handle).toHaveBeenCalledWith(
+          expect.any(Function) as () => Promise<{ defaultBranch: string }>,
+          'GitService.convertToWorktreeSetup',
+        );
+      });
+
+      it('should delegate canConvertToWorktree with error boundary', async () => {
+        const expected = { canConvert: true };
+        mockErrorBoundary.handle.mockImplementation(async (fn) => fn());
+        mockGitRepo.canConvertToWorktree.mockResolvedValue(expected);
+
+        const result = await adapter.canConvertToWorktree();
+
+        expect(result).toEqual(expected);
+        expect(mockErrorBoundary.handle).toHaveBeenCalledWith(
+          expect.any(Function) as () => Promise<{ canConvert: boolean; reason?: string }>,
+          'GitService.canConvertToWorktree',
+        );
+      });
+
+      it('should handle initializeBareRepository with undefined repoUrl', async () => {
+        const expected = { defaultBranch: 'main' };
+        mockErrorBoundary.handle.mockImplementation(async (fn) => fn());
+        mockGitRepo.initializeBareRepository.mockResolvedValue(expected);
+
+        const result = await adapter.initializeBareRepository();
+
+        expect(result).toEqual(expected);
+        expect(mockLogger.info).toHaveBeenCalledWith('Initializing bare repository', {
+          repoUrl: 'local',
+        });
+      });
     });
 
     describe('WorktreeManager methods', () => {
@@ -249,6 +305,94 @@ describe('Service Adapters', () => {
       const result = await adapter.listSessions();
 
       expect(result).toEqual(expectedSessions);
+    });
+
+    it('should delegate getSessionInfo with error boundary', async () => {
+      const expectedSession: SessionInfo = {
+        name: 'test-session',
+        windows: 2,
+        created: '123456789',
+        attached: false,
+        hasClaudeRunning: false,
+      };
+
+      mockErrorBoundary.handle.mockImplementation(async (fn) => fn());
+      mockTmuxManager.getSessionInfo.mockResolvedValue(expectedSession);
+
+      const result = await adapter.getSessionInfo('test-session');
+
+      expect(result).toEqual(expectedSession);
+      expect(mockErrorBoundary.handle).toHaveBeenCalledWith(
+        expect.any(Function) as () => Promise<SessionInfo | null>,
+        'TmuxService.getSessionInfo',
+      );
+    });
+
+    it('should delegate createDetachedSession with logging', async () => {
+      const config: SessionConfig = {
+        sessionName: 'detached-session',
+        workingDirectory: '/test',
+        branchName: 'feature',
+        role: 'worker',
+      };
+
+      mockErrorBoundary.handle.mockImplementation(async (fn) => fn());
+      mockTmuxManager.createDetachedSession.mockResolvedValue();
+
+      await adapter.createDetachedSession(config);
+
+      expect(mockLogger.info).toHaveBeenCalledWith('Creating detached tmux session', {
+        sessionName: 'detached-session',
+        role: 'worker',
+        branchName: 'feature',
+      });
+      expect(mockErrorBoundary.handle).toHaveBeenCalledWith(
+        expect.any(Function) as () => Promise<void>,
+        'TmuxService.createDetachedSession',
+      );
+    });
+
+    it('should delegate attachToSession with logging', async () => {
+      mockErrorBoundary.handle.mockImplementation(async (fn) => fn());
+      mockTmuxManager.attachToSession.mockResolvedValue();
+
+      await adapter.attachToSession('test-session');
+
+      expect(mockLogger.info).toHaveBeenCalledWith('Attaching to tmux session', {
+        sessionName: 'test-session',
+      });
+      expect(mockErrorBoundary.handle).toHaveBeenCalledWith(
+        expect.any(Function) as () => Promise<void>,
+        'TmuxService.attachToSession',
+      );
+    });
+
+    it('should delegate killSession with logging', async () => {
+      mockErrorBoundary.handle.mockImplementation(async (fn) => fn());
+      mockTmuxManager.killSession.mockResolvedValue();
+
+      await adapter.killSession('test-session');
+
+      expect(mockLogger.info).toHaveBeenCalledWith('Killing tmux session', {
+        sessionName: 'test-session',
+      });
+      expect(mockErrorBoundary.handle).toHaveBeenCalledWith(
+        expect.any(Function) as () => Promise<void>,
+        'TmuxService.killSession',
+      );
+    });
+
+    it('should delegate shutdownAll with logging', async () => {
+      mockErrorBoundary.handle.mockImplementation(async (fn) => fn());
+      mockTmuxManager.shutdownAll.mockResolvedValue();
+
+      await adapter.shutdownAll();
+
+      expect(mockLogger.info).toHaveBeenCalledWith('Shutting down all tmux sessions');
+      expect(mockErrorBoundary.handle).toHaveBeenCalledWith(
+        expect.any(Function) as () => Promise<void>,
+        'TmuxService.shutdownAll',
+      );
     });
   });
 

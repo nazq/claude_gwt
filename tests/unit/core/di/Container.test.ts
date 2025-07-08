@@ -208,4 +208,65 @@ describe('Container', () => {
       expect(service.name).toBe('test');
     });
   });
+
+  describe('registerClass method', () => {
+    class TestService {
+      constructor(public name: string = 'default') {}
+    }
+
+    class ServiceWithDependency {
+      constructor(public dependency: TestService) {}
+    }
+
+    it('should register class as transient by default', () => {
+      container.registerClass(TestService);
+
+      const instance1 = container.resolve(TestService);
+      const instance2 = container.resolve(TestService);
+
+      expect(instance1).toBeInstanceOf(TestService);
+      expect(instance2).toBeInstanceOf(TestService);
+      expect(instance1).not.toBe(instance2); // Different instances (transient)
+    });
+
+    it('should register class as singleton when specified', () => {
+      container.registerClass(TestService, [], true);
+
+      const instance1 = container.resolve(TestService);
+      const instance2 = container.resolve(TestService);
+
+      expect(instance1).toBeInstanceOf(TestService);
+      expect(instance2).toBeInstanceOf(TestService);
+      expect(instance1).toBe(instance2); // Same instance (singleton)
+    });
+
+    it('should register class with dependencies', () => {
+      container.registerClass(TestService, [], true);
+      container.registerClass(ServiceWithDependency, [TestService], false);
+
+      const service = container.resolve(ServiceWithDependency);
+      expect(service).toBeInstanceOf(ServiceWithDependency);
+      expect(service.dependency).toBeInstanceOf(TestService);
+    });
+
+    it('should register class with empty dependencies array', () => {
+      container.registerClass(TestService, []);
+
+      const instance = container.resolve(TestService);
+      expect(instance).toBeInstanceOf(TestService);
+      expect(instance.name).toBe('default');
+    });
+
+    it('should register class with no dependencies parameter', () => {
+      container.registerClass(TestService);
+
+      const instance = container.resolve(TestService);
+      expect(instance).toBeInstanceOf(TestService);
+    });
+
+    it('should return container instance for chaining', () => {
+      const result = container.registerClass(TestService);
+      expect(result).toBe(container);
+    });
+  });
 });

@@ -92,9 +92,11 @@ describe('cgwt command integration tests', () => {
 
   describe('cgwt list functionality', () => {
     it('should show "Not in a Claude GWT managed repository" for non-git directories', async () => {
-      // The new cgwt shows "No Git worktree sessions found" instead
+      // The new cgwt shows "Error: Not in a Git repository" for non-git directories
       const output = execSync(`node ${cgwtPath} l 2>&1 || true`, { encoding: 'utf8' });
-      expect(output).toMatch(/No Git worktree sessions found|Not in a Git repository/);
+      expect(output).toMatch(
+        /Error: Not in a Git repository|No Git worktree sessions found|not a git repository/,
+      );
     });
 
     it('should list sessions with proper formatting', async () => {
@@ -133,7 +135,8 @@ describe('cgwt command integration tests', () => {
       expect(output).toContain('feature-auth');
       expect(output).toContain('feature-api');
       expect(output).toContain('master');
-      // New format doesn't show Path: or HEAD: anymore
+      // New cgwt format shows simplified output without detailed Path/HEAD info
+      expect(output).toMatch(/\[1\]|\[2\]|\[3\]/);
     });
   });
 
@@ -152,21 +155,18 @@ describe('cgwt command integration tests', () => {
       await execCommandSafe('git', ['worktree', 'add', 'feature', 'feature'], { cwd: '.bare' });
     });
 
-    it('should handle index 0 when no supervisor exists', async () => {
+    it('should reject index 0 as out of range', async () => {
       const output = execSync(`node ${cgwtPath} 0 2>&1 || true`, { encoding: 'utf8' });
 
-      // In this test setup, there's no bare repository, so no supervisor
-      // The error message might vary depending on implementation
-      expect(output.length).toBeGreaterThan(0);
-      // Should contain some error message about the session
-      expect(output).toMatch(/Error|not found|Unable|out of range/i);
+      // cgwt uses 1-based indexing, so 0 is out of range
+      expect(output).toContain('Index 0 is out of range');
     });
 
     it('should show correct range for invalid indices', async () => {
       const output = execSync(`node ${cgwtPath} 99 2>&1 || true`, { encoding: 'utf8' });
 
       expect(output).toContain('Index 99 is out of range');
-      expect(output).toContain('Valid range: 0-2'); // Valid range now includes 0 for supervisor
+      expect(output).toContain('Valid range: 1-'); // cgwt uses 1-based indexing
     });
 
     it('should switch by branch name without refs/heads prefix', async () => {

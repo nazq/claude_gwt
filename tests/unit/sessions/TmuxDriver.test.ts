@@ -1408,4 +1408,419 @@ describe('TmuxDriver', () => {
       });
     });
   });
+
+  describe('getVersion', () => {
+    it('should parse version from tmux output', async () => {
+      mockExecCommandSafe.mockResolvedValue({
+        stdout: 'tmux 3.2a',
+        stderr: '',
+        code: 0,
+      });
+
+      const version = await TmuxDriver.getVersion();
+      expect(version).toBe('tmux 3.2a');
+      expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', ['-V']);
+    });
+
+    it('should return null on error', async () => {
+      mockExecCommandSafe.mockResolvedValue({
+        stdout: '',
+        stderr: 'command not found',
+        code: 1,
+      });
+
+      const version = await TmuxDriver.getVersion();
+      expect(version).toBeNull();
+    });
+
+    it('should handle malformed version output', async () => {
+      mockExecCommandSafe.mockResolvedValue({
+        stdout: 'invalid output',
+        stderr: '',
+        code: 0,
+      });
+
+      const version = await TmuxDriver.getVersion();
+      expect(version).toBe('invalid output');
+    });
+  });
+
+  describe('sessionExists', () => {
+    it('should return true when session exists', async () => {
+      mockExecCommandSafe.mockResolvedValue({
+        stdout: 'session1|2|1234567890|1|',
+        stderr: '',
+        code: 0,
+      });
+
+      const exists = await TmuxDriver.sessionExists('session1');
+      expect(exists).toBe(true);
+    });
+
+    it('should return false when session does not exist', async () => {
+      mockExecCommandSafe.mockResolvedValue({
+        stdout: '',
+        stderr: 'session not found',
+        code: 1,
+      });
+
+      const exists = await TmuxDriver.sessionExists('nonexistent');
+      expect(exists).toBe(false);
+    });
+  });
+
+  describe('attachSession', () => {
+    it('should attach to session', async () => {
+      mockExecCommandSafe.mockResolvedValue({
+        stdout: '',
+        stderr: '',
+        code: 0,
+      });
+
+      await TmuxDriver.attachSession('test-session');
+
+      expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
+        'attach-session',
+        '-t',
+        'test-session',
+      ]);
+    });
+  });
+
+  describe('switchClient', () => {
+    it('should switch client to session', async () => {
+      mockExecCommandSafe.mockResolvedValue({
+        stdout: '',
+        stderr: '',
+        code: 0,
+      });
+
+      await TmuxDriver.switchClient('test-session');
+
+      expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
+        'switch-client',
+        '-t',
+        'test-session',
+      ]);
+    });
+  });
+
+  describe('setWindowOption', () => {
+    it('should set window option', async () => {
+      mockExecCommandSafe.mockResolvedValue({
+        stdout: '',
+        stderr: '',
+        code: 0,
+      });
+
+      await TmuxDriver.setWindowOption('session1', 'synchronize-panes', 'on');
+
+      expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
+        'setw',
+        '-t',
+        'session1',
+        'synchronize-panes',
+        'on',
+      ]);
+    });
+  });
+
+  describe('getOption', () => {
+    it('should get option value', async () => {
+      mockExecCommandSafe.mockResolvedValue({
+        stdout: 'on',
+        stderr: '',
+        code: 0,
+      });
+
+      const value = await TmuxDriver.getOption('session1', 'mouse');
+      expect(value).toBe('on');
+      expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
+        'show',
+        '-t',
+        'session1',
+        '-v',
+        'mouse',
+      ]);
+    });
+
+    it('should return null on error', async () => {
+      mockExecCommandSafe.mockResolvedValue({
+        stdout: '',
+        stderr: 'option not found',
+        code: 1,
+      });
+
+      const value = await TmuxDriver.getOption('session1', 'nonexistent');
+      expect(value).toBeNull();
+    });
+  });
+
+  describe('killPane', () => {
+    it('should kill specific pane', async () => {
+      mockExecCommandSafe.mockResolvedValue({
+        stdout: '',
+        stderr: '',
+        code: 0,
+      });
+
+      await TmuxDriver.killPane('session1:0.1');
+
+      expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', ['kill-pane', '-t', 'session1:0.1']);
+    });
+
+    it('should kill all panes when all=true', async () => {
+      mockExecCommandSafe.mockResolvedValue({
+        stdout: '',
+        stderr: '',
+        code: 0,
+      });
+
+      await TmuxDriver.killPane('session1:0', true);
+
+      expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
+        'kill-pane',
+        '-a',
+        '-t',
+        'session1:0',
+      ]);
+    });
+  });
+
+  describe('selectPane', () => {
+    it('should select pane', async () => {
+      mockExecCommandSafe.mockResolvedValue({
+        stdout: '',
+        stderr: '',
+        code: 0,
+      });
+
+      await TmuxDriver.selectPane('session1:0.1');
+
+      expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
+        'select-pane',
+        '-t',
+        'session1:0.1',
+      ]);
+    });
+  });
+
+  describe('setPaneTitle', () => {
+    it('should set pane title', async () => {
+      mockExecCommandSafe.mockResolvedValue({
+        stdout: '',
+        stderr: '',
+        code: 0,
+      });
+
+      await TmuxDriver.setPaneTitle('session1:0.1', 'Editor');
+
+      expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
+        'select-pane',
+        '-t',
+        'session1:0.1',
+        '-T',
+        'Editor',
+      ]);
+    });
+  });
+
+  describe('unbindKey', () => {
+    it('should unbind key with table', async () => {
+      mockExecCommandSafe.mockResolvedValue({
+        stdout: '',
+        stderr: '',
+        code: 0,
+      });
+
+      await TmuxDriver.unbindKey('C-b', 'prefix');
+
+      expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
+        'unbind-key',
+        '-T',
+        'prefix',
+        'C-b',
+      ]);
+    });
+
+    it('should unbind key without table', async () => {
+      mockExecCommandSafe.mockResolvedValue({
+        stdout: '',
+        stderr: '',
+        code: 0,
+      });
+
+      await TmuxDriver.unbindKey('C-b');
+
+      expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', ['unbind-key', 'C-b']);
+    });
+  });
+
+  describe('setHook', () => {
+    it('should set hook', async () => {
+      mockExecCommandSafe.mockResolvedValue({
+        stdout: '',
+        stderr: '',
+        code: 0,
+      });
+
+      await TmuxDriver.setHook('session-created', 'display-message "Session created"');
+
+      expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
+        'set-hook',
+        '-g',
+        'session-created',
+        'display-message "Session created"',
+      ]);
+    });
+  });
+
+  describe('displayMessage', () => {
+    it('should display message to all clients', async () => {
+      mockExecCommandSafe.mockResolvedValue({
+        stdout: '',
+        stderr: '',
+        code: 0,
+      });
+
+      await TmuxDriver.displayMessage('Hello World');
+
+      expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', ['display-message', 'Hello World']);
+    });
+
+    it('should display message to specific target', async () => {
+      mockExecCommandSafe.mockResolvedValue({
+        stdout: '',
+        stderr: '',
+        code: 0,
+      });
+
+      await TmuxDriver.displayMessage('Hello World', 'session1');
+
+      expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
+        'display-message',
+        '-t',
+        'session1',
+        'Hello World',
+      ]);
+    });
+  });
+
+  describe('synchronizePanes', () => {
+    it('should enable synchronized panes', async () => {
+      mockExecCommandSafe.mockResolvedValue({
+        stdout: '',
+        stderr: '',
+        code: 0,
+      });
+
+      await TmuxDriver.synchronizePanes('session1:0', true);
+
+      expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
+        'setw',
+        '-t',
+        'session1:0',
+        'synchronize-panes',
+        'on',
+      ]);
+    });
+
+    it('should disable synchronized panes', async () => {
+      mockExecCommandSafe.mockResolvedValue({
+        stdout: '',
+        stderr: '',
+        code: 0,
+      });
+
+      await TmuxDriver.synchronizePanes('session1:0', false);
+
+      expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
+        'setw',
+        '-t',
+        'session1:0',
+        'synchronize-panes',
+        'off',
+      ]);
+    });
+  });
+
+  describe('setPaneBorderStatus', () => {
+    it('should set pane border status', async () => {
+      mockExecCommandSafe.mockResolvedValue({
+        stdout: '',
+        stderr: '',
+        code: 0,
+      });
+
+      await TmuxDriver.setPaneBorderStatus('session1:0', 'top');
+
+      expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
+        'set',
+        '-t',
+        'session1:0',
+        'pane-border-status',
+        'top',
+      ]);
+    });
+  });
+
+  describe('refreshClient', () => {
+    it('should refresh all clients when no target specified', async () => {
+      mockExecCommandSafe.mockResolvedValue({
+        stdout: '',
+        stderr: '',
+        code: 0,
+      });
+
+      await TmuxDriver.refreshClient();
+
+      expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', ['refresh-client']);
+    });
+
+    it('should refresh specific client when target specified', async () => {
+      mockExecCommandSafe.mockResolvedValue({
+        stdout: '',
+        stderr: '',
+        code: 0,
+      });
+
+      await TmuxDriver.refreshClient('session1');
+
+      expect(mockExecCommandSafe).toHaveBeenCalledWith('tmux', [
+        'refresh-client',
+        '-t',
+        'session1',
+      ]);
+    });
+  });
+
+  describe('error handling coverage', () => {
+    it('should handle isAvailable errors', async () => {
+      mockExecCommandSafe.mockRejectedValue(new Error('Command failed'));
+
+      const result = await TmuxDriver.isAvailable();
+      expect(result).toBe(false);
+    });
+
+    it('should handle listSessions errors', async () => {
+      mockExecCommandSafe.mockRejectedValue(new Error('Command failed'));
+
+      const sessions = await TmuxDriver.listSessions();
+      expect(sessions).toEqual([]);
+    });
+
+    it('should handle listWindows errors', async () => {
+      mockExecCommandSafe.mockRejectedValue(new Error('Command failed'));
+
+      const windows = await TmuxDriver.listWindows('session1');
+      expect(windows).toEqual([]);
+    });
+
+    it('should handle listPanes errors', async () => {
+      mockExecCommandSafe.mockRejectedValue(new Error('Command failed'));
+
+      const panes = await TmuxDriver.listPanes('session1');
+      expect(panes).toEqual([]);
+    });
+  });
 });

@@ -375,3 +375,118 @@ describe('verbose logging', () => {
     ).not.toThrow();
   });
 });
+
+describe('Logger backward compatibility object - uncovered methods', () => {
+  it('should provide progress method', () => {
+    expect(() => Logger.progress('progress message')).not.toThrow();
+    expect(() => Logger.progress('progress with data', { percent: 50 })).not.toThrow();
+  });
+
+  it('should provide milestone method', () => {
+    expect(() => Logger.milestone('milestone message')).not.toThrow();
+    expect(() => Logger.milestone('milestone with data', { phase: 'complete' })).not.toThrow();
+  });
+
+  it('should handle setLogLevel with warning', () => {
+    // This method logs a warning but doesn't actually change the level
+    expect(() => Logger.setLogLevel('debug')).not.toThrow();
+    expect(() => Logger.setLogLevel('info')).not.toThrow();
+    expect(() => Logger.setLogLevel('warn')).not.toThrow();
+    expect(() => Logger.setLogLevel('error')).not.toThrow();
+  });
+
+  it('should provide getLogPath method', () => {
+    const logPath = Logger.getLogPath();
+    expect(logPath).toContain('.claude-gwt.log');
+    expect(typeof logPath).toBe('string');
+  });
+
+  it('should provide close method', async () => {
+    await expect(Logger.close()).resolves.not.toThrow();
+  });
+});
+
+describe('StructuredLogger uncovered paths', () => {
+  let structuredLogger: StructuredLogger;
+
+  beforeEach(() => {
+    structuredLogger = new StructuredLogger();
+  });
+
+  it('should handle gitignore setup errors gracefully', () => {
+    // Save original environment
+    const originalNodeEnv = process.env['NODE_ENV'];
+    const originalJestWorker = process.env['JEST_WORKER_ID'];
+    const originalVitest = process.env['VITEST'];
+
+    try {
+      // Clear test environment indicators to trigger production path
+      delete process.env['NODE_ENV'];
+      delete process.env['JEST_WORKER_ID'];
+      delete process.env['VITEST'];
+
+      // Mock fs to simulate errors
+      mockFs.existsSync.mockReturnValue(false);
+      mockFs.writeFileSync.mockImplementation(() => {
+        throw new Error('Write error');
+      });
+
+      // This should not throw even if gitignore setup fails
+      expect(() => new StructuredLogger({ isDevelopment: false })).not.toThrow();
+    } finally {
+      // Restore environment
+      if (originalNodeEnv) process.env['NODE_ENV'] = originalNodeEnv;
+      if (originalJestWorker) process.env['JEST_WORKER_ID'] = originalJestWorker;
+      if (originalVitest) process.env['VITEST'] = originalVitest;
+    }
+  });
+
+  it('should handle missing gitignore gracefully', () => {
+    const originalNodeEnv = process.env['NODE_ENV'];
+    const originalJestWorker = process.env['JEST_WORKER_ID'];
+    const originalVitest = process.env['VITEST'];
+
+    try {
+      delete process.env['NODE_ENV'];
+      delete process.env['JEST_WORKER_ID'];
+      delete process.env['VITEST'];
+
+      // Mock gitignore doesn't exist
+      mockFs.existsSync.mockReturnValue(false);
+      mockFs.writeFileSync.mockImplementation(() => {});
+
+      expect(() => new StructuredLogger({ isDevelopment: false })).not.toThrow();
+    } finally {
+      if (originalNodeEnv) process.env['NODE_ENV'] = originalNodeEnv;
+      if (originalJestWorker) process.env['JEST_WORKER_ID'] = originalJestWorker;
+      if (originalVitest) process.env['VITEST'] = originalVitest;
+    }
+  });
+
+  it('should create log context for various operations', () => {
+    const gitLogger = structuredLogger.forGitOperation('push', 'main');
+    expect(gitLogger).toBeInstanceOf(StructuredLogger);
+    expect(gitLogger).not.toBe(structuredLogger);
+
+    const worktreeLogger = structuredLogger.forWorktree('/path', 'branch');
+    expect(worktreeLogger).toBeInstanceOf(StructuredLogger);
+
+    const sessionLogger = structuredLogger.forSession('session-id');
+    expect(sessionLogger).toBeInstanceOf(StructuredLogger);
+
+    const networkLogger = structuredLogger.forNetworkOperation('GET', 'https://api.test');
+    expect(networkLogger).toBeInstanceOf(StructuredLogger);
+  });
+
+  it('should provide time function', () => {
+    const timer = structuredLogger.time('test-operation');
+    expect(timer).toBeInstanceOf(Function);
+    expect(() => timer()).not.toThrow();
+  });
+
+  it('should provide isLevelEnabled method', () => {
+    expect(structuredLogger.isLevelEnabled('info')).toBe(false); // Silent by default
+    expect(structuredLogger.isLevelEnabled('debug')).toBe(false);
+    expect(structuredLogger.isLevelEnabled('error')).toBe(false);
+  });
+});
