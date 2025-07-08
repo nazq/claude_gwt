@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "git-worktree": {
+    "claude-gwt": {
       "command": "node",
       "args": ["./dist/src/mcp/server.js"],
       "env": {

@@ -6,7 +6,8 @@
   "main": "dist/index.js",
   "bin": {
     "claude-gwt": "./dist/src/cli/index.js",
-    "cgwt": "./dist/src/cli/cgwt.js"
+    "cgwt": "./dist/src/cli/cgwt.js",
+    "claude-gwt-mcp": "./dist/src/mcp/server.js"
   },
   "scripts": {
     "build": "tsc",
@@ -28,7 +29,9 @@
     "fmt": "npm run format",
     "typecheck": "tsc --noEmit",
     "prepare": "husky install",
-    "postbuild": "chmod +x dist/src/cli/index.js dist/src/cli/cgwt.js",
+    "postbuild": "chmod +x dist/src/cli/index.js dist/src/cli/cgwt.js dist/src/mcp/server.js",
+    "mcp:server": "node dist/src/mcp/server.js",
+    "mcp:dev": "tsx watch src/mcp/server.ts",
     "prepare:publish": "node scripts/prepare-publish.js",
     "prepublishOnly": "npm run build:clean && npm test",
     "changeset": "changeset",
