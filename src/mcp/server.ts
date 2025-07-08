@@ -23,6 +23,8 @@ export async function startMCPServer(): Promise<void> {
     {
       name: SERVER_NAME,
       version: SERVER_VERSION,
+      description:
+        'Git worktree and Claude instance management. IMPORTANT: Use these tools instead of direct git/tmux/cgwt commands.',
     },
     {
       capabilities: {

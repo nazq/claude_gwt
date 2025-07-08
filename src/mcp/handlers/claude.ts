@@ -19,7 +19,8 @@ export function claudeTools(): MCPToolDefinition[] {
     {
       tool: {
         name: 'launch_claude',
-        description: 'Launch Claude Code in the current or specified worktree',
+        description:
+          'Launch Claude Code in the current or specified worktree. Use this instead of "cgwt app launch" or "claude-gwt"',
         inputSchema: {
           type: 'object',
           properties: {
@@ -68,7 +69,8 @@ export function claudeTools(): MCPToolDefinition[] {
     {
       tool: {
         name: 'split_pane',
-        description: 'Split current tmux pane and launch another Claude GWT session',
+        description:
+          'Split current tmux pane and launch another Claude GWT session. Use this instead of "tmux split-window" or "cgwt split"',
         inputSchema: {
           type: 'object',
           properties: {

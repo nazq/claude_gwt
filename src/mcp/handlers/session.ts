@@ -22,7 +22,8 @@ export function sessionTools(): MCPToolDefinition[] {
     {
       tool: {
         name: 'list_sessions',
-        description: 'List all Claude GWT tmux sessions',
+        description:
+          'List all Claude GWT tmux sessions. Use this instead of "tmux list-sessions" or "cgwt -l"',
         inputSchema: {
           type: 'object',
           properties: {
@@ -152,7 +153,8 @@ export function sessionTools(): MCPToolDefinition[] {
     {
       tool: {
         name: 'attach_session',
-        description: 'Attach to a specific Claude GWT session',
+        description:
+          'Attach to a specific Claude GWT session. Use this instead of "tmux attach" or "cgwt -a"',
         inputSchema: {
           type: 'object',
           properties: {
@@ -187,7 +189,7 @@ export function sessionTools(): MCPToolDefinition[] {
     {
       tool: {
         name: 'create_session',
-        description: 'Create a new Claude GWT session',
+        description: 'Create a new Claude GWT session. Use this instead of "tmux new-session"',
         inputSchema: {
           type: 'object',
           properties: {
@@ -234,7 +236,7 @@ export function sessionTools(): MCPToolDefinition[] {
     {
       tool: {
         name: 'kill_session',
-        description: 'Kill a specific Claude GWT session',
+        description: 'Kill a specific Claude GWT session. Use this instead of "tmux kill-session"',
         inputSchema: {
           type: 'object',
           properties: {

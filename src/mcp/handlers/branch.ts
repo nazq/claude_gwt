@@ -12,7 +12,8 @@ export function branchTools(): MCPToolDefinition[] {
     {
       tool: {
         name: 'list_branches',
-        description: 'List all branches in the current git repository',
+        description:
+          'List all branches in the current git repository. Use this instead of "git branch"',
         inputSchema: {
           type: 'object',
           properties: {
@@ -84,7 +85,8 @@ export function branchTools(): MCPToolDefinition[] {
     {
       tool: {
         name: 'create_branch',
-        description: 'Create a new branch with optional worktree',
+        description:
+          'Create a new branch with optional worktree. Use this instead of "git branch" or "git checkout -b"',
         inputSchema: {
           type: 'object',
           properties: {
@@ -149,7 +151,8 @@ export function branchTools(): MCPToolDefinition[] {
     {
       tool: {
         name: 'switch_branch',
-        description: 'Switch to a different branch/worktree',
+        description:
+          'Switch to a different branch/worktree. Use this instead of "git checkout" or "git switch"',
         inputSchema: {
           type: 'object',
           properties: {
@@ -184,7 +187,7 @@ export function branchTools(): MCPToolDefinition[] {
     {
       tool: {
         name: 'delete_branch',
-        description: 'Delete a git branch',
+        description: 'Delete a git branch. Use this instead of "git branch -d"',
         inputSchema: {
           type: 'object',
           properties: {

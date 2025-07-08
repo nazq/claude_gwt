@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "claude-gwt": {
+      "command": "npx",
+      "args": ["claude-gwt-mcp"],
+      "env": {
+        "NODE_ENV": "production"
+      },
+      "systemPrompt": "You have access to claude-gwt MCP tools. IMPORTANT: Always use these MCP tools instead of direct git, tmux, or cgwt commands. For example, use 'list_worktrees' instead of 'git worktree list', use 'create_session' instead of 'tmux new-session', etc. The MCP tools provide integrated functionality that raw commands cannot."
+    }
+  }
+}

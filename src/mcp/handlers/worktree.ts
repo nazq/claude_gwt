@@ -21,7 +21,8 @@ export function worktreeTools(): MCPToolDefinition[] {
     {
       tool: {
         name: 'list_worktrees',
-        description: 'List all git worktrees in the current project',
+        description:
+          'List all git worktrees in the current project. Use this instead of "git worktree list"',
         inputSchema: {
           type: 'object',
           properties: {
@@ -66,7 +67,8 @@ export function worktreeTools(): MCPToolDefinition[] {
     {
       tool: {
         name: 'create_worktree',
-        description: 'Create a new git worktree for a branch',
+        description:
+          'Create a new git worktree for a branch. Use this instead of "git worktree add"',
         inputSchema: {
           type: 'object',
           properties: {
@@ -125,7 +127,7 @@ export function worktreeTools(): MCPToolDefinition[] {
     {
       tool: {
         name: 'delete_worktree',
-        description: 'Remove a git worktree',
+        description: 'Remove a git worktree. Use this instead of "git worktree remove"',
         inputSchema: {
           type: 'object',
           properties: {
@@ -188,7 +190,8 @@ export function worktreeTools(): MCPToolDefinition[] {
     {
       tool: {
         name: 'switch_worktree',
-        description: 'Switch to a different git worktree',
+        description:
+          'Switch to a different git worktree. Use this instead of "git checkout" or "git worktree"',
         inputSchema: {
           type: 'object',
           properties: {
