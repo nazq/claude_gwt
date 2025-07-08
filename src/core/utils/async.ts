@@ -79,7 +79,7 @@ export async function execCommand(command: string, options: ExecOptions = {}): P
  * @param options Execution options
  * @returns The execution result
  */
-export async function execCommandSafe(
+export function execCommandSafe(
   command: string,
   args: string[] = [],
   options: ExecOptions = {},
@@ -150,7 +150,7 @@ export async function execCommandSafe(
  * @param timeoutError Optional custom timeout error message
  * @returns The result of the function
  */
-export async function withTimeout<T>(
+export function withTimeout<T>(
   fn: () => Promise<T>,
   timeoutMs: number,
   timeoutError?: string,
@@ -169,7 +169,7 @@ export async function withTimeout<T>(
  * @param tasks Array of tasks with optional timeouts
  * @returns Array of results
  */
-export async function parallelWithTimeout<T>(
+export function parallelWithTimeout<T>(
   tasks: Array<{
     fn: () => Promise<T>;
     timeout?: number;

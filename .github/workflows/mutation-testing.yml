@@ -53,21 +53,61 @@ jobs:
             const fs = require('fs');
             const path = require('path');
             
-            // Try to read mutation report
-            const reportPath = path.join(process.env.GITHUB_WORKSPACE, 'reports/mutation/index.html');
+            // Try to read mutation report (JSON format)
+            const jsonReportPath = path.join(process.env.GITHUB_WORKSPACE, 'reports/mutation/mutation.json');
+            const htmlReportPath = path.join(process.env.GITHUB_WORKSPACE, 'reports/mutation/index.html');
             let mutationScore = 'Unknown';
+            let totalMutants = 'Unknown';
+            let killedMutants = 'Unknown';
             
-            if (fs.existsSync(reportPath)) {
-              const report = fs.readFileSync(reportPath, 'utf8');
-              const scoreMatch = report.match(/Mutation score[:\s]*(\d+\.?\d*)%/i);
+            // Try JSON report first (most reliable)
+            if (fs.existsSync(jsonReportPath)) {
+              try {
+                const report = JSON.parse(fs.readFileSync(jsonReportPath, 'utf8'));
+                if (report.files) {
+                  // Calculate mutation score from raw mutant data
+                  const allMutants = [];
+                  Object.values(report.files).forEach(file => {
+                    if (file.mutants) {
+                      allMutants.push(...file.mutants);
+                    }
+                  });
+                  
+                  const killed = allMutants.filter(m => m.status === 'Killed').length;
+                  const timeout = allMutants.filter(m => m.status === 'Timeout').length;
+                  const survived = allMutants.filter(m => m.status === 'Survived').length;
+                  const noCoverage = allMutants.filter(m => m.status === 'NoCoverage').length;
+                  const compileError = allMutants.filter(m => m.status === 'CompileError').length;
+                  const runtimeError = allMutants.filter(m => m.status === 'RuntimeError').length;
+                  
+                  const totalDetected = killed + timeout;
+                  const totalUndetected = survived + noCoverage;
+                  const totalValid = totalDetected + totalUndetected;
+                  const totalMutants = totalValid + compileError + runtimeError;
+                  
+                  if (totalValid > 0) {
+                    mutationScore = (totalDetected / totalValid * 100).toFixed(2) + '%';
+                    killedMutants = totalDetected;
+                    totalMutants = totalValid;
+                  }
+                }
+              } catch (error) {
+                console.log('Error parsing JSON report:', error.message);
+              }
+            }
+            
+            // Fallback to HTML parsing if JSON not available
+            if (mutationScore === 'Unknown' && fs.existsSync(htmlReportPath)) {
+              const report = fs.readFileSync(htmlReportPath, 'utf8');
+              const scoreMatch = report.match(/mutationScore["\s:]*(\d+\.?\d*)/i);
               if (scoreMatch) {
-                mutationScore = scoreMatch[1] + '%';
+                mutationScore = parseFloat(scoreMatch[1]).toFixed(2) + '%';
               }
             }
             
             const comment = `## 🧬 Mutation Testing Report
             
-            **Mutation Score**: ${mutationScore}
+            **Mutation Score**: ${mutationScore}${totalMutants !== 'Unknown' ? ` (${killedMutants}/${totalMutants} mutants killed)` : ''}
             
             [View detailed report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
             

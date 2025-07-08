@@ -1,24 +1,27 @@
-import path from 'path';
 import { promises as fs } from 'fs';
+import path from 'path';
 import { simpleGit } from 'simple-git';
+import { IErrorHandler, ProductionErrorHandler } from '../core/errors/ErrorHandler.js';
 import { GitDetector } from '../core/git/GitDetector.js';
 import { GitRepository } from '../core/git/GitRepository.js';
 import { WorktreeManager } from '../core/git/WorktreeManager.js';
-import { TmuxManager } from '../sessions/TmuxManager.js';
 import { Logger } from '../core/utils/logger.js';
-import { showBanner } from './ui/banner.js';
-import { theme } from './ui/theme.js';
-import { Spinner } from './ui/spinner.js';
-import * as prompts from './ui/prompts.js';
+import { TmuxManager } from '../sessions/TmuxManager.js';
 import type { CLIOptions, DirectoryState, GitWorktreeInfo } from '../types/index.js';
+import { showBanner } from './ui/banner.js';
+import * as prompts from './ui/prompts.js';
+import { Spinner } from './ui/spinner.js';
+import { theme } from './ui/theme.js';
 
 export class ClaudeGWTApp {
   private basePath: string;
   private options: CLIOptions;
+  private errorHandler: IErrorHandler;
 
-  constructor(basePath: string, options: CLIOptions) {
+  constructor(basePath: string, options: CLIOptions, errorHandler?: IErrorHandler) {
     this.basePath = path.resolve(basePath);
     this.options = options;
+    this.errorHandler = errorHandler || new ProductionErrorHandler();
   }
 
   async run(): Promise<void> {
@@ -35,12 +38,7 @@ export class ClaudeGWTApp {
       await this.handleDirectoryState(state);
     } catch (error) {
       Logger.error('Fatal error in ClaudeGWTApp', error);
-      console.error(
-        theme.error('\n✖ Error:'),
-        error instanceof Error ? error.message : 'Unknown error',
-      );
-      console.error(theme.muted(`\nCheck logs at: .claude-gwt.log`));
-      process.exit(1);
+      this.errorHandler.handleFatalError(error, 'ClaudeGWTApp');
     }
   }
 

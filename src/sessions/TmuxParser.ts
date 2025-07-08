@@ -1,7 +1,7 @@
 /**
  * Parser utilities for tmux output formats
  */
-import type { TmuxSessionInfo, TmuxWindowInfo, TmuxPaneInfo } from './TmuxDriver.js';
+import type { TmuxPaneInfo, TmuxSessionInfo, TmuxWindowInfo } from './TmuxDriver.js';
 
 export class TmuxParser {
   /**

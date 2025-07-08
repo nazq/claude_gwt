@@ -1,7 +1,7 @@
 import type { ExecResult } from '../core/utils/async.js';
 import { execCommandSafe } from '../core/utils/async.js';
-import { sanitizePath, sanitizeSessionName } from '../core/utils/security.js';
 import { Logger } from '../core/utils/logger.js';
+import { sanitizePath, sanitizeSessionName } from '../core/utils/security.js';
 import { TmuxParser } from './TmuxParser.js';
 
 // ===== ENUMS FOR TMUX CONCEPTS =====
@@ -356,28 +356,32 @@ export class TmuxDriver {
       args.push(options.command);
     }
 
-    return execCommandSafe('tmux', args);
+    return await execCommandSafe('tmux', args);
   }
 
   /**
    * Kill a tmux session
    */
   static async killSession(sessionName: string): Promise<ExecResult> {
-    return execCommandSafe('tmux', ['kill-session', '-t', sanitizeSessionName(sessionName)]);
+    return await execCommandSafe('tmux', ['kill-session', '-t', sanitizeSessionName(sessionName)]);
   }
 
   /**
    * Attach to a tmux session
    */
   static async attachSession(sessionName: string): Promise<ExecResult> {
-    return execCommandSafe('tmux', ['attach-session', '-t', sanitizeSessionName(sessionName)]);
+    return await execCommandSafe('tmux', [
+      'attach-session',
+      '-t',
+      sanitizeSessionName(sessionName),
+    ]);
   }
 
   /**
    * Switch to a different session (from within tmux)
    */
   static async switchClient(sessionName: string): Promise<ExecResult> {
-    return execCommandSafe('tmux', ['switch-client', '-t', sanitizeSessionName(sessionName)]);
+    return await execCommandSafe('tmux', ['switch-client', '-t', sanitizeSessionName(sessionName)]);
   }
 
   /**
@@ -398,7 +402,7 @@ export class TmuxDriver {
       args.push(options.command);
     }
 
-    return execCommandSafe('tmux', args);
+    return await execCommandSafe('tmux', args);
   }
 
   /**
@@ -462,7 +466,7 @@ export class TmuxDriver {
     if (enter) {
       args.push('Enter');
     }
-    return execCommandSafe('tmux', args);
+    return await execCommandSafe('tmux', args);
   }
 
   /**
@@ -486,7 +490,7 @@ export class TmuxDriver {
 
     args.push(option, value);
 
-    return execCommandSafe('tmux', args);
+    return await execCommandSafe('tmux', args);
   }
 
   /**
@@ -506,7 +510,7 @@ export class TmuxDriver {
 
     args.push('-t', target, option, value);
 
-    return execCommandSafe('tmux', args);
+    return await execCommandSafe('tmux', args);
   }
 
   /**
@@ -549,7 +553,7 @@ export class TmuxDriver {
       args.push(options.command);
     }
 
-    return execCommandSafe('tmux', args);
+    return await execCommandSafe('tmux', args);
   }
 
   /**
@@ -564,21 +568,21 @@ export class TmuxDriver {
 
     args.push('-t', target);
 
-    return execCommandSafe('tmux', args);
+    return await execCommandSafe('tmux', args);
   }
 
   /**
    * Select a pane
    */
   static async selectPane(target: string): Promise<ExecResult> {
-    return execCommandSafe('tmux', ['select-pane', '-t', target]);
+    return await execCommandSafe('tmux', ['select-pane', '-t', target]);
   }
 
   /**
    * Set pane title
    */
   static async setPaneTitle(target: string, title: string): Promise<ExecResult> {
-    return execCommandSafe('tmux', ['select-pane', '-t', target, '-T', title]);
+    return await execCommandSafe('tmux', ['select-pane', '-t', target, '-T', title]);
   }
 
   /**
@@ -602,7 +606,7 @@ export class TmuxDriver {
 
     args.push(key, command);
 
-    return execCommandSafe('tmux', args);
+    return await execCommandSafe('tmux', args);
   }
 
   /**
@@ -617,14 +621,14 @@ export class TmuxDriver {
 
     args.push(key);
 
-    return execCommandSafe('tmux', args);
+    return await execCommandSafe('tmux', args);
   }
 
   /**
    * Set hook
    */
   static async setHook(hook: string, command: string): Promise<ExecResult> {
-    return execCommandSafe('tmux', ['set-hook', '-g', hook, command]);
+    return await execCommandSafe('tmux', ['set-hook', '-g', hook, command]);
   }
 
   /**
@@ -639,7 +643,7 @@ export class TmuxDriver {
 
     args.push(message);
 
-    return execCommandSafe('tmux', args);
+    return await execCommandSafe('tmux', args);
   }
 
   /**
@@ -654,7 +658,7 @@ export class TmuxDriver {
    * Synchronize panes in a window
    */
   static async synchronizePanes(target: string, enabled: boolean): Promise<ExecResult> {
-    return this.setWindowOption(target, 'synchronize-panes', enabled ? 'on' : 'off');
+    return await this.setWindowOption(target, 'synchronize-panes', enabled ? 'on' : 'off');
   }
 
   /**
@@ -664,7 +668,7 @@ export class TmuxDriver {
     target: string,
     position: 'top' | 'bottom' | 'off',
   ): Promise<ExecResult> {
-    return this.setOption(target, 'pane-border-status', position);
+    return await this.setOption(target, 'pane-border-status', position);
   }
 
   /**
@@ -677,7 +681,7 @@ export class TmuxDriver {
       args.push('-t', target);
     }
 
-    return execCommandSafe('tmux', args);
+    return await execCommandSafe('tmux', args);
   }
 
   // ===== HIGH-LEVEL SDK METHODS =====
@@ -811,7 +815,7 @@ export class TmuxDriver {
    * Apply a layout preset to a window
    */
   static async applyLayout(target: string, layout: TmuxLayout): Promise<ExecResult> {
-    return this.sendKeys(target, [`select-layout ${layout}`], false);
+    return await this.sendKeys(target, [`select-layout ${layout}`], false);
   }
 
   /**

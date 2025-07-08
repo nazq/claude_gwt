@@ -1,12 +1,12 @@
 import { spawnSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
-import { Logger } from '../core/utils/logger.js';
-import { TmuxEnhancer } from './TmuxEnhancer.js';
-import type { GitRepository } from '../core/git/GitRepository.js';
 import { ConfigManager } from '../core/ConfigManager.js';
-import { TmuxDriver } from './TmuxDriver.js';
+import type { GitRepository } from '../core/git/GitRepository.js';
+import { Logger } from '../core/utils/logger.js';
 import { sanitizePath, sanitizeSessionName } from '../core/utils/security.js';
+import { TmuxDriver } from './TmuxDriver.js';
+import { TmuxEnhancer } from './TmuxEnhancer.js';
 
 export interface SessionConfig {
   sessionName: string;
@@ -93,7 +93,7 @@ export class TmuxManager {
    * Check if tmux is available
    */
   static async isTmuxAvailable(): Promise<boolean> {
-    return TmuxDriver.isAvailable();
+    return await TmuxDriver.isAvailable();
   }
 
   /**
@@ -305,7 +305,7 @@ ${customContext}`
 
     // Check if session already exists
     const sessionInfo = await this.getSessionInfo(sessionName);
-    if (sessionInfo && sessionInfo.hasClaudeRunning) {
+    if (sessionInfo?.hasClaudeRunning) {
       Logger.info('Session already exists with Claude running', { sessionName });
       return;
     }

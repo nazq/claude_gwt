@@ -387,7 +387,7 @@ describe('ClaudeGWTApp', () => {
       await expect(app.run()).rejects.toThrow('process.exit called');
 
       expect(mockConsoleError).toHaveBeenCalledWith(
-        expect.stringContaining('Error:'),
+        expect.stringContaining('✖ Error in ClaudeGWTApp:'),
         'Detection failed',
       );
       expect(mockProcessExit).toHaveBeenCalledWith(1);
@@ -515,7 +515,10 @@ describe('ClaudeGWTApp', () => {
       await expect(app.run()).rejects.toThrow('process.exit called');
 
       // Check that the error was properly logged
-      expect(mockConsoleError).toHaveBeenCalledWith(expect.anything(), 'Worktree creation failed');
+      expect(mockConsoleError).toHaveBeenCalledWith(
+        expect.stringContaining('✖ Error in ClaudeGWTApp:'),
+        'Worktree creation failed',
+      );
     });
 
     it('should handle fetch failure during initialization', async () => {
@@ -539,7 +542,10 @@ describe('ClaudeGWTApp', () => {
       await expect(app.run()).rejects.toThrow('process.exit called');
 
       // Check that the error was properly logged
-      expect(mockConsoleError).toHaveBeenCalledWith(expect.anything(), 'Fetch failed');
+      expect(mockConsoleError).toHaveBeenCalledWith(
+        expect.stringContaining('✖ Error in ClaudeGWTApp:'),
+        'Fetch failed',
+      );
     });
   });
 

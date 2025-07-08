@@ -571,4 +571,52 @@ describe('TmuxManager', () => {
       expect(sessions[1]?.name).toBe('cgwt-repo-feature');
     });
   });
+
+  describe('createDashboard', () => {
+    it('should create dashboard window', () => {
+      TmuxManager.createDashboard(
+        'cgwt-repo-supervisor',
+        ['main', 'develop'],
+        '/path/to/worktrees',
+      );
+
+      expect(TmuxEnhancer.createDashboardWindow).toHaveBeenCalledWith(
+        'cgwt-repo-supervisor',
+        ['main', 'develop'],
+        '/path/to/worktrees',
+      );
+    });
+  });
+
+  describe('enhanceSession', () => {
+    it('should enhance existing session', async () => {
+      await TmuxManager.enhanceSession('cgwt-repo-main', {
+        branchName: 'main',
+        role: 'supervisor',
+      });
+
+      expect(TmuxEnhancer.configureSession).toHaveBeenCalledWith('cgwt-repo-main', {
+        sessionName: 'cgwt-repo-main',
+        branchName: 'main',
+        role: 'supervisor',
+      });
+    });
+
+    it('should enhance session with git repository', async () => {
+      const mockGitRepo = { fetch: vi.fn() } as any;
+
+      await TmuxManager.enhanceSession('cgwt-repo-feature', {
+        branchName: 'feature-branch',
+        role: 'child',
+        gitRepo: mockGitRepo,
+      });
+
+      expect(TmuxEnhancer.configureSession).toHaveBeenCalledWith('cgwt-repo-feature', {
+        sessionName: 'cgwt-repo-feature',
+        branchName: 'feature-branch',
+        role: 'child',
+        gitRepo: mockGitRepo,
+      });
+    });
+  });
 });

@@ -1,7 +1,7 @@
 import chalk from 'chalk';
-import { TmuxDriver } from '../../sessions/TmuxDriver.js';
 import { execCommandSafe } from '../../core/utils/async.js';
 import { logger } from '../../core/utils/logger.js';
+import { TmuxDriver } from '../../sessions/TmuxDriver.js';
 import type { Session } from '../cgwt-program.js';
 
 export interface SplitCommandOptions {

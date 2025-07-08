@@ -21,6 +21,8 @@ export default defineConfig({
         'src/**/*.spec.ts',
         'src/**/index.ts',
         'src/cli/cgwt.ts',
+        'src/**/interfaces.ts',
+        'src/sessions/TmuxOperationResult.ts',
       ],
       thresholds: {
         branches: 15,

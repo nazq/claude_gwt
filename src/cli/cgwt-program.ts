@@ -3,14 +3,14 @@
  * This module exports the Commander program for testing
  */
 
-import { Command } from 'commander';
 import chalk from 'chalk';
+import { Command } from 'commander';
 import { readFileSync } from 'fs';
-import { fileURLToPath } from 'url';
 import path, { dirname, join } from 'path';
-import { logger } from '../core/utils/logger.js';
-import { execCommandSafe } from '../core/utils/async.js';
 import { simpleGit } from 'simple-git';
+import { fileURLToPath } from 'url';
+import { execCommandSafe } from '../core/utils/async.js';
+import { logger } from '../core/utils/logger.js';
 import { SplitCommand, TipsCommand } from './commands/index.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));

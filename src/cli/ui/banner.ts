@@ -1,7 +1,7 @@
-import figlet from 'figlet';
 import boxen from 'boxen';
-import { theme } from './theme.js';
+import figlet from 'figlet';
 import { logger } from '../../core/utils/logger.js';
+import { theme } from './theme.js';
 
 export function showBanner(): void {
   logger.debug('Showing banner');

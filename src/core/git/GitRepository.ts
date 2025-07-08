@@ -1,6 +1,6 @@
 import { promises as fs } from 'fs';
 import path from 'path';
-import { simpleGit, type SimpleGit } from 'simple-git';
+import { type SimpleGit, simpleGit } from 'simple-git';
 import { GitOperationError } from '../errors/CustomErrors.js';
 
 export class GitRepository {
@@ -95,7 +95,7 @@ export class GitRepository {
   }
 
   async getCurrentBranch(): Promise<string> {
-    return this.getDefaultBranch();
+    return await this.getDefaultBranch();
   }
 
   getBareGitPath(): string {

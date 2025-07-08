@@ -383,6 +383,134 @@ branch complete`;
     });
   });
 
+  describe('getBranchesWithoutWorktrees', () => {
+    beforeEach(() => {
+      mockFs.existsSync.mockReturnValue(false);
+    });
+
+    it('should return branches that do not have worktrees', async () => {
+      const worktreeManager = new WorktreeManager('/project');
+
+      // Mock branch output
+      mockGit.branch.mockResolvedValue({
+        all: ['main', 'feature', 'bugfix', 'development'],
+      } as any);
+
+      // Mock worktree list with only main and feature
+      const worktreeOutput = `worktree /project
+HEAD 1234567890abcdef
+branch main
+
+worktree /project/feature
+HEAD abcdef1234567890
+branch feature`;
+
+      mockGit.raw.mockResolvedValue(worktreeOutput);
+
+      const result = await worktreeManager.getBranchesWithoutWorktrees();
+
+      expect(result).toEqual(['bugfix', 'development']);
+      expect(mockGit.branch).toHaveBeenCalled();
+      expect(mockGit.raw).toHaveBeenCalledWith(['worktree', 'list', '--porcelain']);
+    });
+
+    it('should handle refs/heads/ prefix in branch names', async () => {
+      const worktreeManager = new WorktreeManager('/project');
+
+      // Mock branch output with refs/heads/ prefix
+      mockGit.branch.mockResolvedValue({
+        all: ['refs/heads/main', 'refs/heads/feature', 'refs/heads/bugfix'],
+      } as any);
+
+      // Mock worktree list
+      const worktreeOutput = `worktree /project
+HEAD 1234567890abcdef
+branch main`;
+
+      mockGit.raw.mockResolvedValue(worktreeOutput);
+
+      const result = await worktreeManager.getBranchesWithoutWorktrees();
+
+      expect(result).toContain('refs/heads/feature');
+      expect(result).toContain('refs/heads/bugfix');
+      expect(result).not.toContain('refs/heads/main');
+    });
+
+    it('should return empty array when all branches have worktrees', async () => {
+      const worktreeManager = new WorktreeManager('/project');
+
+      mockGit.branch.mockResolvedValue({
+        all: ['main', 'feature'],
+      } as any);
+
+      const worktreeOutput = `worktree /project
+HEAD 1234567890abcdef
+branch main
+
+worktree /project/feature
+HEAD abcdef1234567890
+branch feature`;
+
+      mockGit.raw.mockResolvedValue(worktreeOutput);
+
+      const result = await worktreeManager.getBranchesWithoutWorktrees();
+
+      expect(result).toEqual([]);
+    });
+
+    it('should handle worktrees without branches', async () => {
+      const worktreeManager = new WorktreeManager('/project');
+
+      mockGit.branch.mockResolvedValue({
+        all: ['main', 'feature', 'bugfix'],
+      } as any);
+
+      // Worktree without branch (detached HEAD)
+      const worktreeOutput = `worktree /project
+HEAD 1234567890abcdef
+
+worktree /project/feature
+HEAD abcdef1234567890
+branch feature`;
+
+      mockGit.raw.mockResolvedValue(worktreeOutput);
+
+      const result = await worktreeManager.getBranchesWithoutWorktrees();
+
+      expect(result).toEqual(['main', 'bugfix']);
+    });
+
+    it('should throw GitOperationError when git branch fails', async () => {
+      const worktreeManager = new WorktreeManager('/project');
+
+      mockGit.branch.mockRejectedValue(new Error('Git branch failed'));
+
+      await expect(worktreeManager.getBranchesWithoutWorktrees()).rejects.toThrow(
+        GitOperationError,
+      );
+      await expect(worktreeManager.getBranchesWithoutWorktrees()).rejects.toThrow(
+        'Failed to list branches',
+      );
+    });
+
+    it('should throw GitOperationError when listWorktrees fails', async () => {
+      const worktreeManager = new WorktreeManager('/project');
+
+      mockGit.branch.mockResolvedValue({
+        all: ['main', 'feature'],
+      } as any);
+
+      mockGit.raw.mockRejectedValue(new Error('Git worktree list failed'));
+
+      await expect(worktreeManager.getBranchesWithoutWorktrees()).rejects.toThrow(
+        GitOperationError,
+      );
+      await expect(worktreeManager.getBranchesWithoutWorktrees()).rejects.toThrow(
+        'Failed to list branches',
+      );
+    });
+  });
+
   describe('parseWorktreeList edge cases', () => {
     beforeEach(() => {
       mockFs.existsSync.mockReturnValue(false);

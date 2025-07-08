@@ -1,21 +1,21 @@
 import * as path from 'path';
-import { Logger } from '../core/utils/logger.js';
-import { execCommandSafe } from '../core/utils/async.js';
 import type { GitRepository } from '../core/git/GitRepository.js';
+import { execCommandSafe } from '../core/utils/async.js';
+import { Logger } from '../core/utils/logger.js';
 import {
-  TmuxDriver,
   TmuxColor,
-  TmuxStatusPosition,
-  TmuxStatusJustify,
-  TmuxOption,
+  TmuxDriver,
   TmuxHook,
+  type TmuxKeyBindingConfig,
   TmuxLayout,
+  TmuxOption,
+  type TmuxPaneBorderConfig,
   TmuxPaneBorderStatus,
   type TmuxStatusBarConfig,
-  type TmuxKeyBindingConfig,
-  type TmuxPaneBorderConfig,
+  TmuxStatusJustify,
+  TmuxStatusPosition,
 } from './TmuxDriver.js';
-import type { TmuxOperationResult, TmuxEnhancerResult } from './TmuxOperationResult.js';
+import type { TmuxEnhancerResult, TmuxOperationResult } from './TmuxOperationResult.js';
 
 export interface StatusBarConfig {
   sessionName: string;

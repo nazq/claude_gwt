@@ -6,7 +6,7 @@ const inquirer = {
     // Simple mock implementation that returns default values
     const answers = {};
     const questionsArray = Array.isArray(questions) ? questions : [questions];
-    
+
     for (const q of questionsArray) {
       if (q.default !== undefined) {
         answers[q.name] = q.default;
@@ -18,7 +18,7 @@ const inquirer = {
         answers[q.name] = '';
       }
     }
-    
+
     return answers;
   }),
   registerPrompt: vi.fn(),
