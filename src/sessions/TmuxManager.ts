@@ -1,5 +1,6 @@
 import { spawnSync } from 'child_process';
 import * as fs from 'fs';
+import { promises as fsPromises } from 'fs';
 import * as path from 'path';
 import { ConfigManager } from '../core/ConfigManager.js';
 import type { GitRepository } from '../core/git/GitRepository.js';
@@ -29,10 +30,162 @@ export class TmuxManager {
   private static readonly CLAUDE_COMMAND = 'claude';
 
   /**
+   * Check if a Claude conversation exists for this project
+   */
+  private static async hasExistingClaudeConversation(workingDirectory: string): Promise<boolean> {
+    // Handle different working directory formats:
+    // 1. Regular: /home/user/dev/project
+    // 2. Worktree with slashes: /home/user/dev/project/feat/my-feature
+
+    // For worktrees, we want to use the base project path, not the worktree path
+    // Extract the base project path by finding the .git file
+    let projectBasePath = workingDirectory;
+
+    try {
+      // Check if this is a worktree by looking for .git file
+      const gitPath = path.join(workingDirectory, '.git');
+      const gitStat = await fsPromises.stat(gitPath).catch(() => null);
+
+      if (gitStat?.isFile()) {
+        // This is a worktree, read the .git file to find the base
+        const gitContent = await fsPromises.readFile(gitPath, 'utf-8');
+        const match = gitContent.match(/gitdir: (.+)$/m);
+        if (match?.[1]) {
+          // Extract base path from gitdir
+          // Example: gitdir: /home/user/dev/project/.bare/worktrees/feat/my-feature
+          const gitDir = match[1];
+          const bareMatch = gitDir.match(/^(.+)\/.bare\/worktrees/);
+          if (bareMatch?.[1]) {
+            projectBasePath = bareMatch[1];
+          }
+        }
+      }
+    } catch (error) {
+      Logger.debug('Error checking worktree status', { error, workingDirectory });
+    }
+
+    // Convert path to Claude's format (replace / with -)
+    const projectPath = projectBasePath.replace(/\//g, '-');
+    const claudeProjectDir = path.join(
+      process.env['HOME'] || '',
+      '.claude',
+      'projects',
+      projectPath,
+    );
+
+    try {
+      const files = await fsPromises.readdir(claudeProjectDir);
+      // Check if there are any .jsonl conversation files
+      return files.some((file) => file.endsWith('.jsonl'));
+    } catch {
+      // Directory doesn't exist or can't be read
+      return false;
+    }
+  }
+
+  /**
+   * Get the most recent Claude session ID for this project
+   */
+  private static async getLatestClaudeSessionId(workingDirectory: string): Promise<string | null> {
+    // Use same logic as hasExistingClaudeConversation to get base path
+    let projectBasePath = workingDirectory;
+
+    try {
+      const gitPath = path.join(workingDirectory, '.git');
+      const gitStat = await fsPromises.stat(gitPath).catch(() => null);
+
+      if (gitStat?.isFile()) {
+        const gitContent = await fsPromises.readFile(gitPath, 'utf-8');
+        const match = gitContent.match(/gitdir: (.+)$/m);
+        if (match?.[1]) {
+          const gitDir = match[1];
+          const bareMatch = gitDir.match(/^(.+)\/.bare\/worktrees/);
+          if (bareMatch?.[1]) {
+            projectBasePath = bareMatch[1];
+          }
+        }
+      }
+    } catch (error) {
+      Logger.debug('Error checking worktree status', { error, workingDirectory });
+    }
+
+    const projectPath = projectBasePath.replace(/\//g, '-');
+    const claudeProjectDir = path.join(
+      process.env['HOME'] || '',
+      '.claude',
+      'projects',
+      projectPath,
+    );
+
+    try {
+      const files = await fsPromises.readdir(claudeProjectDir);
+      const jsonlFiles = files.filter((f) => f.endsWith('.jsonl'));
+
+      if (jsonlFiles.length === 0) return null;
+
+      // Get the most recent file based on modification time
+      const stats = await Promise.all(
+        jsonlFiles.map(async (file) => ({
+          file,
+          mtime: (await fsPromises.stat(path.join(claudeProjectDir, file))).mtime,
+        })),
+      );
+
+      const latest = stats.sort((a, b) => b.mtime.getTime() - a.mtime.getTime())[0];
+      const sessionId = latest?.file.replace('.jsonl', '') || null;
+
+      if (sessionId) {
+        Logger.info('Found latest Claude session', { sessionId, projectPath });
+      }
+
+      return sessionId;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Store Claude session ID in tmux
+   */
+  private static async setClaudeSessionId(sessionName: string, sessionId: string): Promise<void> {
+    try {
+      // Store as a tmux user option for this session
+      await TmuxDriver.setOption(sessionName, '@claude_session_id', sessionId);
+      Logger.info('Stored Claude session ID in tmux', { sessionName, sessionId });
+    } catch (error) {
+      Logger.warn('Failed to store Claude session ID', { error, sessionName, sessionId });
+    }
+  }
+
+  /**
+   * After starting Claude, wait a moment then store the session ID
+   */
+  private static storeClaudeSessionAfterStart(sessionName: string, workingDirectory: string): void {
+    // Wait a bit for Claude to start and create its session file
+    setTimeout(async () => {
+      const sessionId = await this.getLatestClaudeSessionId(workingDirectory);
+      if (sessionId) {
+        await this.setClaudeSessionId(sessionName, sessionId);
+      }
+    }, 3000); // Wait 3 seconds for Claude to initialize
+  }
+
+  /**
    * Get Claude command with appropriate flags
    */
-  private static getClaudeCommand(): string {
-    // Always start fresh - removed --continue functionality
+  private static async getClaudeCommand(workingDirectory?: string): Promise<string> {
+    // If no working directory provided, start fresh
+    if (!workingDirectory) {
+      return this.CLAUDE_COMMAND;
+    }
+
+    // Check if we should continue an existing conversation
+    const hasExisting = await this.hasExistingClaudeConversation(workingDirectory);
+    if (hasExisting) {
+      Logger.info('Found existing Claude conversation, will use --continue');
+      return `${this.CLAUDE_COMMAND} --continue`;
+    }
+
     return this.CLAUDE_COMMAND;
   }
 
@@ -243,7 +396,7 @@ ${customContext}`
       } else {
         // Session exists but Claude isn't running, restart
         Logger.info('Starting Claude in existing session');
-        const claudeCmd = this.getClaudeCommand();
+        const claudeCmd = await this.getClaudeCommand(workingDirectory);
 
         // Apply enhancements to existing session
         await TmuxEnhancer.configureSession(sessionName, {
@@ -261,6 +414,9 @@ ${customContext}`
             command: claudeCmd,
           });
           await TmuxDriver.switchClient(sessionName);
+
+          // Store Claude session ID after it starts
+          void this.storeClaudeSessionAfterStart(sessionName, workingDirectory);
         } else {
           // Create new window and attach
           await TmuxDriver.createWindow({
@@ -270,6 +426,9 @@ ${customContext}`
             command: claudeCmd,
           });
           await this.attachToSession(sessionName);
+
+          // Store Claude session ID after it starts
+          void this.storeClaudeSessionAfterStart(sessionName, workingDirectory);
         }
       }
     } else {
@@ -311,7 +470,7 @@ ${customContext}`
     }
 
     // Get Claude command
-    const claudeCmd = this.getClaudeCommand();
+    const claudeCmd = await this.getClaudeCommand(workingDirectory);
 
     try {
       if (sessionInfo) {
@@ -347,6 +506,9 @@ ${customContext}`
 
         // Start Claude after configuration
         await TmuxDriver.sendKeys(sessionName, [claudeCmd]);
+
+        // Store Claude session ID after it starts
+        void this.storeClaudeSessionAfterStart(sessionName, workingDirectory);
       }
     } catch (error) {
       Logger.error('Failed to create detached session', error);
@@ -363,7 +525,7 @@ ${customContext}`
 
     if (this.isInsideTmux()) {
       // Create detached session and switch to it
-      const claudeCmd = this.getClaudeCommand();
+      const claudeCmd = await this.getClaudeCommand(workingDirectory);
 
       // Create the session first
       await TmuxDriver.createSession({
@@ -388,9 +550,12 @@ ${customContext}`
       // Start Claude and switch to the session
       await TmuxDriver.sendKeys(sessionName, [claudeCmd]);
       await TmuxDriver.switchClient(sessionName);
+
+      // Store Claude session ID after it starts
+      void this.storeClaudeSessionAfterStart(sessionName, workingDirectory);
     } else {
       // Create and attach to new session with proper settings
-      const claudeCmd = this.getClaudeCommand();
+      const claudeCmd = await this.getClaudeCommand(workingDirectory);
 
       // Use exec to handle the complex tmux command properly
       try {

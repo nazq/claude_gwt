@@ -619,4 +619,163 @@ describe('TmuxManager', () => {
       });
     });
   });
+
+  describe('Claude session continuity', () => {
+    // Mock fs.promises for Claude detection
+    const mockFsPromises = {
+      readdir: vi.fn(),
+      readFile: vi.fn(),
+      stat: vi.fn(),
+      writeFile: vi.fn().mockResolvedValue(undefined),
+    };
+
+    beforeEach(() => {
+      // Reset mocks
+      mockFsPromises.readdir.mockReset();
+      mockFsPromises.readFile.mockReset();
+      mockFsPromises.stat.mockReset();
+
+      // Override fs module mock for these tests
+      vi.mocked(fs).promises = mockFsPromises as any;
+    });
+
+    describe('when no Claude conversations exist', () => {
+      beforeEach(() => {
+        // Mock no Claude directory
+        mockFsPromises.readdir.mockRejectedValue(new Error('ENOENT'));
+        mockFsPromises.stat.mockRejectedValue(new Error('ENOENT'));
+      });
+
+      it('should start Claude without --continue flag', async () => {
+        const config: SessionConfig = {
+          sessionName: 'cgwt-test-main',
+          workingDirectory: '/home/user/project',
+          branchName: 'main',
+          role: 'supervisor',
+        };
+
+        await TmuxManager.createDetachedSession(config);
+
+        // Should start Claude without --continue
+        expect(TmuxDriver.sendKeys).toHaveBeenCalledWith('cgwt-test-main', ['claude']);
+      });
+    });
+
+    describe('when Claude conversations exist', () => {
+      beforeEach(() => {
+        // Mock existing Claude conversations
+        mockFsPromises.readdir.mockResolvedValue(['session1.jsonl', 'session2.jsonl']);
+        mockFsPromises.stat.mockImplementation((path) => {
+          if (path.endsWith('.git')) {
+            return Promise.reject(new Error('Not a file'));
+          }
+          if (path.endsWith('session2.jsonl')) {
+            return Promise.resolve({
+              isFile: () => true,
+              mtime: new Date('2024-01-02'),
+            } as any);
+          }
+          return Promise.resolve({
+            isFile: () => true,
+            mtime: new Date('2024-01-01'),
+          } as any);
+        });
+      });
+
+      it('should start Claude with --continue flag', async () => {
+        const config: SessionConfig = {
+          sessionName: 'cgwt-test-main',
+          workingDirectory: '/home/user/project',
+          branchName: 'main',
+          role: 'supervisor',
+        };
+
+        await TmuxManager.createDetachedSession(config);
+
+        // Should start Claude with --continue
+        expect(TmuxDriver.sendKeys).toHaveBeenCalledWith('cgwt-test-main', ['claude --continue']);
+      });
+    });
+
+    describe('when working in a git worktree', () => {
+      beforeEach(() => {
+        // Mock .git file pointing to worktree
+        mockFsPromises.stat.mockImplementation((path) => {
+          if (path.endsWith('.git')) {
+            return Promise.resolve({
+              isFile: () => true,
+            } as any);
+          }
+          return Promise.resolve({
+            isFile: () => false,
+            mtime: new Date(),
+          } as any);
+        });
+
+        // Mock .git file content
+        mockFsPromises.readFile.mockResolvedValue(
+          'gitdir: /home/user/project/.bare/worktrees/feat/my-feature\n',
+        );
+
+        // Mock Claude conversations in base project
+        mockFsPromises.readdir.mockResolvedValue(['existing.jsonl']);
+      });
+
+      it('should detect conversations from base project path', async () => {
+        const config: SessionConfig = {
+          sessionName: 'cgwt-test-feature',
+          workingDirectory: '/home/user/project/feat/my-feature',
+          branchName: 'feat/my-feature',
+          role: 'child',
+        };
+
+        await TmuxManager.createDetachedSession(config);
+
+        // Should detect conversations and use --continue
+        expect(TmuxDriver.sendKeys).toHaveBeenCalledWith('cgwt-test-feature', [
+          'claude --continue',
+        ]);
+
+        // Should have checked the correct Claude directory
+        expect(mockFsPromises.readdir).toHaveBeenCalledWith(
+          expect.stringContaining('-home-user-project'),
+        );
+      });
+    });
+
+    describe('session ID storage', () => {
+      beforeEach(() => {
+        // Mock existing conversations
+        mockFsPromises.readdir.mockResolvedValue(['session-id.jsonl']);
+        mockFsPromises.stat.mockResolvedValue({
+          isFile: () => false,
+          mtime: new Date(),
+        } as any);
+      });
+
+      it('should attempt to store Claude session ID after startup', async () => {
+        vi.useFakeTimers();
+
+        const config: SessionConfig = {
+          sessionName: 'cgwt-test-main',
+          workingDirectory: '/home/user/project',
+          branchName: 'main',
+          role: 'supervisor',
+        };
+
+        await TmuxManager.createDetachedSession(config);
+
+        // Fast-forward time to trigger the setTimeout
+        vi.advanceTimersByTime(3500);
+
+        // Wait for any pending promises
+        await vi.runAllTimersAsync();
+
+        // Should have attempted to get and store session ID
+        expect(mockFsPromises.readdir).toHaveBeenCalledTimes(2); // Once for check, once for getting ID
+
+        vi.useRealTimers();
+      });
+    });
+  });
 });
