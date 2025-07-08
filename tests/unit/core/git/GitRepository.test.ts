@@ -177,6 +177,12 @@ describe('GitRepository', () => {
     });
 
     it('should successfully convert a regular repository', async () => {
+      // Record temp directories before test
+      const parentDir = path.dirname(testDir);
+      const entriesBefore = await fs.readdir(parentDir);
+      const tempDirsBefore = entriesBefore.filter((entry) =>
+        entry.startsWith('.claude-gwt-convert-'),
+      );
       // Ensure clean slate - remove any existing .bare directory
       const existingBareDir = path.join(testDir, '.bare');
       await fs.rm(existingBareDir, { recursive: true, force: true });
@@ -217,14 +223,21 @@ describe('GitRepository', () => {
       const bareDir = path.join(testDir, '.bare');
       expect(await fs.stat(bareDir)).toBeTruthy();
 
-      // Verify no temp directories were left behind in parent directory
-      const parentDir = path.dirname(testDir);
-      const entries = await fs.readdir(parentDir);
-      const tempDirs = entries.filter((entry) => entry.startsWith('.claude-gwt-convert-'));
-      expect(tempDirs).toHaveLength(0);
+      // Verify no new temp directories were left behind
+      const entriesAfter = await fs.readdir(parentDir);
+      const tempDirsAfter = entriesAfter.filter((entry) =>
+        entry.startsWith('.claude-gwt-convert-'),
+      );
+      expect(tempDirsAfter.length).toBe(tempDirsBefore.length);
     });
 
     it('should handle errors during conversion', async () => {
+      // Record temp directories before test
+      const parentDir = path.dirname(testDir);
+      const entriesBefore = await fs.readdir(parentDir);
+      const tempDirsBefore = entriesBefore.filter((entry) =>
+        entry.startsWith('.claude-gwt-convert-'),
+      );
       // Create a mock .git directory
       const gitDir = path.join(testDir, '.git');
       await fs.mkdir(gitDir);
@@ -249,11 +262,12 @@ describe('GitRepository', () => {
         /Failed to convert repository:.*Network error/,
       );
 
-      // Verify temp directories were cleaned up even on error
-      const parentDir = path.dirname(testDir);
-      const entries = await fs.readdir(parentDir);
-      const tempDirs = entries.filter((entry) => entry.startsWith('.claude-gwt-convert-'));
-      expect(tempDirs).toHaveLength(0);
+      // Verify no new temp directories were left behind even on error
+      const entriesAfter = await fs.readdir(parentDir);
+      const tempDirsAfter = entriesAfter.filter((entry) =>
+        entry.startsWith('.claude-gwt-convert-'),
+      );
+      expect(tempDirsAfter.length).toBe(tempDirsBefore.length);
 
       // Verify .git directory was restored
       const gitDirExists = await fs

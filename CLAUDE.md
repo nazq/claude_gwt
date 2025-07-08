@@ -407,6 +407,24 @@ This keeps the repository clean and makes it easier to track active work.
 
 # Testing Best Practices
 
+## Interface Files Coverage
+Interface-only TypeScript files (containing only type definitions and interfaces) are excluded from coverage calculations as they contain no executable code. However, we include simple import tests to ensure they compile correctly:
+
+```typescript
+// tests/unit/interface-imports.test.ts
+it('should import cli/interfaces.ts without error', async () => {
+  const module = await import('../../src/cli/interfaces.js');
+  expect(module).toBeDefined();
+});
+```
+
+This approach ensures:
+- Interface files don't break the build
+- No runtime errors from malformed type definitions
+- Coverage metrics focus on actual executable code
+
+# Testing Best Practices
+
 ## Advanced Mocking Patterns
 
 ### Vitest Module Mocking with vi.mock()

@@ -1,4 +1,5 @@
-import type { DirectoryState, GitWorktreeInfo, SessionConfig } from '../types/index.js';
+import type { SessionConfig } from '../sessions/TmuxManager.js';
+import type { DirectoryState, GitWorktreeInfo } from '../types/index.js';
 
 export interface IGitDetector {
   detectState(basePath: string): Promise<DirectoryState>;

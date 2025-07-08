@@ -2,8 +2,8 @@
  * Service interfaces for dependency injection
  */
 
-import type { DirectoryState, GitWorktreeInfo } from '../../types/index.js';
 import type { SessionConfig, SessionInfo } from '../../sessions/TmuxManager.js';
+import type { DirectoryState, GitWorktreeInfo } from '../../types/index.js';
 import type { ExecResult } from '../utils/async.js';
 
 /**

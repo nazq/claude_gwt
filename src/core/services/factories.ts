@@ -2,19 +2,19 @@
  * Factory patterns for creating complex objects
  */
 
-import type {
-  IGitRepository,
-  IWorktreeManager,
-  IGitDetector,
-  ITmuxManager,
-  IApplicationContext,
-  IServiceFactory,
-} from './interfaces.js';
-import { GitRepository } from '../git/GitRepository.js';
-import { WorktreeManager } from '../git/WorktreeManager.js';
-import { GitDetector } from '../git/GitDetector.js';
 import { TmuxManager } from '../../sessions/TmuxManager.js';
 import type { CLIOptions } from '../../types/index.js';
+import { GitDetector } from '../git/GitDetector.js';
+import { GitRepository } from '../git/GitRepository.js';
+import { WorktreeManager } from '../git/WorktreeManager.js';
+import type {
+  IApplicationContext,
+  IGitDetector,
+  IGitRepository,
+  IServiceFactory,
+  ITmuxManager,
+  IWorktreeManager,
+} from './interfaces.js';
 
 /**
  * Factory for creating Git-related services

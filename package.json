@@ -21,10 +21,10 @@
     "test:ci": "npm run test:coverage",
     "test:ci:unit": "npm run test:unit",
     "test:ci:integ": "npm run test:integ",
-    "lint": "./scripts/retry-eslint.sh src/**/*.ts",
-    "lint:fix": "./scripts/retry-eslint.sh src/**/*.ts --fix",
-    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
-    "format:check": "prettier --check \"src/**/*.ts\" \"tests/**/*.ts\"",
+    "lint": "biome check src/",
+    "lint:fix": "biome check src/ --write",
+    "format": "biome format src/ tests/ --write",
+    "format:check": "biome format src/ tests/",
     "fmt": "npm run format",
     "typecheck": "tsc --noEmit",
     "prepare": "husky install",
@@ -38,7 +38,7 @@
     "test:ui": "vitest --ui",
     "reports": "./scripts/generate-reports.sh",
     "reports:serve": "./scripts/serve-reports.sh",
-    "lint:report": "./scripts/retry-eslint.sh src/**/*.ts tests/**/*.ts --format html --output-file reports/lint/eslint-report.html",
+    "lint:report": "biome check src/ tests/ --reporter=json > reports/lint/biome-report.json || true",
     "test:mutation": "stryker run",
     "test:mutation:quick": "stryker run --mutate 'src/core/utils/**/*.ts' --concurrency 2"
   },
@@ -90,6 +90,7 @@
     "simple-git": "^3.22.0"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.1.1",
     "@changesets/changelog-github": "^0.5.1",
     "@changesets/cli": "^2.29.5",
     "@eslint/js": "^9.30.1",
@@ -121,11 +122,10 @@
   },
   "lint-staged": {
     "src/**/*.ts": [
-      "prettier --write",
-      "eslint --fix"
+      "biome check --write"
     ],
     "tests/**/*.ts": [
-      "prettier --write"
+      "biome format --write"
     ]
   },
   "size-limit": [

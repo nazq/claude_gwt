@@ -62,13 +62,13 @@ export class Container {
    * Register a class as a service
    */
   registerClass<T>(
-    constructor: Constructor<T>,
+    ctor: Constructor<T>,
     dependencies: ServiceIdentifier[] = [],
     singleton: boolean = false,
   ): this {
-    const factory = (...deps: unknown[]): T => new constructor(...deps);
+    const factory = (...deps: unknown[]): T => new ctor(...deps);
     return this.register({
-      identifier: constructor,
+      identifier: ctor,
       factory,
       dependencies,
       singleton,

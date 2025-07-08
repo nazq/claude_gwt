@@ -1,6 +1,6 @@
-import pino from 'pino';
-import * as path from 'path';
 import * as fs from 'fs';
+import * as path from 'path';
+import pino from 'pino';
 
 export type LogLevel = 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'fatal';
 
@@ -119,7 +119,7 @@ export class StructuredLogger {
           fs.writeFileSync(gitignorePath, newContent);
         }
       }
-    } catch (error) {
+    } catch (_error) {
       // Silently ignore errors
     }
   }

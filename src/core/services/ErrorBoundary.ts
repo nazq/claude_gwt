@@ -2,8 +2,8 @@
  * Error boundary for handling and logging errors consistently
  */
 
-import type { IErrorBoundary, ILogger } from './interfaces.js';
 import { Logger } from '../utils/logger.js';
+import type { IErrorBoundary, ILogger } from './interfaces.js';
 
 export class ErrorBoundary implements IErrorBoundary {
   constructor(private readonly logger: ILogger = Logger) {}
@@ -72,7 +72,7 @@ export class ErrorBoundary implements IErrorBoundary {
     context?: string,
   ): (...args: TArgs) => Promise<TReturn> {
     return async (...args: TArgs): Promise<TReturn> => {
-      return this.handle(() => fn(...args), context);
+      return await this.handle(() => fn(...args), context);
     };
   }
 

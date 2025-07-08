@@ -520,7 +520,7 @@ describe('ClaudeGWTApp - Regular Git Mode', () => {
 
       // Verify error was logged
       expect(mockConsoleError).toHaveBeenCalledWith(
-        expect.stringContaining('✖ Error:'),
+        expect.stringContaining('✖ Error in ClaudeGWTApp:'),
         'Failed to launch tmux session',
       );
     });

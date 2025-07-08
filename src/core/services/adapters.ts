@@ -2,17 +2,17 @@
  * Service adapters for improving separation of concerns
  */
 
-import type {
-  IGitRepository,
-  IWorktreeManager,
-  ITmuxManager,
-  ILogger,
-  IErrorBoundary,
-} from './interfaces.js';
 import type { SessionConfig, SessionInfo } from '../../sessions/TmuxManager.js';
 import type { GitWorktreeInfo } from '../../types/index.js';
-import { errorBoundary as defaultErrorBoundary } from './ErrorBoundary.js';
 import { Logger } from '../utils/logger.js';
+import { errorBoundary as defaultErrorBoundary } from './ErrorBoundary.js';
+import type {
+  IErrorBoundary,
+  IGitRepository,
+  ILogger,
+  ITmuxManager,
+  IWorktreeManager,
+} from './interfaces.js';
 
 /**
  * Git service adapter that adds error handling and logging
@@ -27,14 +27,14 @@ export class GitServiceAdapter implements IGitRepository, IWorktreeManager {
 
   // IGitRepository methods
   async getCurrentBranch(): Promise<string> {
-    return this.errorBoundary.handle(
+    return await this.errorBoundary.handle(
       () => this.gitRepo.getCurrentBranch(),
       'GitService.getCurrentBranch',
     );
   }
 
   async getDefaultBranch(): Promise<string> {
-    return this.errorBoundary.handle(
+    return await this.errorBoundary.handle(
       () => this.gitRepo.getDefaultBranch(),
       'GitService.getDefaultBranch',
     );
@@ -42,7 +42,7 @@ export class GitServiceAdapter implements IGitRepository, IWorktreeManager {
 
   async initializeBareRepository(repoUrl?: string): Promise<{ defaultBranch: string }> {
     this.logger.info('Initializing bare repository', { repoUrl: repoUrl ?? 'local' });
-    return this.errorBoundary.handle(
+    return await this.errorBoundary.handle(
       () => this.gitRepo.initializeBareRepository(repoUrl),
       'GitService.initializeBareRepository',
     );
@@ -50,14 +50,14 @@ export class GitServiceAdapter implements IGitRepository, IWorktreeManager {
 
   async convertToWorktreeSetup(): Promise<{ defaultBranch: string }> {
     this.logger.info('Converting repository to worktree setup');
-    return this.errorBoundary.handle(
+    return await this.errorBoundary.handle(
       () => this.gitRepo.convertToWorktreeSetup(),
       'GitService.convertToWorktreeSetup',
     );
   }
 
   async canConvertToWorktree(): Promise<{ canConvert: boolean; reason?: string }> {
-    return this.errorBoundary.handle(
+    return await this.errorBoundary.handle(
       () => this.gitRepo.canConvertToWorktree(),
       'GitService.canConvertToWorktree',
     );
@@ -65,12 +65,12 @@ export class GitServiceAdapter implements IGitRepository, IWorktreeManager {
 
   async fetch(): Promise<void> {
     this.logger.info('Fetching repository updates');
-    return this.errorBoundary.handle(() => this.gitRepo.fetch(), 'GitService.fetch');
+    return await this.errorBoundary.handle(() => this.gitRepo.fetch(), 'GitService.fetch');
   }
 
   // IWorktreeManager methods
   async listWorktrees(): Promise<GitWorktreeInfo[]> {
-    return this.errorBoundary.handle(
+    return await this.errorBoundary.handle(
       () => this.worktreeManager.listWorktrees(),
       'GitService.listWorktrees',
     );
@@ -78,7 +78,7 @@ export class GitServiceAdapter implements IGitRepository, IWorktreeManager {
 
   async addWorktree(branchName: string, baseBranch?: string): Promise<string> {
     this.logger.info('Adding worktree', { branchName, baseBranch });
-    return this.errorBoundary.handle(
+    return await this.errorBoundary.handle(
       () => this.worktreeManager.addWorktree(branchName, baseBranch),
       'GitService.addWorktree',
     );
@@ -86,7 +86,7 @@ export class GitServiceAdapter implements IGitRepository, IWorktreeManager {
 
   async removeWorktree(branchName: string): Promise<void> {
     this.logger.info('Removing worktree', { branchName });
-    return this.errorBoundary.handle(
+    return await this.errorBoundary.handle(
       () => this.worktreeManager.removeWorktree(branchName),
       'GitService.removeWorktree',
     );
@@ -104,7 +104,7 @@ export class TmuxServiceAdapter implements ITmuxManager {
   ) {}
 
   async isTmuxAvailable(): Promise<boolean> {
-    return this.errorBoundary.handle(
+    return await this.errorBoundary.handle(
       () => this.tmuxManager.isTmuxAvailable(),
       'TmuxService.isTmuxAvailable',
     );
@@ -118,14 +118,14 @@ export class TmuxServiceAdapter implements ITmuxManager {
   }
 
   async getSessionInfo(sessionName: string): Promise<SessionInfo | null> {
-    return this.errorBoundary.handle(
+    return await this.errorBoundary.handle(
       () => this.tmuxManager.getSessionInfo(sessionName),
       'TmuxService.getSessionInfo',
     );
   }
 
   async listSessions(): Promise<SessionInfo[]> {
-    return this.errorBoundary.handle(
+    return await this.errorBoundary.handle(
       () => this.tmuxManager.listSessions(),
       'TmuxService.listSessions',
     );
@@ -137,7 +137,7 @@ export class TmuxServiceAdapter implements ITmuxManager {
       role: config.role,
       branchName: config.branchName,
     });
-    return this.errorBoundary.handle(
+    return await this.errorBoundary.handle(
       () => this.tmuxManager.launchSession(config),
       'TmuxService.launchSession',
     );
@@ -149,7 +149,7 @@ export class TmuxServiceAdapter implements ITmuxManager {
       role: config.role,
       branchName: config.branchName,
     });
-    return this.errorBoundary.handle(
+    return await this.errorBoundary.handle(
       () => this.tmuxManager.createDetachedSession(config),
       'TmuxService.createDetachedSession',
     );
@@ -157,7 +157,7 @@ export class TmuxServiceAdapter implements ITmuxManager {
 
   async attachToSession(sessionName: string): Promise<void> {
     this.logger.info('Attaching to tmux session', { sessionName });
-    return this.errorBoundary.handle(
+    return await this.errorBoundary.handle(
       () => this.tmuxManager.attachToSession(sessionName),
       'TmuxService.attachToSession',
     );
@@ -165,7 +165,7 @@ export class TmuxServiceAdapter implements ITmuxManager {
 
   async killSession(sessionName: string): Promise<void> {
     this.logger.info('Killing tmux session', { sessionName });
-    return this.errorBoundary.handle(
+    return await this.errorBoundary.handle(
       () => this.tmuxManager.killSession(sessionName),
       'TmuxService.killSession',
     );
@@ -173,7 +173,7 @@ export class TmuxServiceAdapter implements ITmuxManager {
 
   async shutdownAll(): Promise<void> {
     this.logger.info('Shutting down all tmux sessions');
-    return this.errorBoundary.handle(
+    return await this.errorBoundary.handle(
       () => this.tmuxManager.shutdownAll(),
       'TmuxService.shutdownAll',
     );

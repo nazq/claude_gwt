@@ -1,6 +1,6 @@
-import path from 'path';
 import { existsSync } from 'fs';
-import { simpleGit, type SimpleGit } from 'simple-git';
+import path from 'path';
+import { type SimpleGit, simpleGit } from 'simple-git';
 import type { GitWorktreeInfo } from '../../types/index.js';
 import { GitOperationError } from '../errors/CustomErrors.js';
 import { Logger } from '../utils/logger.js';
